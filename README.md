@@ -18,7 +18,7 @@
 
 ---
 
-**gaet** is a zero-config CLI tool that backs up your local PostgreSQL database to any cloud PostgreSQL — Supabase, Neon, AWS RDS, or your own VPS. No YAML. No complex setup. Just two lines of config and you're protected.
+**gaet** is a zero-config CLI tool that backs up your local PostgreSQL database to any cloud PostgreSQL. Supabase, Neon, AWS RDS, or your own VPS. No YAML. No complex setup. Just two lines of config and you're protected.
 
 ```bash
 # Install
@@ -42,7 +42,7 @@ gaet serve       # Dashboard at localhost:9191
 ## Why gaet?
 
 > "I lost 3 months of data because I forgot to set up backups."
-> — Every developer, at least once.
+> Every developer, at least once.
 
 **gaet exists so this never happens to you.**
 
@@ -81,7 +81,7 @@ gaet serve       # Dashboard at localhost:9191
 | 🍎 **macOS** | ✅ Full | launchd timer | launchd agent |
 | 🪟 **Windows** | ✅ Full | Task Scheduler | Background PID |
 
-**gaet is pure Python** — zero pip dependencies. Only requires PostgreSQL tools.
+**gaet is pure Python**. Zero pip dependencies. Only requires PostgreSQL tools.
 
 ### Quick Install
 
@@ -99,11 +99,11 @@ irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
 
 gaet is built for production workloads:
 
-- **Zero downtime backups** — Uses `pg_dump`/`pg_restore`, the same tools PostgreSQL uses internally
-- **Audit trail** — Every backup is logged with timestamp, size, and status
-- **No vendor lock-in** — Works with any PostgreSQL provider. Switch from Supabase to RDS? Just change one URL.
-- **Self-hosted** — Your data never touches our servers. Run it on your infra.
-- **MIT License** — Free for commercial use. No per-seat pricing.
+- **Zero downtime backups**. Uses `pg_dump`/`pg_restore`, the same tools PostgreSQL uses internally
+- **Audit trail**. Every backup is logged with timestamp, size, and status
+- **No vendor lock-in**. Works with any PostgreSQL provider. Switch from Supabase to RDS? Just change one URL.
+- **Self-hosted**. Your data never touches our servers. Run it on your infra.
+- **MIT License**. Free for commercial use. No per-seat pricing.
 
 ```bash
 # See exactly what's happening
@@ -158,7 +158,7 @@ gaet init
 nano ~/.gaet/.env
 ```
 
-**Minimal config** — only 2 lines required:
+**Minimal config**. Only 2 lines required:
 
 ```env
 # Local database (default: hindsight@127.0.0.1:5432/hindsight)
@@ -212,10 +212,10 @@ gaet serve        # Open dashboard
 └─────────────┘                └──────────────┘                 └──────────────┘
 ```
 
-**Step 1:** `pg_dump` — Extract all from local database
-**Step 2:** Integrity check — Validate dump before upload
-**Step 3:** `pg_restore` — Restore to cloud with cleanup flags
-**Step 4:** Retention — Delete old backups (default 7 days)
+**Step 1:** `pg_dump`. Extract all from local database
+**Step 2:** Integrity check. Validate dump before upload
+**Step 3:** `pg_restore`. Restore to cloud with cleanup flags
+**Step 4:** Retention. Delete old backups (default 7 days)
 
 **Auto-detected:**
 - ✅ All tables (schema)
@@ -384,12 +384,12 @@ python gaet.py serve
 
 ## Dependencies
 
-**Python: 0 external packages** — stdlib only, no `pip install` needed.
+**Python: 0 external packages**. Stdlib only, no `pip install` needed.
 
 **External tools:**
-- `pg_dump`, `pg_restore`, `psql` — PostgreSQL (auto-detect)
-- `node`, `npm` — Node.js (dashboard only)
-- `systemctl` / `launchctl` / `schtasks` — Auto-detected
+- `pg_dump`, `pg_restore`, `psql`. PostgreSQL (auto-detect)
+- `node`, `npm`. Node.js (dashboard only)
+- `systemctl` / `launchctl` / `schtasks`. Auto-detected
 
 ---
 
@@ -444,4 +444,4 @@ MIT License
 
 ---
 
-*gaet v1.0.0 — designed to be a safety net for your database.*
+*gaet v1.0.0. Designed to be a safety net for your database.*
