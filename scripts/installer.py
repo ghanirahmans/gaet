@@ -457,13 +457,13 @@ def setup_auto_backup(interval_hours: int) -> bool:
     """Enable auto-backup with given interval."""
     box_title("Setup Auto-Backup")
 
-    # Import scheduler (from installed package or inline)
+    # Import scheduler (from scripts package)
     try:
         from scripts.scheduler import scheduler_enable, get_scheduler_name
         name = get_scheduler_name()
     except ImportError:
-        from gaet import scheduler_enable, get_scheduler_name
-        name = get_scheduler_name()
+        status_warn("Module scripts.scheduler tidak ditemukan. Auto-backup dilewati.")
+        return False
 
     status_info(f"Mengaktifkan auto-backup via {name} setiap {interval_hours} jam...")
     scheduler_enable("gaet", interval_hours)
@@ -475,11 +475,12 @@ def setup_dashboard_service(dashboard_dir: Path) -> bool:
     """Enable dashboard service via service_manager."""
     box_title("Setup Dashboard Service")
 
+    # Import service_manager
     try:
         from scripts.service_manager import service_start, service_is_running
     except ImportError:
-        from gaet import _svc_start as service_start
-        from gaet import _svc_is_running as service_is_running
+        status_warn("Module scripts.service_manager tidak ditemukan. Service dilewati.")
+        return False
 
     if service_is_running():
         status_ok("Dashboard sudah berjalan")
@@ -566,17 +567,16 @@ def run(
 
     # ── Step 2: Setup config ────────────────────────────────────────
     if not skip_config:
-        if ENV_FILE.exists() and not yes:
-            echo()
-            echo(f"  {D}Config sudah ada di {ENV_FILE}{NC}")
-            if not yesno("Konfigurasi ulang?", False):
-                config = _read_existing_config()
-            else:
-                config = setup_config()
+        if ENV_FILE.exists() and (yes or not yesno("Konfigurasi ulang?", False)):
+            config = _read_existing_config()
+        elif yes:
+            # --yes mode with no existing config: skip wizard
+            config = {}
+            status_warn("No config found — skipping (run interactive mode to set up)")
         else:
             config = setup_config()
 
-        if not config:
+        if not config and not yes:
             status_warn("Konfigurasi tidak lengkap")
             if not yes:
                 return 1

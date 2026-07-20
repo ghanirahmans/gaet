@@ -198,7 +198,6 @@ launchctl stop com.gaet.dashboard
 ```
 gaet/
 ├── gaet.py                 # Main CLI (Python, ~1500 lines)
-├── gaet.bash               # Original Bash CLI (backup)
 ├── install.py              # Python installer entry point
 ├── .env.example            # Config template with docs
 ├── README.md               # This file
