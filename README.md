@@ -1,12 +1,12 @@
 # gaet
 
-**Database Backup & Sync CLI** — Backup PostgreSQL lokal ke cloud (Supabase, Neon, RDS, atau VPS sendiri).
+**Database Backup & Sync CLI** — Backup local PostgreSQL to cloud (Supabase, Neon, RDS, or your own VPS).
 
 ```bash
-gaet check          # Verifikasi semua koneksi
-gaet push           # Backup lokal → cloud
-gaet status         # Status sinkronisasi
-gaet serve          # Dashboard web
+gaet check          # Verify all connections
+gaet push           # Backup local → cloud
+gaet status         # Sync status
+gaet serve          # Web dashboard
 ```
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -19,16 +19,16 @@ gaet serve          # Dashboard web
 
 | Feature | Description |
 |---------|-------------|
-| 🔒 Concurrency lock | Cegah backup berjalan bersamaan |
-| ⏱️ 120s timeout | Koneksi cloud tidak hang selamanya |
-| ✅ Integrity check | Dump diverifikasi sebelum upload |
-| 📦 Compressed dumps | Format custom, kompresi level 9 |
-| 🧹 Auto-retention | Backup lama dihapus otomatis (default 7 hari) |
-| 🔄 Auto-backup | Periodik via systemd / launchd / Task Scheduler |
-| 🚀 Web dashboard | Next.js 15 — real-time status, satu klik push/fetch |
-| 🔌 Multi-cloud | Supabase, Neon, RDS, atau PostgreSQL VPS sendiri |
-| 🌓 Light/Dark mode | Dashboard mendukung tema terang dan gelap |
-| 📊 Sync visualization | Tabel sinkronisasi dengan progress bar |
+| 🔒 Concurrency lock | Prevents overlapping backups |
+| ⏱️ 120s timeout | Cloud connections never hang forever |
+| ✅ Integrity check | Dump verified before upload |
+| 📦 Compressed dumps | Custom format, compression level 9 |
+| 🧹 Auto-retention | Old backups auto-deleted (default 7 days) |
+| 🔄 Auto-backup | Periodic via systemd / launchd / Task Scheduler |
+| 🚀 Web dashboard | Next.js 15 — real-time status, one-click push/fetch |
+| 🔌 Multi-cloud | Supabase, Neon, RDS, or your own PostgreSQL VPS |
+| 🌓 Light/Dark mode | Dashboard supports both themes |
+| 📊 Sync visualization | Per-table sync status with progress bar |
 
 ---
 
@@ -40,18 +40,18 @@ gaet serve          # Dashboard web
 | 🍎 macOS | ✅ Full | launchd timer | launchd agent |
 | 🪟 Windows | ✅ Full | Task Scheduler | Background PID |
 
-**gaet murni Python** — zero dependency pip. Cuma butuh PostgreSQL tools.
+**gaet is pure Python** — zero pip dependencies. Only requires PostgreSQL tools.
 
 ---
 
 ## Requirements
 
-| Dependency | Required? | Catatan |
-|------------|-----------|---------|
-| Python 3.8+ | ✅ Required | CLI utama |
+| Dependency | Required? | Notes |
+|------------|-----------|-------|
+| Python 3.8+ | ✅ Required | The CLI itself |
 | PostgreSQL tools | ✅ Required | `pg_dump`, `pg_restore`, `psql` |
-| Node.js 18+ | ⚠️ Dashboard only | Untuk web dashboard |
-| Cloud PostgreSQL | ✅ Required | Target backup (Supabase/Neon/RDS/VPS) |
+| Node.js 18+ | ⚠️ Dashboard only | For the web dashboard |
+| Cloud PostgreSQL | ✅ Required | Your backup target (Supabase/Neon/RDS/VPS) |
 
 ---
 
@@ -60,67 +60,67 @@ gaet serve          # Dashboard web
 ### 1. Install
 
 ```bash
-# Clone dan install
+# Clone and install
 git clone https://github.com/ghanirahmans/gaet.git
 cd gaet
 bash install.sh
 
-# Atau auto-pilot
+# Or auto-pilot mode
 bash install.sh --yes
 ```
 
-### 2. Konfigurasi
+### 2. Configure
 
 ```bash
-# Jalankan wizard
+# Run the wizard
 gaet init
 
-# Atau edit manual
+# Or edit manually
 nano ~/.gaet/.env
 ```
 
-**Minimal config** — cuma 2 baris yang wajib diisi:
+**Minimal config** — only 2 lines required:
 
 ```env
-# Database lokal (default: hindsight@127.0.0.1:5432/hindsight)
+# Local database (default: hindsight@127.0.0.1:5432/hindsight)
 GAET_LOCAL_URL=postgresql://user:pass@127.0.0.1:5432/db
 
-# Database cloud (WAJIB)
+# Cloud database (REQUIRED)
 GAET_REMOTE_URL=postgresql://user:pass@host:5432/db
 ```
 
-### 3. Backup Pertama
+### 3. First Backup
 
 ```bash
-gaet check        # Verifikasi koneksi
-gaet push         # Backup lokal → cloud
-gaet status       # Cek status
-gaet serve        # Buka dashboard
+gaet check        # Verify connections
+gaet push         # Backup local → cloud
+gaet status       # Check sync status
+gaet serve        # Open dashboard
 ```
 
 ---
 
 ## Commands
 
-| Command | Deskripsi |
-|---------|-----------|
-| `gaet init` | Setup wizard interaktif |
-| `gaet init hindsight` | Setup dengan preset Hindsight |
-| `gaet push` | Backup lokal → cloud |
-| `gaet fetch` | Restore cloud → lokal |
-| `gaet status` | Tabel sinkronisasi |
-| `gaet status --json` | Status JSON untuk scripting |
-| `gaet check` | Validasi konfigurasi & koneksi |
-| `gaet log [N]` | Lihat N baris log terakhir |
-| `gaet push --auto[=N]` | Auto-backup tiap N jam (default 6) |
-| `gaet stop` | Hentikan auto-backup & dashboard |
-| `gaet stop --scheduler` | Hentikan auto-backup saja |
-| `gaet stop --dashboard` | Hentikan dashboard saja |
-| `gaet serve` | Jalankan dashboard web |
-| `gaet update` | Update ke versi terbaru dari GitHub |
-| `gaet update --force` | Force update (skip perubahan lokal) |
-| `gaet --version` | Tampilkan versi |
-| `gaet --help` | Tampilkan bantuan |
+| Command | Description |
+|---------|-------------|
+| `gaet init` | Interactive setup wizard |
+| `gaet init hindsight` | Setup with Hindsight preset |
+| `gaet push` | Backup local → cloud |
+| `gaet fetch` | Restore cloud → local |
+| `gaet status` | Sync status table |
+| `gaet status --json` | Status as JSON for scripting |
+| `gaet check` | Validate config & connections |
+| `gaet log [N]` | View last N lines of backup log |
+| `gaet push --auto[=N]` | Enable auto-backup every N hours (default 6) |
+| `gaet stop` | Stop auto-backup & dashboard |
+| `gaet stop --scheduler` | Stop auto-backup only |
+| `gaet stop --dashboard` | Stop dashboard only |
+| `gaet serve` | Start web dashboard |
+| `gaet update` | Update to latest version from GitHub |
+| `gaet update --force` | Force update (skip local changes) |
+| `gaet --version` | Show version |
+| `gaet --help` | Show help |
 
 ---
 
@@ -133,57 +133,57 @@ gaet serve        # Buka dashboard
 └─────────────┘                └──────────────┘                 └──────────────┘
 ```
 
-**Step 1:** `pg_dump` — Ambil semua dari database lokal
-**Step 2:** Integrity check — Validasi dump sebelum upload
-**Step 3:** `pg_restore` — Restore ke cloud dengan cleanup flags
-**Step 4:** Retention — Hapus backup lama (default 7 hari)
+**Step 1:** `pg_dump` — Extract all from local database
+**Step 2:** Integrity check — Validate dump before upload
+**Step 3:** `pg_restore` — Restore to cloud with cleanup flags
+**Step 4:** Retention — Delete old backups (default 7 days)
 
-**Yang di-auto-detect:**
-- ✅ Semua tabel (schema)
-- ✅ Semua data
+**Auto-detected:**
+- ✅ All tables (schema)
+- ✅ All data
 - ✅ Indexes & sequences
 - ✅ Foreign keys & constraints
-- ✅ Extensions (pgvector, dll)
+- ✅ Extensions (pgvector, etc.)
 
 ---
 
 ## Presets
 
-gaet works dengan **PostgreSQL database manapun**. Untuk database populer, presets auto-configure:
+gaet works with **any PostgreSQL database**. For popular databases, presets auto-configure everything:
 
-| Preset | Deskripsi | Usage |
-|--------|-----------|-------|
+| Preset | Description | Usage |
+|--------|-------------|-------|
 | `hindsight` | Hindsight AI memory database | `gaet init hindsight` |
 
 ```bash
-# Generic (database apapun)
+# Generic (any database)
 gaet init
 
-# Dengan preset
+# With preset
 gaet init hindsight
 ```
 
-**Custom presets:** Edit dict `PRESETS` di `gaet.py`.
+**Custom presets:** Edit the `PRESETS` dict in `gaet.py`.
 
 ---
 
 ## Auto-Backup
 
 ```bash
-# Aktifkan auto-backup (default: tiap 6 jam)
+# Enable auto-backup (default: every 6 hours)
 gaet push --auto
 
-# Tiap 3 jam
+# Every 3 hours
 gaet push --auto=3
 
-# Hentikan
+# Stop
 gaet stop
 ```
 
 **Platform-specific commands:**
 
-| Platform | Cek Status | Hapus |
-|----------|------------|-------|
+| Platform | Check Status | Remove |
+|----------|--------------|--------|
 | 🐧 Linux | `systemctl --user list-timers` | `gaet stop --scheduler` |
 | 🍎 macOS | `launchctl list \| grep gaet` | `gaet stop --scheduler` |
 | 🪟 Windows | `schtasks /Query /TN "gaet-backup"` | `gaet stop --scheduler` |
@@ -192,21 +192,21 @@ gaet stop
 
 ## Dashboard Web
 
-Dashboard Next.js 15 dengan Tailwind CSS v4. Running di background via systemd/launchd.
+Next.js 15 dashboard with Tailwind CSS v4. Runs in background via systemd/launchd.
 
 ```bash
 # Start
 gaet serve
 
-# Buka di browser
+# Open in browser
 http://localhost:9191
 ```
 
-### Fitur Dashboard
-- Real-time sync status (auto-refresh 8 detik)
-- Tabel sinkronisasi per-database
-- Tombol push/fetch satu klik
-- Indikator auto-backup
+### Dashboard Features
+- Real-time sync status (auto-refresh every 8 seconds)
+- Per-table sync status
+- One-click push/fetch buttons
+- Auto-backup indicator
 - Light/Dark mode toggle
 - Responsive design (mobile-first)
 
@@ -228,22 +228,22 @@ gaet serve
 
 ## Configuration
 
-Semua config di `~/.gaet/.env`:
+All config in `~/.gaet/.env`:
 
-| Variable | Default | Deskripsi |
-|----------|---------|-----------|
-| `GAET_REMOTE_URL` | — | PostgreSQL URL cloud (WAJIB) |
-| `GAET_LOCAL_URL` | `postgresql://postgres:@127.0.0.1:5432/postgres` | Database lokal |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GAET_REMOTE_URL` | — | PostgreSQL URL for cloud (REQUIRED) |
+| `GAET_LOCAL_URL` | `postgresql://postgres:@127.0.0.1:5432/postgres` | Local database |
 | `GAET_TABLES` | *(auto-discover)* | Comma-separated table list |
-| `GAET_RETENTION_DAYS` | `7` | Hari penyimpanan backup |
-| `GAET_DASHBOARD_PORT` | `9191` | Port dashboard web |
+| `GAET_RETENTION_DAYS` | `7` | Days to keep backups |
+| `GAET_DASHBOARD_PORT` | `9191` | Dashboard web port |
 | `GAET_DASHBOARD_HOST` | `0.0.0.0` | Dashboard bind address |
-| `GAET_AUTO_INTERVAL` | `6` | Interval auto-backup (jam) |
-| `GAET_SERVICE_PREFIX` | `gaet` | Prefix nama service |
-| `GAET_PG_DUMP` | *(auto-detect)* | Path ke pg_dump |
-| `GAET_PG_RESTORE` | *(auto-detect)* | Path ke pg_restore |
-| `GAET_PSQL` | *(auto-detect)* | Path ke psql |
-| `GAET_REMOTE_SSLMODE` | `require` | SSL mode untuk cloud |
+| `GAET_AUTO_INTERVAL` | `6` | Auto-backup interval (hours) |
+| `GAET_SERVICE_PREFIX` | `gaet` | Service name prefix |
+| `GAET_PG_DUMP` | *(auto-detect)* | Path to pg_dump |
+| `GAET_PG_RESTORE` | *(auto-detect)* | Path to pg_restore |
+| `GAET_PSQL` | *(auto-detect)* | Path to psql |
+| `GAET_REMOTE_SSLMODE` | `require` | SSL mode for cloud |
 | `GAET_PROJECT_DIR` | — | Override project root |
 
 ---
@@ -252,13 +252,13 @@ Semua config di `~/.gaet/.env`:
 
 ```
 gaet/
-├── gaet.py                  # CLI utama (Python, ~2000 baris)
+├── gaet.py                  # Main CLI (Python, ~2000 lines)
 ├── install.sh               # Universal installer
-├── .env.example             # Template konfigurasi
-├── README.md                # Dokumentasi ini
+├── .env.example             # Config template
+├── README.md                # This file
 ├── dashboard/               # Next.js 15 app
 │   ├── app/
-│   │   ├── page.tsx         # Dashboard utama
+│   │   ├── page.tsx         # Dashboard main page
 │   │   ├── globals.css      # Dark/Light theme
 │   │   ├── layout.tsx       # Layout & fonts
 │   │   └── api/             # API routes
@@ -278,10 +278,10 @@ gaet/
 ## Development
 
 ```bash
-# Jalankan dari source
+# Run from source
 python gaet.py --help
 
-# Test tanpa PostgreSQL
+# Test without PostgreSQL
 python gaet.py status --json
 
 # Build dashboard
@@ -316,39 +316,39 @@ python gaet.py serve
 
 ## Troubleshooting
 
-### `gaet check` gagal
-- Pastikan PostgreSQL tools terinstall: `which pg_dump pg_restore psql`
-- Cek config: `cat ~/.gaet/.env`
-- Test koneksi: `gaet check`
+### `gaet check` fails
+- Verify PostgreSQL tools: `which pg_dump pg_restore psql`
+- Check config: `cat ~/.gaet/.env`
+- Test connection: `gaet check`
 
-### Dashboard tidak bisa diakses
-- Cek service: `gaet stop --dashboard && gaet serve`
-- Cek log: `journalctl --user -u gaet-dashboard.service -f`
-- Pastikan port 9191 belum dipakai: `lsof -i :9191`
+### Dashboard won't open
+- Check service: `gaet stop --dashboard && gaet serve`
+- Check logs: `journalctl --user -u gaet-dashboard.service -f`
+- Verify port 9191 is free: `lsof -i :9191`
 
-### Auto-backup tidak jalan
-- Cek timer: `systemctl --user list-timers | grep gaet`
+### Auto-backup not running
+- Check timer: `systemctl --user list-timers | grep gaet`
 - Restart: `gaet stop --scheduler && gaet push --auto`
 
-### `gaet update` tidak bisa jalan
-- Cek perubahan lokal: `git status`
+### `gaet update` won't work
+- Check local changes: `git status`
 - Force update: `gaet update --force`
 
 ---
 
 ## FAQ
 
-**Q: gaet support database selain PostgreSQL?**
-A: Belum. gaet dirancang khusus untuk PostgreSQL ecosystem.
+**Q: Does gaet support databases other than PostgreSQL?**
+A: Not yet. gaet is designed specifically for the PostgreSQL ecosystem.
 
-**Q: Bisa backup ke S3/GCS langsung?**
-A: Ga. gaet backup ke PostgreSQL cloud (Supabase, Neon, RDS). Kalau butuh object storage, pertimbangkan tool lain.
+**Q: Can I backup to S3/GCS directly?**
+A: No. gaet backs up to PostgreSQL cloud (Supabase, Neon, RDS). For object storage, consider other tools.
 
-**Q: Berapa lama backup disimpan?**
-A: Default 7 hari. Atur dengan `GAET_RETENTION_DAYS`.
+**Q: How long are backups kept?**
+A: Default 7 days. Configure with `GAET_RETENTION_DAYS`.
 
-**Q: Apakah aman?**
-A: Ya. gaet tidak simpan password di logs. Semua credential hanya di `~/.gaet/.env` dengan permission 600.
+**Q: Is it safe?**
+A: Yes. gaet doesn't store passwords in logs. All credentials are only in `~/.gaet/.env` with 600 permissions.
 
 ---
 
@@ -365,4 +365,4 @@ MIT License
 
 ---
 
-*gaet v1.0.0 — dirancang sebagai safety net untuk database-mu.*
+*gaet v1.0.0 — designed to be a safety net for your database.*
