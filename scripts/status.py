@@ -75,12 +75,25 @@ def find_psql():
 def get_config():
     """Baca .env, return dict konfigurasi."""
     env = load_env(ENV_FILE)
+    local_url = env.get("GAET_LOCAL_URL", "")
+    if local_url:
+        p = parse_url(local_url)
+        if p:
+            lh, lp, lu, ln, lw = p
+        else:
+            lh, lp, lu, ln, lw = "127.0.0.1", "5432", "hindsight", "hindsight", "hindsight"
+    else:
+        lh = env.get("GAET_LOCAL_DB_HOST", "127.0.0.1")
+        lp = env.get("GAET_LOCAL_DB_PORT", "5432")
+        lu = env.get("GAET_LOCAL_DB_USER", "hindsight")
+        ln = env.get("GAET_LOCAL_DB_NAME", "hindsight")
+        lw = env.get("GAET_LOCAL_DB_PASS", "hindsight")
     return {
-        "local_host": env.get("GAET_LOCAL_DB_HOST", "127.0.0.1"),
-        "local_port": env.get("GAET_LOCAL_DB_PORT", "5432"),
-        "local_user": env.get("GAET_LOCAL_DB_USER", "hindsight"),
-        "local_name": env.get("GAET_LOCAL_DB_NAME", "hindsight"),
-        "local_pass": env.get("GAET_LOCAL_DB_PASS", "hindsight"),
+        "local_host": lh,
+        "local_port": lp,
+        "local_user": lu,
+        "local_name": ln,
+        "local_pass": lw,
         "remote_url": env.get("GAET_REMOTE_URL") or env.get("GAET_SUPABASE_URL", ""),
         "retention_days": env.get("GAET_RETENTION_DAYS", "7"),
         "psql": find_psql(),

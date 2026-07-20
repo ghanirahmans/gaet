@@ -80,11 +80,7 @@ Or edit `~/.gaet/.env` manually:
 GAET_REMOTE_URL=postgresql://user:password@host:5432/db
 
 # Local database (default: hindsight@127.0.0.1:5432/hindsight)
-GAET_LOCAL_DB_HOST=127.0.0.1
-GAET_LOCAL_DB_PORT=5432
-GAET_LOCAL_DB_NAME=hindsight
-GAET_LOCAL_USER=hindsight
-
+GAET_LOCAL_URL=postgresql://hindsight:hindsight@127.0.0.1:5432/hindsight
 # Retention
 GAET_RETENTION_DAYS=7
 ```
@@ -225,11 +221,7 @@ All config lives in `~/.gaet/.env`. Here are all available variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GAET_REMOTE_URL` | — | PostgreSQL connection string for cloud target |
-| `GAET_LOCAL_DB_HOST` | `127.0.0.1` | Local database host |
-| `GAET_LOCAL_DB_PORT` | `5432` | Local database port |
-| `GAET_LOCAL_DB_NAME` | `hindsight` | Local database name |
-| `GAET_LOCAL_USER` | `hindsight` | Local database user |
-| `GAET_LOCAL_PASSWORD` | — | Local database password |
+| `GAET_LOCAL_URL` | `postgresql://hindsight:hindsight@127.0.0.1:5432/hindsight` | Local PostgreSQL connection string |
 | `GAET_RETENTION_DAYS` | `7` | Days to keep local backup files |
 | `GAET_DASHBOARD_PORT` | `9191` | Dashboard web server port |
 | `GAET_DASHBOARD_HOST` | `0.0.0.0` | Dashboard bind address |
@@ -277,4 +269,4 @@ gaet uses **only Python standard library** — no `pip install` needed. The only
 
 ---
 
-*gaet v1.0.0 — Built with ❤️ for self-hosters and PostgreSQL lovers.*
+*gaet v1.0.0 — designed to serve as a safety net for your database.*

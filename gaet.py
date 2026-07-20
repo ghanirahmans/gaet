@@ -209,6 +209,25 @@ def parse_remote_url(url: str) -> Optional[Dict[str, str]]:
     }
 
 
+def get_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
+    """Parse GAET_LOCAL_URL or individual vars. Returns (host, port, user, db, passwd)."""
+    url = get_env_str(env, "GAET_LOCAL_URL")
+    if url:
+        p = parse_remote_url(url)
+        if p:
+            return p["host"], p["port"], p["user"], p["db"], p["pass"]
+        # Try with default password if URL doesn't have one
+        return p["host"], p["port"], p["user"], p["db"], ""
+    # Fallback: individual vars (backward compat)
+    return (
+        get_env_str(env, "GAET_LOCAL_DB_HOST", DEF_LOCAL_HOST),
+        get_env_str(env, "GAET_LOCAL_DB_PORT", DEF_LOCAL_PORT),
+        get_env_str(env, "GAET_LOCAL_DB_USER", DEF_LOCAL_USER),
+        get_env_str(env, "GAET_LOCAL_DB_NAME", DEF_LOCAL_DB),
+        get_env_str(env, "GAET_LOCAL_DB_PASS", DEF_LOCAL_PASS),
+    )
+
+
 # ─── PG Tools Discovery ──────────────────────────────────────────────────
 
 def find_pg_tools(env: Dict[str, str]) -> Dict[str, str]:
@@ -433,11 +452,7 @@ def check_tools(env: Dict[str, str]) -> None:
 
 def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
     """Verify local DB connection. Returns (host, port, user, db, passwd)."""
-    h = get_env_str(env, "GAET_LOCAL_DB_HOST", DEF_LOCAL_HOST)
-    p = get_env_str(env, "GAET_LOCAL_DB_PORT", DEF_LOCAL_PORT)
-    u = get_env_str(env, "GAET_LOCAL_DB_USER", DEF_LOCAL_USER)
-    n = get_env_str(env, "GAET_LOCAL_DB_NAME", DEF_LOCAL_DB)
-    w = get_env_str(env, "GAET_LOCAL_DB_PASS", DEF_LOCAL_PASS)
+    h, p, u, n, w = get_local_db(env)
     tools = find_pg_tools(env)
     psql = tools["psql"]
     if not psql:
@@ -624,11 +639,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         echo()
         box_section("Konfigurasi Database Lokal")
         echo(f"  {D}Default: hindsight@127.0.0.1:5432/hindsight{NC}")
-        h = get_env_str(env, "GAET_LOCAL_DB_HOST", DEF_LOCAL_HOST)
-        p = get_env_str(env, "GAET_LOCAL_DB_PORT", DEF_LOCAL_PORT)
-        u = get_env_str(env, "GAET_LOCAL_DB_USER", DEF_LOCAL_USER)
-        n = get_env_str(env, "GAET_LOCAL_DB_NAME", DEF_LOCAL_DB)
-        w = get_env_str(env, "GAET_LOCAL_DB_PASS", DEF_LOCAL_PASS)
+        h, p, u, n, w = get_local_db(env)
 
         h_inp = input(f"  Host [{h}]: ").strip()
         if h_inp: h = h_inp
@@ -661,11 +672,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         # ══════════════════════════════════════════════════════════════
 
         # Database Lokal
-        GAET_LOCAL_DB_HOST={h}
-        GAET_LOCAL_DB_PORT={p}
-        GAET_LOCAL_DB_USER={u}
-        GAET_LOCAL_DB_NAME={n}
-        GAET_LOCAL_DB_PASS={w}
+        GAET_LOCAL_URL=postgresql://{u}:{w}@{h}:{p}/{n}
 
         # Remote Database (Cloud)
         GAET_REMOTE_URL={remote_url}
@@ -705,11 +712,7 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
         all_ok = False
 
     # Local DB
-    h = get_env_str(env, "GAET_LOCAL_DB_HOST", DEF_LOCAL_HOST)
-    p = get_env_str(env, "GAET_LOCAL_DB_PORT", DEF_LOCAL_PORT)
-    u = get_env_str(env, "GAET_LOCAL_DB_USER", DEF_LOCAL_USER)
-    n = get_env_str(env, "GAET_LOCAL_DB_NAME", DEF_LOCAL_DB)
-    w = get_env_str(env, "GAET_LOCAL_DB_PASS", DEF_LOCAL_PASS)
+    h, p, u, n, w = get_local_db(env)
 
     echo(f"  {C}💾{NC}  Database lokal ({h}:{p}/{n})... ", end="")
     psql = tools["psql"]
@@ -824,11 +827,7 @@ def cmd_status(args: argparse.Namespace) -> None:
         return
 
     # Terminal table output
-    h = get_env_str(env, "GAET_LOCAL_DB_HOST", DEF_LOCAL_HOST)
-    p = get_env_str(env, "GAET_LOCAL_DB_PORT", DEF_LOCAL_PORT)
-    u = get_env_str(env, "GAET_LOCAL_DB_USER", DEF_LOCAL_USER)
-    n = get_env_str(env, "GAET_LOCAL_DB_NAME", DEF_LOCAL_DB)
-    w = get_env_str(env, "GAET_LOCAL_DB_PASS", DEF_LOCAL_PASS)
+    h, p, u, n, w = get_local_db(env)
 
     box_title(f"{NAME} status")
 
@@ -910,11 +909,7 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
     Matches the same schema as status.py's get_status().
     """
     psql = tools["psql"]
-    h = get_env_str(env, "GAET_LOCAL_DB_HOST", DEF_LOCAL_HOST)
-    p = get_env_str(env, "GAET_LOCAL_DB_PORT", DEF_LOCAL_PORT)
-    u = get_env_str(env, "GAET_LOCAL_DB_USER", DEF_LOCAL_USER)
-    n = get_env_str(env, "GAET_LOCAL_DB_NAME", DEF_LOCAL_DB)
-    w = get_env_str(env, "GAET_LOCAL_DB_PASS", DEF_LOCAL_PASS)
+    h, p, u, n, w = get_local_db(env)
 
     tables_def = [
         "memory_units", "banks", "chunks", "entities", "documents",
@@ -1210,11 +1205,7 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
         cronlog("❌ GAET_REMOTE_URL tidak dikonfigurasi")
         sys.exit(1)
 
-    h = get_env_str(env, "GAET_LOCAL_DB_HOST", DEF_LOCAL_HOST)
-    p = get_env_str(env, "GAET_LOCAL_DB_PORT", DEF_LOCAL_PORT)
-    u = get_env_str(env, "GAET_LOCAL_DB_USER", DEF_LOCAL_USER)
-    n = get_env_str(env, "GAET_LOCAL_DB_NAME", DEF_LOCAL_DB)
-    w = get_env_str(env, "GAET_LOCAL_DB_PASS", DEF_LOCAL_PASS)
+    h, p, u, n, w = get_local_db(env)
     pg_dump = tools["pg_dump"]
     pg_restore = tools["pg_restore"]
     ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
