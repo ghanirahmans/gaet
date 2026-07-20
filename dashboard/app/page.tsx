@@ -287,6 +287,36 @@ export default function Page() {
           />
         </div>
 
+        {/* Actions */}
+        <div className="section">
+          <div className="section-header">
+            <h2>
+              <Icons.Server /> Aksi
+            </h2>
+          </div>
+          <div className="section-body">
+            <div className="actions">
+              <button className="btn btn-primary" onClick={() => act("push", "Push")} disabled={!!busy}>
+                {busy === "Push" ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <Icons.Upload />}
+                Push ke Cloud
+              </button>
+              <button className="btn btn-secondary" onClick={() => act("fetch", "Fetch")} disabled={!!busy}>
+                {busy === "Fetch" ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <Icons.Download />}
+                Fetch dari Cloud
+              </button>
+              {d?.cron_active ? (
+                <button className="btn btn-danger" onClick={() => act("stop", "Stop")} disabled={!!busy}>
+                  <Icons.Stop /> Stop Auto-Backup
+                </button>
+              ) : (
+                <button className="btn btn-secondary" onClick={() => act("push?auto=1", "Auto")} disabled={!!busy}>
+                  <Icons.Activity /> Aktifkan Auto-Backup
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Tables Section */}
         <div className="section">
           <div className="section-header">
@@ -332,36 +362,6 @@ export default function Page() {
                   )}
                 </tbody>
               </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="section">
-          <div className="section-header">
-            <h2>
-              <Icons.Server /> Aksi
-            </h2>
-          </div>
-          <div className="section-body">
-            <div className="actions">
-              <button className="btn btn-primary" onClick={() => act("push", "Push")} disabled={!!busy}>
-                {busy === "Push" ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <Icons.Upload />}
-                Push ke Cloud
-              </button>
-              <button className="btn btn-secondary" onClick={() => act("fetch", "Fetch")} disabled={!!busy}>
-                {busy === "Fetch" ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <Icons.Download />}
-                Fetch dari Cloud
-              </button>
-              {d?.cron_active ? (
-                <button className="btn btn-danger" onClick={() => act("stop", "Stop")} disabled={!!busy}>
-                  <Icons.Stop /> Stop Auto-Backup
-                </button>
-              ) : (
-                <button className="btn btn-secondary" onClick={() => act("push?auto=1", "Auto")} disabled={!!busy}>
-                  <Icons.Activity /> Aktifkan Auto-Backup
-                </button>
-              )}
             </div>
           </div>
         </div>
