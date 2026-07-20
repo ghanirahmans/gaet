@@ -198,6 +198,8 @@ gaet serve        # Open dashboard
 | `gaet serve` | Start web dashboard |
 | `gaet update` | Update to latest version from GitHub |
 | `gaet update --force` | Force update (skip local changes) |
+| `gaet uninstall` | Remove gaet (keeps config) |
+| `gaet uninstall --purge` | Remove everything including config |
 | `gaet --version` | Show version |
 | `gaet --help` | Show help |
 
