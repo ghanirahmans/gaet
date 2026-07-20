@@ -8,6 +8,8 @@ Usage:
   gaet init              Setup wizard
   gaet push              Local → cloud
   gaet fetch             Cloud → local
+  gaet update            Update ke versi terbaru
+  gaet --version         Tampilkan versi
   gaet status            Tampilkan status
   gaet status --json     Status dalam JSON
   gaet check             Validasi konfigurasi
