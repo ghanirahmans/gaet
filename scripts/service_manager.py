@@ -95,21 +95,20 @@ def _delete_pid() -> None:
 
 
 def _next_cmd(dashboard_dir: Path) -> Optional[List[str]]:
-    """Find the platform-appropriate Next.js CLI command.
-
+    """Return the next start command as a list.
     Returns a list of arguments suitable for subprocess.Popen.
     """
-    candidates: List[Path] = [
-        dashboard_dir / "node_modules" / ".bin" / "next.cmd",
+    # Try to find next.js binary
+    candidates = [
         dashboard_dir / "node_modules" / ".bin" / "next",
         dashboard_dir / "node_modules" / "next" / "dist" / "bin" / "next.js",
     ]
     for c in candidates:
         if c.exists():
-            if c.suffix == ".cmd" or IS_WINDOWS:
-                # Run .cmd directly, or the bare 'next' file on Windows
-                return [str(c)]
-            # Unix: run with node since the shebang might not be trusted
+            # Use node to execute next.js (avoids shebang/symlink issues in systemd)
+            node = shutil.which("node")
+            if node:
+                return [node, str(c)]
             return [str(c)]
     return None
 
@@ -153,6 +152,8 @@ def _linux_start(dashboard_dir: Path, port: int, host: str, node: str) -> Tuple[
     svc_path = user_systemd / "gaet-dashboard.service"
     svc_path.write_text(svc_content)
 
+    # Stop existing service first if running
+    _run(["systemctl", "--user", "stop", "gaet-dashboard.service"], timeout=5)
     _run(["systemctl", "--user", "daemon-reload"], timeout=10)
     _, _, rc = _run(["systemctl", "--user", "enable", "--now", "gaet-dashboard.service"], timeout=15)
 

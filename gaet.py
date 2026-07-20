@@ -1529,16 +1529,35 @@ def cmd_auto_on(args: argparse.Namespace) -> None:
 
 
 def cmd_stop_auto(args: argparse.Namespace) -> None:
-    """Hentikan auto-backup + dashboard service."""
+    """Hentikan auto-backup dan/atau dashboard."""
     env = load_env()
     prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
 
-    # Stop scheduler (auto-backup)
+    if getattr(args, "dashboard", False):
+        # Only stop dashboard
+        status_info("Menghentikan dashboard...")
+        if _svc_is_running():
+            ok, msg = _svc_stop()
+            if ok:
+                status_ok("Dashboard dihentikan")
+            else:
+                status_warn(f"Gagal menghentikan dashboard: {msg}")
+        else:
+            status_warn("Dashboard tidak berjalan")
+        return
+
+    if getattr(args, "scheduler", False):
+        # Only stop auto-backup
+        status_info("Menghentikan auto-backup...")
+        scheduler_disable(prefix)
+        status_ok("Auto-backup dihentikan")
+        return
+
+    # Default: stop both
     status_info("Menghentikan auto-backup...")
     scheduler_disable(prefix)
     status_ok("Auto-backup dihentikan")
 
-    # Stop dashboard service jika berjalan
     if _svc_is_running():
         status_info("Menghentikan dashboard...")
         ok, msg = _svc_stop()
@@ -1817,7 +1836,9 @@ def main() -> None:
     subparsers.add_parser("fetch", help="Restore cloud → local")
 
     # stop
-    subparsers.add_parser("stop", help="Hentikan auto-backup")
+    stop_parser = subparsers.add_parser("stop", help="Hentikan auto-backup dan/atau dashboard")
+    stop_parser.add_argument("--scheduler", action="store_true", help="Hentikan auto-backup saja")
+    stop_parser.add_argument("--dashboard", action="store_true", help="Hentikan dashboard saja")
 
     # log
     log_parser = subparsers.add_parser("log", help="Lihat log backup")
