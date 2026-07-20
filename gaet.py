@@ -1587,6 +1587,128 @@ def cmd_install(args: argparse.Namespace) -> None:
     sys.exit(rc)
 
 
+def cmd_update(args: argparse.Namespace) -> None:
+    """Update gaet to latest version from GitHub."""
+    box_title(f"{NAME} update")
+    
+    # Find project directory (where .git exists)
+    script_dir = Path(sys.argv[0]).resolve().parent
+    candidates = [
+        script_dir.parent,  # installed from project root
+        script_dir / "..",
+        HOME / "Projects/gaet",
+        HOME / ".local/share/gaet",
+    ]
+    
+    project_dir = None
+    for cand in candidates:
+        if (cand / ".git").is_dir() and (cand / "gaet.py").is_file():
+            project_dir = cand.resolve()
+            break
+    
+    if not project_dir:
+        die("Project directory tidak ditemukan. Jalankan dari folder gaet atau set GAET_PROJECT_DIR")
+    
+    echo(f"  {C}📁{NC}  Project: {D}{project_dir}{NC}")
+    
+    # Check if git is available
+    git = shutil.which("git") or ""
+    if not git:
+        die("git tidak ditemukan. Install git dulu.")
+    
+    # Check if there are local changes
+    out, _, rc = run_cmd([git, "-C", str(project_dir), "status", "--porcelain"], timeout=10)
+    if out.strip():
+        status_warn("Ada perubahan lokal di project")
+        if not args.force:
+            status_info("Backup perubahan dulu atau gunakan --force")
+            echo(f"    {D}git -C {project_dir} stash{NC}")
+            echo(f"    {D}gaet update --force{NC}")
+            return
+    
+    # Fetch and pull
+    echo()
+    box_section("Fetching update")
+    
+    status_info("Fetching from remote...")
+    out, err, rc = run_cmd([git, "-C", str(project_dir), "fetch", "origin"], timeout=30)
+    if rc != 0:
+        die(f"Fetch gagal: {err}")
+    status_ok("Fetch selesai")
+    
+    # Check current vs remote
+    out_local, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "HEAD"], timeout=5)
+    out_remote, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "origin/master"], timeout=5)
+    
+    if out_local.strip() == out_remote.strip():
+        status_ok("Sudah versi terbaru!")
+        return
+    
+    # Show what will be updated
+    out_log, _, _ = run_cmd([git, "-C", str(project_dir), "log", "--oneline", f"{out_local.strip()}..{out_remote.strip()}"], timeout=10)
+    if out_log.strip():
+        echo()
+        box_section("Commits baru")
+        for line in out_log.strip().split("\n")[:5]:
+            status_arrow(line)
+    
+    # Pull
+    echo()
+    box_section("Pulling update")
+    out, err, rc = run_cmd([git, "-C", str(project_dir), "pull", "origin", "master"], timeout=30)
+    if rc != 0:
+        die(f"Pull gagal: {err}")
+    status_ok("Pull selesai")
+    
+    # Copy to install location
+    echo()
+    box_section("Installing")
+    install_dir = Path.home() / ".local" / "bin"
+    install_dir.mkdir(parents=True, exist_ok=True)
+    
+    src = project_dir / "gaet.py"
+    dst = install_dir / "gaet"
+    
+    if src.is_file():
+        shutil.copy2(str(src), str(dst))
+        dst.chmod(0o755)
+        status_ok(f"gaet → {dst}")
+    
+    # Copy scripts if exists
+    scripts_src = project_dir / "scripts"
+    if scripts_src.is_dir():
+        scripts_dst = install_dir / "scripts"
+        scripts_dst.mkdir(parents=True, exist_ok=True)
+        for f in scripts_src.glob("*.py"):
+            shutil.copy2(str(f), str(scripts_dst / f.name))
+        status_ok(f"scripts → {scripts_dst}/")
+    
+    # Copy dashboard if exists and rebuild
+    dashboard_src = project_dir / "dashboard"
+    if dashboard_src.is_dir() and not args.skip_build:
+        echo()
+        box_section("Building dashboard")
+        node = shutil.which("node")
+        npm = shutil.which("npm")
+        if node and npm:
+            status_info("Installing dependencies...")
+            run_cmd([npm, "install"], cwd=str(dashboard_src), timeout=120)
+            status_info("Building...")
+            run_cmd([npm, "run", "build"], cwd=str(dashboard_src), timeout=120)
+            status_ok("Dashboard built")
+        else:
+            status_warn("Node.js/npm tidak ditemukan — skip dashboard build")
+    
+    # Show version
+    echo()
+    box_section("Version")
+    r = run_cmd([sys.executable, str(dst), "--version"], timeout=5)
+    status_ok(r[0].strip() if r[0] else "Updated")
+    
+    echo()
+    status_ok("Update selesai!")
+
+
 def cmd_serve(args: argparse.Namespace) -> None:
     """Jalankan dashboard web."""
     env = load_env()
@@ -1711,6 +1833,11 @@ def main() -> None:
     install_parser.add_argument("--skip-service", action="store_true", help="Skip setup service")
     install_parser.add_argument("--interval", type=int, default=0, help="Interval auto-backup (jam)")
 
+    # update
+    update_parser = subparsers.add_parser("update", help="Update gaet ke versi terbaru")
+    update_parser.add_argument("--force", action="store_true", help="Force update (skip local changes check)")
+    update_parser.add_argument("--skip-build", action="store_true", help="Skip build dashboard")
+
     args = parser.parse_args()
 
     # Default command: status
@@ -1751,6 +1878,7 @@ def main() -> None:
         "log": lambda: cmd_log(args),
         "serve": lambda: cmd_serve(args),
         "install": lambda: cmd_install(args),
+        "update": lambda: cmd_update(args),
     }
 
     cmd_func = command_map.get(args.command)
