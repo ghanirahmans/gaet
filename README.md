@@ -7,7 +7,7 @@
 <p align="center">
   <strong>Database Backup & Sync CLI</strong><br>
   Backup local PostgreSQL to cloud (Supabase, Neon, RDS, or your own VPS).
-</p> — Backup local PostgreSQL to cloud (Supabase, Neon, RDS, or your own VPS).
+</p>
 
 ```bash
 gaet check          # Verify all connections
