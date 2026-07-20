@@ -77,10 +77,11 @@ Or edit `~/.gaet/.env` manually:
 
 ```env
 # Target cloud database
-GAET_REMOTE_URL=postgresql://user:password@host:5432/db
+GAET_REMOTE_URL=postgresql://user:***@host:5432/db
 
-# Local database (default: hindsight@127.0.0.1:5432/hindsight)
-GAET_LOCAL_URL=postgresql://hindsight:hindsight@127.0.0.1:5432/hindsight
+# Local database (default: postgres@127.0.0.1:5432/postgres)
+GAET_LOCAL_URL=postgresql://postgres:***@127.0.0.1:5432/postgres
+
 # Retention
 GAET_RETENTION_DAYS=7
 ```
@@ -183,7 +184,7 @@ start http://localhost:9191     # Windows
 ### Dashboard Features
 
 - Real-time sync status (auto-refresh every 8 seconds)
-- Per-table sync status (9 tracked tables)
+- Per-table sync status (auto-discover from database)
 - One-click push / fetch buttons
 - Auto-backup indicator with countdown
 - Dark theme UI
@@ -242,7 +243,8 @@ All config lives in `~/.gaet/.env`. Here are all available variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GAET_REMOTE_URL` | — | PostgreSQL connection string for cloud target |
-| `GAET_LOCAL_URL` | `postgresql://hindsight:hindsight@127.0.0.1:5432/hindsight` | Local PostgreSQL connection string |
+| `GAET_LOCAL_URL` | `postgresql://postgres:@127.0.0.1:5432/postgres` | Local PostgreSQL connection string |
+| `GAET_TABLES` | *(auto-discover)* | Comma-separated table list (default: auto-discover from DB) |
 | `GAET_RETENTION_DAYS` | `7` | Days to keep local backup files |
 | `GAET_DASHBOARD_PORT` | `9191` | Dashboard web server port |
 | `GAET_DASHBOARD_HOST` | `0.0.0.0` | Dashboard bind address |
