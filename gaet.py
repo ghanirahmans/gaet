@@ -1712,6 +1712,14 @@ def main() -> None:
     if args.command is None:
         args.command = "status"
 
+    # Set defaults for attributes that may not exist on main parser
+    if not hasattr(args, "json"):
+        args.json = False
+    if not hasattr(args, "cron"):
+        args.cron = False
+    if not hasattr(args, "auto"):
+        args.auto = None
+
     # ── auto mode (push --auto = enable scheduler) ──
     if args.command == "push":
         if args.cron:
