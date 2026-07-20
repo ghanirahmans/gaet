@@ -4,7 +4,7 @@ Digunakan oleh `gaet status --json` dan dashboard.
 Membaca config dari ~/.gaet/.env.
 """
 
-import subprocess, os, json, glob, re
+import subprocess, os, sys, json, glob, re
 from pathlib import Path
 
 HOME = os.path.expanduser("~")
@@ -47,6 +47,22 @@ def find_psql():
         p = f"{HOME}/.pg0/installation/{ver}/bin/psql"
         if os.path.isfile(p):
             return p
+    # Windows: C:\Program Files\PostgreSQL\*\bin\psql.exe
+    if sys.platform.startswith("win"):
+        for base in [r"C:\Program Files\PostgreSQL", r"C:\Program Files (x86)\PostgreSQL"]:
+            if os.path.isdir(base):
+                try:
+                    vers = sorted(
+                        (v for v in os.listdir(base) if os.path.isdir(os.path.join(base, v))),
+                        key=lambda v: [int(x) for x in v.split(".") if x.isdigit()] or [0],
+                        reverse=True
+                    )
+                    for ver in vers:
+                        p = os.path.join(base, ver, "bin", "psql.exe")
+                        if os.path.isfile(p):
+                            return p
+                except PermissionError:
+                    pass
     # PATH
     try:
         p = subprocess.run(["which", "psql"], capture_output=True, text=True, timeout=5)
@@ -109,6 +125,33 @@ def get_table_counts(psql, host, port, user, db, passwd, ssl_mode=None):
                 pass
     return counts
 
+def is_cron_active():
+    """Cek status cron/timer cross-platform.
+    
+    Returns:
+        bool: True jika scheduler aktif, False jika tidak atau tidak terdeteksi.
+    """
+    platform = sys.platform
+    try:
+        if platform.startswith("linux"):
+            # systemd user timer
+            out, _, rc = sh(["systemctl", "--user", "is-active", "gaet-backup.timer"])
+            return out.strip() == "active"
+        elif platform == "darwin":
+            # launchd user agent
+            out, _, rc = sh(["launchctl", "list", "gaet-backup"])
+            # launchctl returns 0 dan mencantumkan PID jika loaded & running
+            return rc == 0 and "gaet-backup" in out
+        elif platform == "win32":
+            # Windows Task Scheduler
+            _, _, rc = sh(["schtasks", "/Query", "/TN", "gaet-backup"])
+            return rc == 0
+        else:
+            return False
+    except Exception:
+        return False
+
+
 def get_status():
     """Ambil status lengkap backup."""
     cfg = get_config()
@@ -127,7 +170,7 @@ def get_status():
             "tables": [{"table": t, "local": 0, "supabase": 0, "ok": False}
                        for t in TABLES],
             "backup_count": 0, "last_backup": None,
-            "cron_active": False,
+            "cron_active": is_cron_active(),
             "error": f"Lokal DB tidak terjangkau ({cfg['local_host']}:{cfg['local_port']})"
         }
 
@@ -166,9 +209,7 @@ def get_status():
         pass
 
     # Cron status
-    cron_active = False
-    out, _, _ = sh(["systemctl", "--user", "is-active", "gaet-backup.timer"])
-    cron_active = out.strip() == "active"
+    cron_active = is_cron_active()
 
     # DB sizes
     local_size = "?"
