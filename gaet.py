@@ -1717,6 +1717,23 @@ def cmd_update(args: argparse.Namespace) -> None:
             status_info("Building...")
             run_cmd([npm, "run", "build"], cwd=str(dashboard_src), timeout=120)
             status_ok("Dashboard built")
+            
+            # Restart dashboard service if running
+            try:
+                from scripts.service_manager import service_is_running, service_start, service_stop
+                if service_is_running():
+                    status_info("Restarting dashboard service...")
+                    service_stop()
+                    time.sleep(1)
+                    port = int(get_env_str(load_env(), "GAET_DASHBOARD_PORT", "9191"))
+                    host = get_env_str(load_env(), "GAET_DASHBOARD_HOST", "0.0.0.0")
+                    ok, msg = service_start(dashboard_dir=dashboard_src, port=port, host=host, foreground=False)
+                    if ok:
+                        status_ok("Dashboard service restarted")
+                    else:
+                        status_warn(f"Gagal restart: {msg}")
+            except Exception:
+                pass
         else:
             status_warn("Node.js/npm tidak ditemukan — skip dashboard build")
     
@@ -1764,7 +1781,28 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
     box_title(f"{NAME} serve")
 
-    # Delegate to service_manager
+    if not dashboard_dir:
+        die("Dashboard directory not found")
+
+    # Check if dashboard is built
+    if not (dashboard_dir / ".next").is_dir():
+        status_info("Dashboard belum dibuild. Building...")
+        node = shutil.which("node")
+        npm = shutil.which("npm")
+        if node and npm:
+            run_cmd([npm, "install"], cwd=str(dashboard_dir), timeout=120)
+            run_cmd([npm, "run", "build"], cwd=str(dashboard_dir), timeout=120)
+            status_ok("Dashboard built")
+        else:
+            die("Node.js/npm tidak ditemukan. Install dulu.")
+
+    # Stop existing service first
+    if _svc_is_running():
+        status_info("Menghentikan service lama...")
+        _svc_stop()
+        time.sleep(1)
+
+    # Start dashboard
     ok, msg = _svc_start(dashboard_dir=dashboard_dir, port=port, host=host, foreground=False)
 
     if ok:
