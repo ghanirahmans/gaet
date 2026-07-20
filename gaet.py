@@ -558,6 +558,46 @@ except ImportError:
         return "unknown"
 
 
+# Import from scripts.service_manager — dashboard service management
+# ═══════════════════════════════════════════════════════════════════════════
+
+try:
+    from scripts.service_manager import (
+        service_start,
+        service_stop,
+        service_is_running,
+        service_status,
+    )
+
+    # Rename to short names for gaet.py usage
+    def _svc_start(*a, **kw):
+        return service_start(*a, **kw)
+
+    def _svc_stop():
+        return service_stop()
+
+    def _svc_is_running():
+        return service_is_running()
+
+    def _svc_status():
+        return service_status()
+
+except ImportError:
+    # Fallback: inline minimal (just print warning)
+    def _svc_start(dashboard_dir=None, port=9191, host="0.0.0.0", foreground=False):
+        print("  ⚠  service_manager module tidak tersedia. Jalankan dari folder proyek.")
+        return False, "module not found"
+
+    def _svc_stop():
+        return True, "module not loaded"
+
+    def _svc_is_running():
+        return False
+
+    def _svc_status():
+        return {"running": False, "platform": "unknown", "pid": None}
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # COMMANDS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1232,13 +1272,23 @@ def cmd_auto_on(args: argparse.Namespace) -> None:
 
 
 def cmd_stop_auto(args: argparse.Namespace) -> None:
-    """Hentikan auto-backup."""
+    """Hentikan auto-backup + dashboard service."""
     env = load_env()
     prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
 
+    # Stop scheduler (auto-backup)
     status_info("Menghentikan auto-backup...")
     scheduler_disable(prefix)
     status_ok("Auto-backup dihentikan")
+
+    # Stop dashboard service jika berjalan
+    if _svc_is_running():
+        status_info("Menghentikan dashboard...")
+        ok, msg = _svc_stop()
+        if ok:
+            status_ok("Dashboard dihentikan")
+        else:
+            status_warn(f"Gagal menghentikan dashboard: {msg}")
 
 
 def cmd_log(args: argparse.Namespace) -> None:
@@ -1259,6 +1309,27 @@ def cmd_log(args: argparse.Namespace) -> None:
     echo()
     for line in all_lines[start:]:
         echo(f"  {D}│{NC} {line.rstrip()}")
+
+
+def cmd_install(args: argparse.Namespace) -> None:
+    """Jalankan installer universal."""
+    try:
+        from scripts.installer import run as installer_run
+    except ImportError:
+        print("  ⚠  Module scripts.installer tidak ditemukan.")
+        print("     Jalankan dari folder root proyek gaet atau: pip install -e .")
+        sys.exit(1)
+
+    box_title(f"{NAME} install")
+    rc = installer_run(
+        yes=args.yes,
+        skip_deps=getattr(args, "skip_deps", False),
+        skip_build=getattr(args, "skip_build", False),
+        skip_config=getattr(args, "skip_config", False),
+        skip_service=getattr(args, "skip_service", False),
+        interval=getattr(args, "interval", 0),
+    )
+    sys.exit(rc)
 
 
 def cmd_serve(args: argparse.Namespace) -> None:
@@ -1290,85 +1361,19 @@ def cmd_serve(args: argparse.Namespace) -> None:
             "  Atau set GAET_PROJECT_DIR ke direktori proyek gaet."
         )
 
-    port = get_env_str(env, "GAET_DASHBOARD_PORT", str(DEF_DASHBOARD_PORT))
+    port = int(get_env_str(env, "GAET_DASHBOARD_PORT", str(DEF_DASHBOARD_PORT)))
     host = get_env_str(env, "GAET_DASHBOARD_HOST", DEF_DASHBOARD_HOST)
 
     box_title(f"{NAME} serve")
 
-    # Build jika belum
-    dist_dir = dashboard_dir / ".next"
-    if not dist_dir.is_dir():
-        echo(f"  {C}📦{NC}  {B}Membangun dashboard...{NC}")
-        if not (dashboard_dir / "node_modules").is_dir():
-            run_cmd(["npm", "install", "--silent"], timeout=120, cwd=str(dashboard_dir))
-        out, err, rc = run_cmd(["npm", "run", "build"], timeout=120, cwd=str(dashboard_dir))
-        if rc == 0:
-            echo(f"    {G}{ICON_OK}{NC}  Build selesai!")
-        else:
-            die(f"Build dashboard gagal. Coba manual: cd {dashboard_dir} && npm install && npm run build")
+    # Delegate to service_manager
+    ok, msg = _svc_start(dashboard_dir=dashboard_dir, port=port, host=host, foreground=False)
 
-    if IS_LINUX:
-        # systemd service (same as original)
-        prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
-        service_file = HOME / ".config" / "systemd" / "user" / f"{prefix}-dashboard.service"
-        (HOME / ".config" / "systemd" / "user").mkdir(parents=True, exist_ok=True)
-
-        node_path = shutil.which("node") or "node"
-        service_file.write_text(textwrap.dedent(f"""\
-        [Unit]
-        Description={NAME} Dashboard (Next.js)
-        After=network.target
-
-        [Service]
-        Type=simple
-        Environment=PORT={port}
-        Environment=HOST={host}
-        ExecStart={node_path} {dashboard_dir / 'node_modules' / '.bin' / 'next'} start {dashboard_dir} --port {port}
-        Restart=on-failure
-        RestartSec=3
-        WorkingDirectory={dashboard_dir}
-
-        [Install]
-        WantedBy=default.target
-        """))
-
-        # Enable linger
-        run_cmd(["loginctl", "enable-linger"], timeout=5)
-
-        run_cmd(["systemctl", "--user", "daemon-reload"], timeout=10)
-        run_cmd(
-            ["systemctl", "--user", "enable", "--now", f"{prefix}-dashboard.service"],
-            timeout=10,
-        )
-
-        echo()
-        out, _, rc = run_cmd(
-            ["systemctl", "--user", "is-active", f"{prefix}-dashboard.service"],
-            timeout=5,
-        )
-        if rc == 0 and out.strip() == "active":
-            echo(f"  {G}{ICON_OK}{NC}  {B}Dashboard aktif!{NC}")
-            echo(f"  {D}{ICON_ARROW}{NC}  http://localhost:{port}")
-        else:
-            status_fail("Gagal memulai dashboard")
-    else:
-        # macOS / Windows: run Next.js directly
-        node_path = shutil.which("node") or "node"
-        echo(f"  {C}🚀{NC}  {B}Menjalankan dashboard...{NC}")
+    if ok:
+        echo(f"\n  {G}{ICON_OK}{NC}  {B}Dashboard aktif!{NC}")
         echo(f"  {D}{ICON_ARROW}{NC}  http://localhost:{port}")
-        echo(f"  {D}{ICON_ARROW}{NC}  Tekan Ctrl+C untuk berhenti{NC}")
-        echo()
-
-        try:
-            subprocess.run(
-                [node_path, str(dashboard_dir / "node_modules" / ".bin" / "next"), "start",
-                 str(dashboard_dir), "--port", str(port)],
-                env={**os.environ, "PORT": port, "HOST": host},
-                cwd=str(dashboard_dir),
-            )
-        except KeyboardInterrupt:
-            echo()
-            status_info("Dashboard dihentikan")
+    else:
+        status_fail(f"Dashboard gagal: {msg}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1390,8 +1395,9 @@ def main() -> None:
               check             Validasi konfigurasi & koneksi
               log               Lihat log backup
               push --auto[=N]   Aktifkan auto-backup tiap N jam
-              stop              Hentikan auto-backup
-              serve             Jalankan dashboard web
+              stop              Hentikan auto-backup & dashboard
+              serve             Jalankan dashboard web (background)
+              install           Setup/install dependencies & konfigurasi
         """),
     )
     parser.add_argument(
@@ -1433,6 +1439,15 @@ def main() -> None:
     # serve
     subparsers.add_parser("serve", help="Jalankan dashboard web")
 
+    # install
+    install_parser = subparsers.add_parser("install", help="Setup/install dependencies & konfigurasi")
+    install_parser.add_argument("--yes", "-y", action="store_true", help="Auto-approve")
+    install_parser.add_argument("--skip-deps", action="store_true", help="Skip cek dependencies")
+    install_parser.add_argument("--skip-build", action="store_true", help="Skip build dashboard")
+    install_parser.add_argument("--skip-config", action="store_true", help="Skip config wizard")
+    install_parser.add_argument("--skip-service", action="store_true", help="Skip setup service")
+    install_parser.add_argument("--interval", type=int, default=0, help="Interval auto-backup (jam)")
+
     args = parser.parse_args()
 
     # Default command: status
@@ -1464,6 +1479,7 @@ def main() -> None:
         "stop": lambda: cmd_stop_auto(args),
         "log": lambda: cmd_log(args),
         "serve": lambda: cmd_serve(args),
+        "install": lambda: cmd_install(args),
     }
 
     cmd_func = command_map.get(args.command)
