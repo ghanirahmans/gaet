@@ -1,6 +1,13 @@
-# gaet
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ghanirahmans/gaet/master/dashboard/public/gaet-logo.png" alt="gaet logo" width="120">
+</p>
 
-**Database Backup & Sync CLI** — Backup local PostgreSQL to cloud (Supabase, Neon, RDS, or your own VPS).
+<h1 align="center">gaet</h1>
+
+<p align="center">
+  <strong>Database Backup & Sync CLI</strong><br>
+  Backup local PostgreSQL to cloud (Supabase, Neon, RDS, or your own VPS).
+</p> — Backup local PostgreSQL to cloud (Supabase, Neon, RDS, or your own VPS).
 
 ```bash
 gaet check          # Verify all connections
