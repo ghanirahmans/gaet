@@ -57,18 +57,24 @@ gaet serve          # Web dashboard
 
 ## Quick Start
 
-### 1. Install (one-liner)
+### 1. Install
 
+**Linux/macOS:**
 ```bash
 curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 ```
 
-Or clone manually:
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
+```
 
+**Or clone manually:**
 ```bash
 git clone https://github.com/ghanirahmans/gaet.git
 cd gaet
-bash install.sh
+bash install.sh        # Linux/macOS
+./install.ps1          # Windows (PowerShell)
 ```
 
 ### 2. Configure
