@@ -1608,6 +1608,141 @@ def cmd_install(args: argparse.Namespace) -> None:
     sys.exit(rc)
 
 
+def cmd_uninstall(args: argparse.Namespace) -> None:
+    """Uninstall gaet. Safe mode keeps config, purge removes everything."""
+    purge = getattr(args, "purge", False)
+    mode = "purge" if purge else "safe"
+    
+    box_title(f"{NAME} uninstall ({mode})")
+    
+    if purge:
+        echo(f"  {Y}⚠  PURGE MODE: Will remove gaet AND all config/backups{NC}")
+        echo("")
+        confirm = input(f"  Type 'yes' to confirm: ").strip().lower()
+        if confirm != "yes":
+            echo(f"  {G}Cancelled.{NC}")
+            return
+    
+    # ── 1. Stop services ──────────────────────────────────────────────
+    echo(f"  {C}▸{NC} Stopping services...")
+    
+    # Stop dashboard
+    try:
+        from scripts.scheduler import stop_scheduler, _service_name, _scheduler_enabled
+        from scripts.service_manager import stop_dashboard
+        
+        scheduler_stopped = stop_scheduler()
+        dashboard_stopped = stop_dashboard()
+        
+        if scheduler_stopped:
+            echo(f"    {G}✓{NC} Scheduler stopped")
+        else:
+            echo(f"    {D}  Scheduler was not running{NC}")
+        
+        if dashboard_stopped:
+            echo(f"    {G}✓{NC} Dashboard stopped")
+        else:
+            echo(f"    {D}  Dashboard was not running{NC}")
+    except Exception as e:
+        echo(f"    {Y}⚠  Service stop error: {e}{NC}")
+    
+    # ── 2. Disable services ──────────────────────────────────────────
+    echo(f"  {C}▸{NC} Disabling services...")
+    
+    if IS_LINUX:
+        # Disable systemd services
+        try:
+            import subprocess
+            svc = _service_name("service")
+            timer = _service_name("timer")
+            
+            # Stop and disable timer
+            subprocess.run(["systemctl", "--user", "disable", "--now", timer],
+                         capture_output=True, timeout=10)
+            echo(f"    {G}✓{NC} Timer disabled: {timer}")
+            
+            # Stop and disable service
+            subprocess.run(["systemctl", "--user", "disable", "--now", svc],
+                         capture_output=True, timeout=10)
+            echo(f"    {G}✓{NC} Service disabled: {svc}")
+        except Exception as e:
+            echo(f"    {Y}⚠  Disable error: {e}{NC}")
+    
+    elif IS_MACOS:
+        # Unload launchd plists
+        try:
+            import subprocess
+            plist_dir = Path.home() / "Library" / "LaunchAgents"
+            for pattern in ["com.gaet.dashboard.plist", "com.gaet.scheduler.plist"]:
+                plist_path = plist_dir / pattern
+                if plist_path.exists():
+                    subprocess.run(["launchctl", "unload", str(plist_path)],
+                                 capture_output=True, timeout=10)
+                    plist_path.unlink()
+                    echo(f"    {G}✓{NC} Unloaded: {pattern}")
+        except Exception as e:
+            echo(f"    {Y}⚠  Unload error: {e}{NC}")
+    
+    elif IS_WINDOWS:
+        # Remove Task Scheduler tasks
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["schtasks", "/Query", "/TN", "gaet-backup"],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode == 0:
+                subprocess.run(["schtasks", "/Delete", "/TN", "gaet-backup", "/F"],
+                             capture_output=True, timeout=10)
+                echo(f"    {G}✓{NC} Task Scheduler removed")
+        except Exception as e:
+            echo(f"    {Y}⚠  Task removal error: {e}{NC}")
+    
+    # ── 3. Remove CLI and scripts ────────────────────────────────────
+    echo(f"  {C}▸{NC} Removing gaet CLI...")
+    
+    bin_dir = Path.home() / ".local" / "bin"
+    
+    # Remove gaet CLI
+    gaet_bin = bin_dir / "gaet"
+    if gaet_bin.exists():
+        gaet_bin.unlink()
+        echo(f"    {G}✓{NC} Removed: {gaet_bin}")
+    
+    # Remove scripts directory
+    scripts_dir = bin_dir / "scripts"
+    if scripts_dir.exists():
+        import shutil
+        shutil.rmtree(scripts_dir)
+        echo(f"    {G}✓{NC} Removed: {scripts_dir}")
+    
+    # ── 4. Purge mode: remove config ─────────────────────────────────
+    if purge:
+        echo(f"  {C}▸{NC} Removing config and data...")
+        
+        config_dir = Path.home() / ".gaet"
+        if config_dir.exists():
+            import shutil
+            shutil.rmtree(config_dir)
+            echo(f"    {G}✓{NC} Removed: {config_dir}")
+        else:
+            echo(f"    {D}  Config directory not found{NC}")
+    
+    # ── 5. Summary ───────────────────────────────────────────────────
+    echo("")
+    echo(f"  {G}✓ Uninstall complete ({mode} mode){NC}")
+    echo("")
+    
+    if purge:
+        echo(f"  Everything has been removed.")
+    else:
+        echo(f"  Config kept at: ~/.gaet/")
+        echo(f"  To remove config too, run: gaet uninstall --purge")
+    
+    echo(f"  To reinstall: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash")
+    echo("")
+
+
 def cmd_update(args: argparse.Namespace) -> None:
     """Update gaet to latest version from GitHub."""
     box_title(f"{NAME} update")
@@ -1899,6 +2034,10 @@ def main() -> None:
     update_parser.add_argument("--force", action="store_true", help="Force update (skip local changes check)")
     update_parser.add_argument("--skip-build", action="store_true", help="Skip build dashboard")
 
+    # uninstall
+    uninstall_parser = subparsers.add_parser("uninstall", help="Remove gaet from system")
+    uninstall_parser.add_argument("--purge", action="store_true", help="Remove everything including config and backups")
+
     args = parser.parse_args()
 
     # Default command: status
@@ -1940,6 +2079,7 @@ def main() -> None:
         "serve": lambda: cmd_serve(args),
         "install": lambda: cmd_install(args),
         "update": lambda: cmd_update(args),
+        "uninstall": lambda: cmd_uninstall(args),
     }
 
     cmd_func = command_map.get(args.command)
@@ -1955,5 +2095,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         echo()
-        status_info("Dibatalkan oleh user")
+        status_info("Cancelled by user")
         sys.exit(0)
