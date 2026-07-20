@@ -9,16 +9,16 @@ Usage:
   gaet push              Local → cloud
   gaet fetch             Cloud → local
   gaet update            Update ke versi terbaru
-  gaet --version         Tampilkan versi
+  gaet --version         Show version
   gaet status            Tampilkan status
   gaet status --json     Status dalam JSON
   gaet check             Validasi konfigurasi
-  gaet log               Lihat log backup
+  gaet log               View backup log
   gaet push --auto[=N]   Aktifkan auto-backup tiap N jam (default 6)
-  gaet stop              Hentikan auto-backup
-  gaet serve             Jalankan dashboard web
-  gaet --version         Tampilkan versi
-  gaet --help            Tampilkan bantuan
+  gaet stop              Stop auto-backup
+  gaet serve             Start web dashboard
+  gaet --version         Show version
+  gaet --help            Show help
 """
 
 from __future__ import annotations
@@ -757,7 +757,7 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════════════════
 
 def cmd_init(args: argparse.Namespace) -> None:
-    """Setup wizard interaktif."""
+    """Interactive setup wizard."""
     env = load_env()
     box_title(f"{NAME} init")
 
@@ -963,7 +963,7 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
 
 
 def cmd_check(args: argparse.Namespace) -> None:
-    """Validasi konfigurasi & koneksi."""
+    """Validate config & connections."""
     env = load_env()
     tools = find_pg_tools(env)
     box_title(f"{NAME} check")
@@ -971,7 +971,7 @@ def cmd_check(args: argparse.Namespace) -> None:
 
 
 def cmd_status(args: argparse.Namespace) -> None:
-    """Tampilkan status sinkronisasi."""
+    """Show sync status."""
     env = load_env()
     tools = find_pg_tools(env)
     psql = tools["psql"]
@@ -1529,7 +1529,7 @@ def cmd_auto_on(args: argparse.Namespace) -> None:
 
 
 def cmd_stop_auto(args: argparse.Namespace) -> None:
-    """Hentikan auto-backup dan/atau dashboard."""
+    """Stop auto-backup &/or dashboard."""
     env = load_env()
     prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
 
@@ -1568,7 +1568,7 @@ def cmd_stop_auto(args: argparse.Namespace) -> None:
 
 
 def cmd_log(args: argparse.Namespace) -> None:
-    """Lihat log backup."""
+    """View backup log."""
     lines = args.lines or 30
     if not LOG_FILE.is_file():
         echo(f"  {Y}Belum ada log. Jalankan 'gaet push' dulu.{NC}")
@@ -1748,7 +1748,7 @@ def cmd_update(args: argparse.Namespace) -> None:
 
 
 def cmd_serve(args: argparse.Namespace) -> None:
-    """Jalankan dashboard web."""
+    """Start web dashboard."""
     env = load_env()
 
     # Cari dashboard directory
@@ -1822,18 +1822,18 @@ def main() -> None:
         description=f"{NAME} — Database Backup & Sync CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent("""\
-            Perintah:
+            Commands:
               init              Setup wizard (config + test)
               push              Backup local → cloud
               fetch             Restore cloud → local
-              status            Tampilkan status sinkronisasi
+              status            Show sync status
               status --json     Status dalam JSON
-              check             Validasi konfigurasi & koneksi
-              log               Lihat log backup
+              check             Validate config & connections
+              log               View backup log
               push --auto[=N]   Aktifkan auto-backup tiap N jam
-              stop              Hentikan auto-backup & dashboard
-              serve             Jalankan dashboard web (background)
-              install           Setup/install dependencies & konfigurasi
+              stop              Stop auto-backup & dashboard
+              serve             Start web dashboard (background)
+              install           Setup/install dependencies & config
         """),
     )
     parser.add_argument(
@@ -1842,10 +1842,10 @@ def main() -> None:
         version=f"{NAME} v{VERSION}",
     )
 
-    subparsers = parser.add_subparsers(dest="command", help="Perintah")
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
 
     # init
-    init_parser = subparsers.add_parser("init", help="Setup wizard interaktif")
+    init_parser = subparsers.add_parser("init", help="Interactive setup wizard")
     init_parser.add_argument(
         "preset", nargs="?", default=None,
         help="Preset database (contoh: hindsight)",
@@ -1856,10 +1856,10 @@ def main() -> None:
     )
 
     # check
-    subparsers.add_parser("check", help="Validasi konfigurasi & koneksi")
+    subparsers.add_parser("check", help="Validate config & connections")
 
     # status
-    status_parser = subparsers.add_parser("status", help="Tampilkan status sinkronisasi")
+    status_parser = subparsers.add_parser("status", help="Show sync status")
     status_parser.add_argument("--json", action="store_true", help="Output JSON")
 
     # push
@@ -1874,19 +1874,19 @@ def main() -> None:
     subparsers.add_parser("fetch", help="Restore cloud → local")
 
     # stop
-    stop_parser = subparsers.add_parser("stop", help="Hentikan auto-backup dan/atau dashboard")
-    stop_parser.add_argument("--scheduler", action="store_true", help="Hentikan auto-backup saja")
+    stop_parser = subparsers.add_parser("stop", help="Stop auto-backup &/or dashboard")
+    stop_parser.add_argument("--scheduler", action="store_true", help="Stop auto-backup saja")
     stop_parser.add_argument("--dashboard", action="store_true", help="Hentikan dashboard saja")
 
     # log
-    log_parser = subparsers.add_parser("log", help="Lihat log backup")
+    log_parser = subparsers.add_parser("log", help="View backup log")
     log_parser.add_argument("lines", nargs="?", type=int, default=30, help="Jumlah baris (default 30)")
 
     # serve
-    subparsers.add_parser("serve", help="Jalankan dashboard web")
+    subparsers.add_parser("serve", help="Start web dashboard")
 
     # install
-    install_parser = subparsers.add_parser("install", help="Setup/install dependencies & konfigurasi")
+    install_parser = subparsers.add_parser("install", help="Setup/install dependencies & config")
     install_parser.add_argument("--yes", "-y", action="store_true", help="Auto-approve")
     install_parser.add_argument("--skip-deps", action="store_true", help="Skip cek dependencies")
     install_parser.add_argument("--skip-build", action="store_true", help="Skip build dashboard")
@@ -1895,7 +1895,7 @@ def main() -> None:
     install_parser.add_argument("--interval", type=int, default=0, help="Interval auto-backup (jam)")
 
     # update
-    update_parser = subparsers.add_parser("update", help="Update gaet ke versi terbaru")
+    update_parser = subparsers.add_parser("update", help="Update to latest version")
     update_parser.add_argument("--force", action="store_true", help="Force update (skip local changes check)")
     update_parser.add_argument("--skip-build", action="store_true", help="Skip build dashboard")
 
