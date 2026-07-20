@@ -605,7 +605,7 @@ def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
     )
     if rc != 0 or out.strip() != "1":
         die(
-            f"Gak bisa konek ke database lokal ({h}:{p}/{n})\n"
+            f"Cannot connect to local database ({h}:{p}/{n})\n"
             f"  Cek konfigurasi database di {ENV_FILE}"
         )
     return h, p, u, n, w
@@ -785,7 +785,7 @@ def cmd_init(args: argparse.Namespace) -> None:
 
     if not ENV_FILE.is_file():
         echo()
-        box_section("Konfigurasi Database Lokal")
+        box_section("Local Database Configuration")
 
         # Apply preset defaults if provided
         h, p, u, n, w = get_local_db(env)
@@ -875,7 +875,7 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
     # Local DB
     h, p, u, n, w = get_local_db(env)
 
-    echo(f"  {C}💾{NC}  Database lokal ({h}:{p}/{n})... ", end="")
+    echo(f"  {C}💾{NC}  Local database ({h}:{p}/{n})... ", end="")
     psql = tools["psql"]
     if psql:
         out, _, rc = run_cmd(
@@ -999,7 +999,7 @@ def cmd_status(args: argparse.Namespace) -> None:
             latest = backups[0]
             size_mb = latest.stat().st_size / (1024 * 1024)
             mtime = datetime.fromtimestamp(latest.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
-            status_ok(f"Backup terakhir: {mtime} {D}({size_mb:.1f} MB){NC}")
+            status_ok(f"Last backup: {mtime} {D}({size_mb:.1f} MB){NC}")
         else:
             status_warn("Belum pernah backup")
     except OSError:
@@ -1009,7 +1009,7 @@ def cmd_status(args: argparse.Namespace) -> None:
         count = len(list(BACKUP_DIR.glob("*.dump")))
     except OSError:
         count = 0
-    status_arrow(f"Total backup: {count}")
+    status_arrow(f"Total backups: {count}")
 
     echo()
 
@@ -1329,7 +1329,7 @@ def cmd_push(args: argparse.Namespace) -> None:
 
         # Step 1: Local dump
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        echo(f"  {C}📦{NC}  {B}Dumping database lokal...{NC}")
+        echo(f"  {C}📦{NC}  {B}Dumping local database...{NC}")
         backup_file = str(BACKUP_DIR / f"gaet_{timestamp}.dump")
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -1433,7 +1433,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             sys.exit(2)
 
         # Step 2: Restore to local
-        echo(f"  {C}💾{NC}  {B}Merestore ke database lokal...{NC}")
+        echo(f"  {C}💾{NC}  {B}Restoring to local database...{NC}")
         # Terminate connections first
         run_cmd(
             [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
@@ -1450,7 +1450,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             timeout=120,
         )
         if rc3 <= 1:
-            echo(f"    {G}{ICON_OK}{NC}  Restore lokal selesai!")
+            echo(f"    {G}{ICON_OK}{NC}  Local restore complete!")
         else:
             echo(f"    {Y}{ICON_WARN}{NC}  Restore selesai (dengan peringatan)")
 
@@ -1497,11 +1497,11 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
         )
         if rc2 == 0:
             size_mb = Path(cron_file).stat().st_size / (1024 * 1024)
-            cronlog(f"✅ [cron] Backup sukses ({size_mb:.1f} MB)")
+            cronlog(f"✅ [cron] Backup success ({size_mb:.1f} MB)")
         else:
             cronlog("⚠️ [cron] Restore bermasalah")
     else:
-        cronlog("❌ [cron] Dump lokal gagal!")
+        cronlog("❌ [cron] Local dump failed!")
 
     Path(cron_file).unlink(missing_ok=True)
 
@@ -1581,7 +1581,7 @@ def cmd_log(args: argparse.Namespace) -> None:
     start = max(0, total - lines)
 
     box_title(f"{NAME} log")
-    echo(f"  {D}{total} baris terakhir (menampilkan {lines}){NC}")
+    echo(f"  {D}{total} last lines (showing {lines}){NC}")
     echo()
     for line in all_lines[start:]:
         echo(f"  {D}│{NC} {line.rstrip()}")
