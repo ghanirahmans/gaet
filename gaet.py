@@ -362,17 +362,22 @@ def echo(msg: str = "", end: str = "\n") -> None:
 
 
 def box_title(title: str) -> None:
-    """Draw a boxed title with proper centering."""
-    width = 58
-    # Calculate visible length (ignore ANSI codes)
+    """Draw a boxed title with Unicode double-line box characters."""
     import re as _re
-    visible_len = len(_re.sub(r'\033\[[0-9;]*m', '', title))
-    pad = max(0, (width - visible_len - 2) // 2)
-    rpad = width - visible_len - 2 - pad
+    
+    # Remove ANSI codes for visible length calculation
+    clean_title = _re.sub(r'\033\[[0-9;]*m', '', title)
+    
+    # Double-line box - professional look
+    width = 50
+    visible_len = len(clean_title)
+    pad = max(0, (width - visible_len) // 2)
+    rpad = width - visible_len - pad
+    
     echo()
-    echo(f"  {C}╭{'─' * width}╮{NC}")
-    echo(f"  {C}│{NC}  {' ' * pad}{B}{title}{NC}{' ' * rpad}  {C}│{NC}")
-    echo(f"  {C}╰{'─' * width}╯{NC}")
+    echo(f"  {C}╔{'═' * (width + 2)}╗{NC}")
+    echo(f"  {C}║{NC} {' ' * pad}{B}{clean_title}{NC} {' ' * rpad}{C}║{NC}")
+    echo(f"  {C}╚{'═' * (width + 2)}╝{NC}")
     echo()
 
 
@@ -423,31 +428,31 @@ def draw_table(headers: str, rows: List[str]) -> None:
     def sep_row(left: str, mid: str, right: str, junction: str) -> str:
         parts = [f"{D}{left}{NC}"]
         for i, w in enumerate(widths):
-            parts.append(f"{D}─{NC}" + "─" * w + f"{D}─{NC}")
+            parts.append(f"{D}{'═' * (w + 2)}{NC}")
             if i < ncols - 1:
                 parts.append(f"{D}{junction}{NC}")
             else:
                 parts.append(f"{D}{right}{NC}")
         return "  " + "".join(parts)
 
-    top = sep_row("╭", "┬", "╮", "┬")
-    mid_sep = sep_row("├", "┼", "┤", "┼")
-    bot = sep_row("╰", "┴", "╯", "┴")
+    top = sep_row("╔", "╦", "╗", "╦")
+    mid_sep = sep_row("╠", "╬", "╣", "╬")
+    bot = sep_row("╚", "╩", "╝", "╩")
 
     echo(top)
     # Header
-    hdr = f"  {D}│{NC}"
+    hdr = f"  {D}║{NC}"
     for i, h in enumerate(h_list):
         pad = widths[i] - len(h)
-        hdr += f" {B}{h}{NC}{' ' * (pad + 1)}{D}│{NC}"
+        hdr += f" {B}{h}{NC}{' ' * (pad + 1)}{D}║{NC}"
     echo(hdr)
     echo(mid_sep)
 
     for vals in data:
-        row = f"  {D}│{NC}"
+        row = f"  {D}║{NC}"
         for i, v in enumerate(vals):
             pad = widths[i] - len(v)
-            row += f" {v}{' ' * (pad + 1)}{D}│{NC}"
+            row += f" {v}{' ' * (pad + 1)}{D}║{NC}"
         echo(row)
 
     echo(bot)
@@ -478,35 +483,35 @@ def draw_colored_table(headers: str, rows: List[str], colors: Optional[List[str]
     def sep_row(left: str, mid: str, right: str, junction: str) -> str:
         parts = [f"{D}{left}{NC}"]
         for i, w in enumerate(widths):
-            parts.append(f"{D}─{NC}" + "─" * w + f"{D}─{NC}")
+            parts.append(f"{D}{'═' * (w + 2)}{NC}")
             if i < ncols - 1:
                 parts.append(f"{D}{junction}{NC}")
             else:
                 parts.append(f"{D}{right}{NC}")
         return "  " + "".join(parts)
 
-    top = sep_row("╭", "┬", "╮", "┬")
-    mid_sep = sep_row("├", "┼", "┤", "┼")
-    bot = sep_row("╰", "┴", "╯", "┴")
+    top = sep_row("╔", "╦", "╗", "╦")
+    mid_sep = sep_row("╠", "╬", "╣", "╬")
+    bot = sep_row("╚", "╩", "╝", "╩")
 
     echo(top)
     # Header
-    hdr = f"  {D}│{NC}"
+    hdr = f"  {D}║{NC}"
     for i, h in enumerate(h_list):
         pad = widths[i] - len(h)
-        hdr += f" {B}{h}{NC}{' ' * (pad + 1)}{D}│{NC}"
+        hdr += f" {B}{h}{NC}{' ' * (pad + 1)}{D}║{NC}"
     echo(hdr)
     echo(mid_sep)
 
     # Data rows with optional color
     for idx, vals in enumerate(data):
         row_color = colors[idx] if colors and idx < len(colors) else ""
-        row = f"  {D}│{NC}"
+        row = f"  {D}║{NC}"
         for i, v in enumerate(vals):
             import re as _re
             clean = _re.sub(r'\033\[[0-9;]*m', '', v)
             pad = widths[i] - len(clean)
-            row += f" {row_color}{v}{NC}{' ' * (pad + 1)}{D}│{NC}"
+            row += f" {row_color}{v}{NC}{' ' * (pad + 1)}{D}║{NC}"
         echo(row)
 
     echo(bot)
