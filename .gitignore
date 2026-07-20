@@ -1,0 +1,28 @@
+# ─── Node / Dashboard ──────────────────────────────────
+node_modules/
+.next/
+*.tsbuildinfo
+next-env.d.ts
+
+# ─── Systemd user service copies ──────────────────────
+systemd/
+
+# ─── Environment / Config ─────────────────────────────
+.env
+!.env.example
+
+# ─── OS ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Python ───────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+
+# ─── Editor ───────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
