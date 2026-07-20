@@ -527,7 +527,7 @@ def print_sync_summary(local_count: int, remote_count: int, synced: bool, table_
         status_ok(f"Semua {table_count} tabel sinkron ({local_count} rows)")
     else:
         status_warn(f"Tabel tidak sinkron — {table_count} tabel diperiksa")
-    status_arrow(f"Lokal:  {local_count} rows")
+    status_arrow(f"Local: {local_count} rows")
     status_arrow(f"Cloud: {remote_count} rows")
 
 
@@ -832,7 +832,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         # Dibuat: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         # ══════════════════════════════════════════════════════════════
 
-        # Database Lokal
+        # Local Database
         GAET_LOCAL_URL=postgresql://{u}:{w}@{h}:{p}/{n}
 
         # Remote Database (Cloud)
@@ -1017,7 +1017,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     tables_def = get_tables(env, tools)
 
     # Local DB - get row counts
-    box_section("Database Lokal")
+    box_section("Local Database")
     local_rows = 0
     local_size = "?"
     if psql:
@@ -1205,7 +1205,7 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
                         except ValueError:
                             pass
             else:
-                error = f"Lokal DB tidak terjangkau ({h}:{p}/{n})"
+                error = f"Local DB unreachable ({h}:{p}/{n})"
         except Exception as e:
             error = str(e)
     else:
