@@ -59,15 +59,27 @@ ENV_FILE = GAET_DIR / ".env"
 # ─── Defaults ─────────────────────────────────────────────────────────────
 DEF_LOCAL_HOST = "127.0.0.1"
 DEF_LOCAL_PORT = "5432"
-DEF_LOCAL_USER = "hindsight"
-DEF_LOCAL_DB = "hindsight"
-DEF_LOCAL_PASS = "hindsight"
+DEF_LOCAL_USER = "postgres"
+DEF_LOCAL_DB = "postgres"
+DEF_LOCAL_PASS = ""
 DEF_RETENTION_DAYS = 7
 DEF_AUTO_INTERVAL = 6
 DEF_DASHBOARD_PORT = 9191
 DEF_DASHBOARD_HOST = "0.0.0.0"
 DEF_REMOTE_SSLMODE = "require"
 DEF_SERVICE_PREFIX = "gaet"
+
+# ─── Presets ──────────────────────────────────────────────────────────────
+# Predefined configs for popular databases
+PRESETS: Dict[str, Dict[str, str]] = {
+    "hindsight": {
+        "local_user": "hindsight",
+        "local_db": "hindsight",
+        "local_pass": "hindsight",
+        "tables": "memory_units,banks,chunks,entities,documents,async_operations,audit_log,file_storage,memory_links",
+        "description": "Hindsight AI memory database",
+    },
+}
 
 # ─── ANSI Colors ──────────────────────────────────────────────────────────
 if sys.stdout.isatty():
@@ -226,6 +238,43 @@ def get_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
         get_env_str(env, "GAET_LOCAL_DB_NAME", DEF_LOCAL_DB),
         get_env_str(env, "GAET_LOCAL_DB_PASS", DEF_LOCAL_PASS),
     )
+
+
+# ─── Table Discovery ─────────────────────────────────────────────────────
+
+def discover_tables(psql: str, h: str, p: str, u: str, n: str, w: str) -> List[str]:
+    """Auto-discover tables from information_schema.tables (public schema)."""
+    query = (
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = 'public' AND table_type = 'BASE TABLE' "
+        "ORDER BY table_name"
+    )
+    out, _, rc = run_cmd(
+        [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", query],
+        env={"PGPASSWORD": w},
+        timeout=10,
+    )
+    if rc == 0 and out.strip():
+        return [t.strip() for t in out.strip().split("\n") if t.strip()]
+    return []
+
+
+def get_tables(env: Dict[str, str], tools: Dict[str, str]) -> List[str]:
+    """Get table list: config override > auto-discover > empty."""
+    # 1. Check GAET_TABLES config
+    tables_str = get_env_str(env, "GAET_TABLES")
+    if tables_str:
+        return [t.strip() for t in tables_str.split(",") if t.strip()]
+
+    # 2. Auto-discover from local DB
+    h, p, u, n, w = get_local_db(env)
+    psql = tools.get("psql", "")
+    if psql:
+        tables = discover_tables(psql, h, p, u, n, w)
+        if tables:
+            return tables
+
+    return []
 
 
 # ─── PG Tools Discovery ──────────────────────────────────────────────────
@@ -622,6 +671,15 @@ def cmd_init(args: argparse.Namespace) -> None:
     env = load_env()
     box_title(f"{NAME} init")
 
+    # Resolve preset
+    preset_name = getattr(args, "preset_flag", None) or getattr(args, "preset", None)
+    preset: Optional[Dict[str, str]] = None
+    if preset_name:
+        preset = PRESETS.get(preset_name.lower())
+        if not preset:
+            die(f"Preset '{preset_name}' tidak dikenal. Tersedia: {', '.join(PRESETS.keys())}")
+        echo(f"  {C}📋{NC}  Preset: {preset.get('description', preset_name)}")
+
     # PG Tools
     box_section("PostgreSQL Tools")
     tools = find_pg_tools(env)
@@ -638,8 +696,16 @@ def cmd_init(args: argparse.Namespace) -> None:
     if not ENV_FILE.is_file():
         echo()
         box_section("Konfigurasi Database Lokal")
-        echo(f"  {D}Default: hindsight@127.0.0.1:5432/hindsight{NC}")
+
+        # Apply preset defaults if provided
         h, p, u, n, w = get_local_db(env)
+        if preset:
+            u = preset.get("local_user", u)
+            n = preset.get("local_db", n)
+            w = preset.get("local_pass", w)
+            echo(f"  {D}Preset '{preset_name}': user={u}, db={n}{NC}")
+        else:
+            echo(f"  {D}Default: postgres@127.0.0.1:5432/postgres{NC}")
 
         h_inp = input(f"  Host [{h}]: ").strip()
         if h_inp: h = h_inp
@@ -664,6 +730,11 @@ def cmd_init(args: argparse.Namespace) -> None:
         ret_inp = input(f"  Retensi (hari) [{DEF_RETENTION_DAYS}]: ").strip()
         ret = ret_inp or str(DEF_RETENTION_DAYS)
 
+        # Tables line for preset
+        tables_line = ""
+        if preset and "tables" in preset:
+            tables_line = f"# GAET_TABLES={preset['tables']}"
+
         env_content = textwrap.dedent(f"""\
         # ══════════════════════════════════════════════════════════════
         # gaet — Konfigurasi
@@ -679,7 +750,7 @@ def cmd_init(args: argparse.Namespace) -> None:
 
         # Backup
         GAET_RETENTION_DAYS={ret}
-        """)
+        {tables_line}""")
 
         ENV_FILE.write_text(env_content)
         ENV_FILE.chmod(0o600)
@@ -857,7 +928,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     if psql:
         out, _, rc = run_cmd(
             [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
-             "SELECT count(*) || ' memories' FROM memory_units;"],
+             "SELECT count(*) || ' rows' FROM information_schema.tables WHERE table_schema = 'public';"],
             env={"PGPASSWORD": w},
             timeout=10,
         )
@@ -885,7 +956,7 @@ def cmd_status(args: argparse.Namespace) -> None:
         out, _, rc = run_cmd(
             [psql, "-h", parsed["host"], "-p", parsed["port"],
              "-U", parsed["user"], "-d", parsed["db"], "-tAc",
-             "SELECT count(*) || ' memories' FROM memory_units;"],
+             "SELECT count(*) || ' tables' FROM information_schema.tables WHERE table_schema = 'public';"],
             env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
             timeout=10,
         )
@@ -911,17 +982,14 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
     psql = tools["psql"]
     h, p, u, n, w = get_local_db(env)
 
-    tables_def = [
-        "memory_units", "banks", "chunks", "entities", "documents",
-        "async_operations", "audit_log", "file_storage", "memory_links"
-    ]
+    tables_def = get_tables(env, tools)
 
     local_counts: Dict[str, int] = {}
     remote_counts: Dict[str, int] = {}
     error = None
 
     # Check local
-    if psql:
+    if psql and tables_def:
         try:
             union = " UNION ALL ".join(
                 f"SELECT '{t}'::text as tbl, count(*)::int as cnt FROM public.{t}"
@@ -982,7 +1050,7 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
         if not synced:
             all_ok = False
 
-    memories = local_counts.get("memory_units", 0)
+    total_rows = sum(local_counts.values())
 
     # Backup info
     last_bak = None
@@ -1029,7 +1097,7 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
             remote_size = out.strip() + " MB"
 
     result: Dict[str, Any] = {
-        "memories": memories,
+        "total_rows": total_rows,
         "local_size": local_size,
         "remote_size": remote_size,
         "tables": tables,
@@ -1400,7 +1468,15 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", help="Perintah")
 
     # init
-    subparsers.add_parser("init", help="Setup wizard interaktif")
+    init_parser = subparsers.add_parser("init", help="Setup wizard interaktif")
+    init_parser.add_argument(
+        "preset", nargs="?", default=None,
+        help="Preset database (contoh: hindsight)",
+    )
+    init_parser.add_argument(
+        "--preset", dest="preset_flag", default=None,
+        help="Preset database (contoh: --preset hindsight)",
+    )
 
     # check
     subparsers.add_parser("check", help="Validasi konfigurasi & koneksi")

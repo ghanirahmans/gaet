@@ -103,6 +103,7 @@ python gaet.py serve        # Open dashboard at http://localhost:9191
 | Command | Description |
 |---------|-------------|
 | `gaet init` | Interactive setup wizard |
+| `gaet init hindsight` | Setup with Hindsight preset (auto-configure) |
 | `gaet push` | Backup local database → cloud |
 | `gaet fetch` | Restore cloud database → local |
 | `gaet status` | Show sync status (tables, rows) |
@@ -114,6 +115,26 @@ python gaet.py serve        # Open dashboard at http://localhost:9191
 | `gaet serve` | Start web dashboard (background) |
 | `gaet install` | Universal installer (same as `install.py`) |
 | `gaet --version` | Show version |
+
+---
+
+## 🧩 Presets
+
+gaet works with **any PostgreSQL database** out of the box. For popular databases, presets auto-configure everything:
+
+| Preset | Description | Usage |
+|--------|-------------|-------|
+| `hindsight` | Hindsight AI memory database | `gaet init hindsight` |
+
+```bash
+# Generic setup (any PostgreSQL)
+gaet init
+
+# Hindsight preset (auto-configure tables, user, db)
+gaet init hindsight
+```
+
+**Adding custom presets:** Edit `PRESETS` dict in `gaet.py` — add your database's user, db name, password, and table list.
 
 ---
 
