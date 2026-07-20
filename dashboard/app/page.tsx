@@ -218,7 +218,7 @@ export default function Page() {
       <header className="app-header">
         <div className="header-inner">
           <div className="logo">
-            <div className="logo-icon">G</div>
+            <img src="/gaet-logo.png" alt="gaet" className="logo-icon" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover" }} />
             <div className="logo-text">
               <h1>gaet</h1>
               <p>Database Backup &amp; Sync</p>
