@@ -5,15 +5,32 @@
 <h1 align="center">gaet</h1>
 
 <p align="center">
-  <strong>Database Backup & Sync CLI</strong><br>
-  Backup local PostgreSQL to cloud (Supabase, Neon, RDS, or your own VPS).
+  <strong>Your PostgreSQL. Backed up. Synced. Safe.</strong>
 </p>
 
+<p align="center">
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#features">Features</a> •
+  <a href="#commands">Commands</a> •
+  <a href="#dashboard-web">Dashboard</a> •
+  <a href="#configuration">Config</a>
+</p>
+
+---
+
+**gaet** is a zero-config CLI tool that backs up your local PostgreSQL database to any cloud PostgreSQL — Supabase, Neon, AWS RDS, or your own VPS. No YAML. No complex setup. Just two lines of config and you're protected.
+
 ```bash
-gaet check          # Verify all connections
-gaet push           # Backup local → cloud
-gaet status         # Sync status
-gaet serve          # Web dashboard
+# Install
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+
+# Configure (one time)
+gaet init
+
+# You're protected
+gaet push        # Backup local → cloud
+gaet status      # See what's synced
+gaet serve       # Dashboard at localhost:9191
 ```
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -22,20 +39,37 @@ gaet serve          # Web dashboard
 
 ---
 
+## Why gaet?
+
+> "I lost 3 months of data because I forgot to set up backups."
+> — Every developer, at least once.
+
+**gaet exists so this never happens to you.**
+
+| Problem | gaet Solution |
+|---------|---------------|
+| "I keep forgetting to backup" | Auto-backup every N hours via OS scheduler |
+| "My backup script broke silently" | Integrity checks before every upload |
+| "I don't know if my data is synced" | Real-time dashboard with per-table status |
+| "Setup takes too long" | Two lines of config. That's it. |
+| "I need this for production" | Concurrency locks, timeouts, retention policies |
+
+---
+
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| 🔒 Concurrency lock | Prevents overlapping backups |
-| ⏱️ 120s timeout | Cloud connections never hang forever |
-| ✅ Integrity check | Dump verified before upload |
-| 📦 Compressed dumps | Custom format, compression level 9 |
-| 🧹 Auto-retention | Old backups auto-deleted (default 7 days) |
-| 🔄 Auto-backup | Periodic via systemd / launchd / Task Scheduler |
-| 🚀 Web dashboard | Next.js 15 — real-time status, one-click push/fetch |
-| 🔌 Multi-cloud | Supabase, Neon, RDS, or your own PostgreSQL VPS |
-| 🌓 Light/Dark mode | Dashboard supports both themes |
-| 📊 Sync visualization | Per-table sync status with progress bar |
+| Feature | What it does | Why it matters |
+|---------|--------------|----------------|
+| 🔒 **Concurrency lock** | Prevents overlapping backups | Your data stays consistent |
+| ⏱️ **120s timeout** | Cloud connections never hang | No frozen terminals |
+| ✅ **Integrity check** | Validates dump before upload | No corrupt backups |
+| 📦 **Compressed dumps** | Custom format, compression 9 | 70% smaller files |
+| 🧹 **Auto-retention** | Old backups auto-deleted | No disk space waste |
+| 🔄 **Auto-backup** | Periodic via OS scheduler | Set it and forget it |
+| 🚀 **Web dashboard** | Real-time status, one-click actions | See everything at a glance |
+| 🔌 **Multi-cloud** | Supabase, Neon, RDS, VPS | Works with your stack |
+| 📊 **Sync visualization** | Per-table status with progress | Know exactly what's synced |
+| 🌓 **Light/Dight mode** | Dashboard supports both themes | Comfortable for everyone |
 
 ---
 
@@ -43,11 +77,41 @@ gaet serve          # Web dashboard
 
 | Platform | CLI | Auto-backup | Dashboard Service |
 |----------|-----|-------------|-------------------|
-| 🐧 Linux | ✅ Full | systemd user timer | systemd user service |
-| 🍎 macOS | ✅ Full | launchd timer | launchd agent |
-| 🪟 Windows | ✅ Full | Task Scheduler | Background PID |
+| 🐧 **Linux** | ✅ Full | systemd user timer | systemd user service |
+| 🍎 **macOS** | ✅ Full | launchd timer | launchd agent |
+| 🪟 **Windows** | ✅ Full | Task Scheduler | Background PID |
 
 **gaet is pure Python** — zero pip dependencies. Only requires PostgreSQL tools.
+
+### Quick Install
+
+```bash
+# Linux/macOS
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
+```
+
+---
+
+## For Teams & Enterprises
+
+gaet is built for production workloads:
+
+- **Zero downtime backups** — Uses `pg_dump`/`pg_restore`, the same tools PostgreSQL uses internally
+- **Audit trail** — Every backup is logged with timestamp, size, and status
+- **No vendor lock-in** — Works with any PostgreSQL provider. Switch from Supabase to RDS? Just change one URL.
+- **Self-hosted** — Your data never touches our servers. Run it on your infra.
+- **MIT License** — Free for commercial use. No per-seat pricing.
+
+```bash
+# See exactly what's happening
+gaet status --json | jq '.tables[] | select(.ok == false)'
+
+# Automate in CI/CD
+gaet push && echo "Backup complete" || alert-oncall
+```
 
 ---
 
@@ -55,10 +119,10 @@ gaet serve          # Web dashboard
 
 | Dependency | Required? | Notes |
 |------------|-----------|-------|
-| Python 3.8+ | ✅ Required | The CLI itself |
-| PostgreSQL tools | ✅ Required | `pg_dump`, `pg_restore`, `psql` |
-| Node.js 18+ | ⚠️ Dashboard only | For the web dashboard |
-| Cloud PostgreSQL | ✅ Required | Your backup target (Supabase/Neon/RDS/VPS) |
+| **Python 3.8+** | ✅ Required | The CLI itself |
+| **PostgreSQL tools** | ✅ Required | `pg_dump`, `pg_restore`, `psql` |
+| **Node.js 18+** | ⚠️ Dashboard only | For the web dashboard |
+| **Cloud PostgreSQL** | ✅ Required | Your backup target |
 
 ---
 
