@@ -535,7 +535,7 @@ def print_push_summary(backup_file: str, size_mb: float, tables_synced: int) -> 
     """Print summary after successful push."""
     echo()
     box_section("Push Selesai")
-    status_ok(f"Backup tersimpan: {backup_file} ({size_mb:.1f} MB)")
+    status_ok(f"Backups stored: {backup_file} ({size_mb:.1f} MB)")
     status_ok(f"Tabel sinkron: {tables_synced}")
     status_arrow("Jalankan 'gaet status' untuk detail")
 
@@ -940,7 +940,7 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
             count = len(list(BACKUP_DIR.glob("*.dump")))
         except OSError:
             count = 0
-        status_arrow(f"Backup tersimpan: {count}")
+        status_arrow(f"Backups stored: {count}")
     else:
         echo(f"{R}FAIL{NC}")
         all_ok = False
@@ -952,13 +952,13 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
         echo(f"{G}AKTIF{NC}")
     else:
         echo(f"{Y}tidak aktif{NC}")
-        status_arrow("Aktifkan dengan: gaet push --auto")
+        status_arrow("Enable with: gaet push --auto")
 
     echo()
     if all_ok:
-        echo(f"  {G}{ICON_OK}{NC}  {B}Semua cek berhasil!{NC}")
+        echo(f"  {G}{ICON_OK}{NC}  {B}All checks passed!{NC}")
     else:
-        echo(f"  {Y}{ICON_WARN}{NC}  {B}Ada yang gagal — perbaiki dulu sebelum backup.{NC}")
+        echo(f"  {Y}{ICON_WARN}{NC}  {B}Some checks failed — fix before backup.{NC}")
     return all_ok
 
 
@@ -1141,7 +1141,7 @@ def cmd_status(args: argparse.Namespace) -> None:
                     colors.append(G if synced else R)
 
             except Exception as e:
-                status_warn(f"Gagal query tables: {e}")
+                status_warn(f"Failed to query tables: {e}")
 
         # Show max 10 tables, with "more" indicator
         display_rows = rows[:10]
@@ -1165,9 +1165,9 @@ def cmd_status(args: argparse.Namespace) -> None:
     echo()
     prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
     if scheduler_is_active(prefix):
-        status_ok(f"Auto-backup aktif")
+        status_ok(f"Auto-backup active")
     else:
-        status_warn("Auto-backup tidak aktif")
+        status_warn("Auto-backup inactive")
 
 
 def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, Any]:
@@ -1319,7 +1319,7 @@ def cmd_push(args: argparse.Namespace) -> None:
         remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
         parsed = parse_remote_url(remote_url)
         if not parsed:
-            die("GAET_REMOTE_URL belum diisi")
+            die("GAET_REMOTE_URL not configured")
 
         log("🚀 Push: local → cloud")
         box_title("gaet push")
@@ -1400,7 +1400,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
         parsed = parse_remote_url(remote_url)
         if not parsed:
-            die("GAET_REMOTE_URL belum diisi")
+            die("GAET_REMOTE_URL not configured")
 
         tools = find_pg_tools(env)
         psql = tools["psql"]
@@ -1456,7 +1456,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
 
         Path(fetch_file).unlink(missing_ok=True)
         echo()
-        echo(f"  {G}{ICON_OK}{NC}  {B}Fetch selesai!{NC}")
+        echo(f"  {G}{ICON_OK}{NC}  {B}Fetch complete!{NC}")
         log("⬇️ Fetch complete")
     finally:
         release_lock()
@@ -1516,15 +1516,15 @@ def cmd_auto_on(args: argparse.Namespace) -> None:
         die("Interval harus 1-23 jam.")
 
     box_title("Auto-backup")
-    status_info(f"Mengaktifkan auto-backup setiap {interval} jam...")
+    status_info(f"Enabling auto-backup every {interval} hours...")
 
     # Determine cli_path for the scheduler to call
     cli_path = str(Path(sys.argv[0]).resolve())
 
     if scheduler_enable(prefix, interval, cli_path):
-        echo(f"    {G}{ICON_OK}{NC}  Auto-backup aktif!")
+        echo(f"    {G}{ICON_OK}{NC}  Auto-backup active!")
     else:
-        status_fail("Gagal mengaktifkan auto-backup")
+        status_fail("Failed to enable auto-backup")
         echo(f"    {Y}{ICON_WARN}{NC}  Di sistem ini, aktifkan auto-backup secara manual.")
 
 
@@ -1539,32 +1539,32 @@ def cmd_stop_auto(args: argparse.Namespace) -> None:
         if _svc_is_running():
             ok, msg = _svc_stop()
             if ok:
-                status_ok("Dashboard dihentikan")
+                status_ok("Dashboard stopped")
             else:
-                status_warn(f"Gagal menghentikan dashboard: {msg}")
+                status_warn(f"Failed to stop dashboard: {msg}")
         else:
-            status_warn("Dashboard tidak berjalan")
+            status_warn("Dashboard not running")
         return
 
     if getattr(args, "scheduler", False):
         # Only stop auto-backup
         status_info("Menghentikan auto-backup...")
         scheduler_disable(prefix)
-        status_ok("Auto-backup dihentikan")
+        status_ok("Auto-backup stopped")
         return
 
     # Default: stop both
     status_info("Menghentikan auto-backup...")
     scheduler_disable(prefix)
-    status_ok("Auto-backup dihentikan")
+    status_ok("Auto-backup stopped")
 
     if _svc_is_running():
         status_info("Menghentikan dashboard...")
         ok, msg = _svc_stop()
         if ok:
-            status_ok("Dashboard dihentikan")
+            status_ok("Dashboard stopped")
         else:
-            status_warn(f"Gagal menghentikan dashboard: {msg}")
+            status_warn(f"Failed to stop dashboard: {msg}")
 
 
 def cmd_log(args: argparse.Namespace) -> None:
@@ -1640,9 +1640,9 @@ def cmd_update(args: argparse.Namespace) -> None:
     # Check if there are local changes
     out, _, rc = run_cmd([git, "-C", str(project_dir), "status", "--porcelain"], timeout=10)
     if out.strip():
-        status_warn("Ada perubahan lokal di project")
+        status_warn("Local changes detected in project")
         if not args.force:
-            status_info("Backup perubahan dulu atau gunakan --force")
+            status_info("Commit changes first or use --force")
             echo(f"    {D}git -C {project_dir} stash{NC}")
             echo(f"    {D}gaet update --force{NC}")
             return
@@ -1655,14 +1655,14 @@ def cmd_update(args: argparse.Namespace) -> None:
     out, err, rc = run_cmd([git, "-C", str(project_dir), "fetch", "origin"], timeout=30)
     if rc != 0:
         die(f"Fetch gagal: {err}")
-    status_ok("Fetch selesai")
+    status_ok("Fetch complete")
     
     # Check current vs remote
     out_local, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "HEAD"], timeout=5)
     out_remote, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "origin/master"], timeout=5)
     
     if out_local.strip() == out_remote.strip():
-        status_ok("Sudah versi terbaru!")
+        status_ok("Already up to date!")
         return
     
     # Show what will be updated
@@ -1679,7 +1679,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     out, err, rc = run_cmd([git, "-C", str(project_dir), "pull", "origin", "master"], timeout=30)
     if rc != 0:
         die(f"Pull gagal: {err}")
-    status_ok("Pull selesai")
+    status_ok("Pull complete")
     
     # Copy to install location
     echo()
@@ -1744,7 +1744,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     status_ok(r[0].strip() if r[0] else "Updated")
     
     echo()
-    status_ok("Update selesai!")
+    status_ok("Update complete!")
 
 
 def cmd_serve(args: argparse.Namespace) -> None:
@@ -1786,7 +1786,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
     # Check if dashboard is built
     if not (dashboard_dir / ".next").is_dir():
-        status_info("Dashboard belum dibuild. Building...")
+        status_info("Dashboard not built. Building...")
         node = shutil.which("node")
         npm = shutil.which("npm")
         if node and npm:
@@ -1806,10 +1806,10 @@ def cmd_serve(args: argparse.Namespace) -> None:
     ok, msg = _svc_start(dashboard_dir=dashboard_dir, port=port, host=host, foreground=False)
 
     if ok:
-        echo(f"\n  {G}{ICON_OK}{NC}  {B}Dashboard aktif!{NC}")
+        echo(f"\n  {G}{ICON_OK}{NC}  {B}Dashboard is running!{NC}")
         echo(f"  {D}{ICON_ARROW}{NC}  http://localhost:{port}")
     else:
-        status_fail(f"Dashboard gagal: {msg}")
+        status_fail(f"Dashboard failed: {msg}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════

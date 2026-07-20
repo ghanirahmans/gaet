@@ -252,7 +252,7 @@ export default function Page() {
           <StatCard
             icon={<Icons.Database />}
             iconColor="accent"
-            label="Tabel"
+            label="Tables"
             value={fmt(totalCount)}
             subtitle={d ? `${d.local_size ?? "?"} lokal` : "—"}
             cardColor="accent"
@@ -261,8 +261,8 @@ export default function Page() {
           <StatCard
             icon={<Icons.Sync />}
             iconColor={synced ? "green" : "yellow"}
-            label="Sinkronisasi"
-            value={synced ? "Tersinkron" : "Belum sync"}
+            label="Sync Status"
+            value={synced ? "Synced" : "Not synced"}
             cardColor={synced ? "green" : "yellow"}
           >
             <SyncProgress synced={syncedCount} total={totalCount} />
@@ -273,7 +273,7 @@ export default function Page() {
             iconColor="purple"
             label="Backup"
             value={String(d?.backup_count ?? 0)}
-            subtitle={d?.last_backup ? `Terakhir ${ago(d.last_backup.date)}` : "Belum ada backup"}
+            subtitle={d?.last_backup ? `Last ${ago(d.last_backup.date)}` : "No backup yet"}
             cardColor="purple"
           />
 
@@ -281,7 +281,7 @@ export default function Page() {
             icon={<Icons.Activity />}
             iconColor={d?.cron_active ? "green" : "yellow"}
             label="Auto-Backup"
-            value={d?.cron_active ? "Aktif" : "Mati"}
+            value={d?.cron_active ? "Active" : "Inactive"}
             subtitle={d?.cron_active ? "Periodik" : "Jalankan manual"}
             cardColor={d?.cron_active ? "green" : "yellow"}
           />
@@ -291,7 +291,7 @@ export default function Page() {
         <div className="section">
           <div className="section-header">
             <h2>
-              <Icons.Server /> Aksi
+              <Icons.Server /> Actions
             </h2>
           </div>
           <div className="section-body">
@@ -310,7 +310,7 @@ export default function Page() {
                 </button>
               ) : (
                 <button className="btn btn-secondary" onClick={() => act("push?auto=1", "Auto")} disabled={!!busy}>
-                  <Icons.Activity /> Aktifkan Auto-Backup
+                  <Icons.Activity /> Enable Auto-Backup
                 </button>
               )}
             </div>
@@ -321,10 +321,10 @@ export default function Page() {
         <div className="section">
           <div className="section-header">
             <h2>
-              <Icons.Database /> Tabel Database
+              <Icons.Database /> Database Tables
             </h2>
             <span className={`badge ${synced ? "badge-success" : "badge-warning"}`}>
-              {synced ? <><Icons.Check /> Tersinkron</> : <><Icons.X /> Belum sync</>}
+              {synced ? <><Icons.Check /> Synced</> : <><Icons.X /> Not synced</>}
             </span>
           </div>
           <div className="section-body">
@@ -332,8 +332,8 @@ export default function Page() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Tabel</th>
-                    <th style={{ textAlign: "right" }}>Lokal</th>
+                    <th>Table</th>
+                    <th style={{ textAlign: "right" }}>Local</th>
                     <th style={{ textAlign: "right" }}>Cloud</th>
                     <th style={{ textAlign: "center" }}>Status</th>
                   </tr>
@@ -348,7 +348,7 @@ export default function Page() {
                         {t.ok ? (
                           <span className="badge badge-success"><Icons.Check /> Sync</span>
                         ) : (
-                          <span className="badge badge-danger"><Icons.X /> Beda</span>
+                          <span className="badge badge-danger"><Icons.X /> Diff</span>
                         )}
                       </td>
                     </tr>
@@ -356,7 +356,7 @@ export default function Page() {
                   {tables.length === 0 && (
                     <tr>
                       <td colSpan={4} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>
-                        Tidak ada data tabel
+                        No table data
                       </td>
                     </tr>
                   )}
