@@ -356,20 +356,23 @@ def find_pg_tools(env: Dict[str, str]) -> Dict[str, str]:
 
 # ─── Terminal UI ─────────────────────────────────────────────────────────
 
-def echo(msg: str = "") -> None:
+def echo(msg: str = "", end: str = "\n") -> None:
     """Print with our formatting conventions."""
-    print(msg)
+    print(msg, end=end, flush=True)
 
 
 def box_title(title: str) -> None:
-    """Draw a boxed title."""
-    width = 56
-    pad = max(0, (width - len(title) - 2) // 2)
-    rpad = width - len(title) - 2 - pad
+    """Draw a boxed title with proper centering."""
+    width = 58
+    # Calculate visible length (ignore ANSI codes)
+    import re as _re
+    visible_len = len(_re.sub(r'\033\[[0-9;]*m', '', title))
+    pad = max(0, (width - visible_len - 2) // 2)
+    rpad = width - visible_len - 2 - pad
     echo()
-    echo(f"  {C}╭{NC}─{D}────────────────────────────────────────────────────{NC}─{C}╮{NC}")
+    echo(f"  {C}╭{'─' * width}╮{NC}")
     echo(f"  {C}│{NC}  {' ' * pad}{B}{title}{NC}{' ' * rpad}  {C}│{NC}")
-    echo(f"  {C}╰{NC}─{D}────────────────────────────────────────────────────{NC}─{C}╯{NC}")
+    echo(f"  {C}╰{'─' * width}╯{NC}")
     echo()
 
 
@@ -448,6 +451,86 @@ def draw_table(headers: str, rows: List[str]) -> None:
         echo(row)
 
     echo(bot)
+
+
+def draw_colored_table(headers: str, rows: List[str], colors: Optional[List[str]] = None) -> None:
+    """
+    Draw a colored table with row-level coloring.
+    headers: colon-separated header names
+    rows: pipe-separated values
+    colors: optional list of ANSI color codes per row
+    """
+    h_list = headers.split(":")
+    ncols = len(h_list)
+    widths = [len(h) for h in h_list]
+
+    data: List[List[str]] = []
+    for idx, row in enumerate(rows):
+        vals = row.split("|")
+        vals = vals + [""] * (ncols - len(vals))
+        data.append(vals)
+        for i, v in enumerate(vals):
+            # Strip ANSI for width calculation
+            import re as _re
+            clean = _re.sub(r'\033\[[0-9;]*m', '', v)
+            widths[i] = max(widths[i], len(clean))
+
+    def sep_row(left: str, mid: str, right: str, junction: str) -> str:
+        parts = [f"{D}{left}{NC}"]
+        for i, w in enumerate(widths):
+            parts.append(f"{D}─{NC}" + "─" * w + f"{D}─{NC}")
+            if i < ncols - 1:
+                parts.append(f"{D}{junction}{NC}")
+            else:
+                parts.append(f"{D}{right}{NC}")
+        return "  " + "".join(parts)
+
+    top = sep_row("╭", "┬", "╮", "┬")
+    mid_sep = sep_row("├", "┼", "┤", "┼")
+    bot = sep_row("╰", "┴", "╯", "┴")
+
+    echo(top)
+    # Header
+    hdr = f"  {D}│{NC}"
+    for i, h in enumerate(h_list):
+        pad = widths[i] - len(h)
+        hdr += f" {B}{h}{NC}{' ' * (pad + 1)}{D}│{NC}"
+    echo(hdr)
+    echo(mid_sep)
+
+    # Data rows with optional color
+    for idx, vals in enumerate(data):
+        row_color = colors[idx] if colors and idx < len(colors) else ""
+        row = f"  {D}│{NC}"
+        for i, v in enumerate(vals):
+            import re as _re
+            clean = _re.sub(r'\033\[[0-9;]*m', '', v)
+            pad = widths[i] - len(clean)
+            row += f" {row_color}{v}{NC}{' ' * (pad + 1)}{D}│{NC}"
+        echo(row)
+
+    echo(bot)
+
+
+def print_sync_summary(local_count: int, remote_count: int, synced: bool, table_count: int) -> None:
+    """Print a compact sync summary after push/fetch."""
+    echo()
+    box_section("Ringkasan")
+    if synced:
+        status_ok(f"Semua {table_count} tabel sinkron ({local_count} rows)")
+    else:
+        status_warn(f"Tabel tidak sinkron — {table_count} tabel diperiksa")
+    status_arrow(f"Lokal:  {local_count} rows")
+    status_arrow(f"Cloud: {remote_count} rows")
+
+
+def print_push_summary(backup_file: str, size_mb: float, tables_synced: int) -> None:
+    """Print summary after successful push."""
+    echo()
+    box_section("Push Selesai")
+    status_ok(f"Backup tersimpan: {backup_file} ({size_mb:.1f} MB)")
+    status_ok(f"Tabel sinkron: {tables_synced}")
+    status_arrow("Jalankan 'gaet status' untuk detail")
 
 
 # ─── Subprocess helpers ──────────────────────────────────────────────────
@@ -923,23 +1006,33 @@ def cmd_status(args: argparse.Namespace) -> None:
 
     echo()
 
-    # Local DB
+    # Get table list for detailed status
+    tables_def = get_tables(env, tools)
+
+    # Local DB - get row counts
     box_section("Database Lokal")
+    local_rows = 0
+    local_size = "?"
     if psql:
         out, _, rc = run_cmd(
             [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
-             "SELECT count(*) || ' rows' FROM information_schema.tables WHERE table_schema = 'public';"],
+             "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';"],
             env={"PGPASSWORD": w},
             timeout=10,
         )
         if rc == 0 and out:
-            echo(f"    {G}{ICON_OK}{NC}  {out}")
+            try:
+                local_rows = int(out.strip())
+            except ValueError:
+                pass
+            echo(f"    {G}{ICON_OK}{NC}  {local_rows} tables")
             size_out, _, _ = run_cmd(
                 [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
                 env={"PGPASSWORD": w},
                 timeout=5,
             )
+            local_size = size_out
             status_arrow(f"Size: {size_out}")
         else:
             echo(f"    {Y}tidak tersedia{NC}")
@@ -949,6 +1042,9 @@ def cmd_status(args: argparse.Namespace) -> None:
     # Cloud
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
     parsed = parse_remote_url(remote_url)
+    remote_rows = 0
+    remote_size = "?"
+    ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
     if parsed:
         echo()
         box_section("Cloud Database")
@@ -956,14 +1052,107 @@ def cmd_status(args: argparse.Namespace) -> None:
         out, _, rc = run_cmd(
             [psql, "-h", parsed["host"], "-p", parsed["port"],
              "-U", parsed["user"], "-d", parsed["db"], "-tAc",
-             "SELECT count(*) || ' tables' FROM information_schema.tables WHERE table_schema = 'public';"],
+             "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';"],
             env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
             timeout=10,
         )
         if rc == 0 and out:
-            echo(f"  {G}{ICON_OK}{NC}  {out}")
+            try:
+                remote_rows = int(out.strip())
+            except ValueError:
+                pass
+            echo(f"  {G}{ICON_OK}{NC}  {remote_rows} tables")
+            size_out, _, _ = run_cmd(
+                [psql, "-h", parsed["host"], "-p", parsed["port"],
+                 "-U", parsed["user"], "-d", parsed["db"], "-tAc",
+                 "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
+                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
+                timeout=10,
+            )
+            remote_size = size_out
+            status_arrow(f"Size: {size_out}")
         else:
             echo(f"  {Y}tidak terjangkau{NC}")
+
+    # Sync status with colored table
+    if tables_def and psql:
+        echo()
+        box_section("Sinkronisasi")
+
+        # Get counts for each table
+        rows = []
+        colors = []
+        synced_count = 0
+
+        # Query all tables at once for efficiency
+        if len(tables_def) > 0:
+            try:
+                union = " UNION ALL ".join(
+                    f"SELECT '{t}'::text as tbl, count(*)::int as cnt FROM public.{t}"
+                    for t in tables_def
+                )
+                out, _, rc = run_cmd(
+                    [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", union],
+                    env={"PGPASSWORD": w}, timeout=30,
+                )
+                local_counts = {}
+                if rc == 0:
+                    for line in out.strip().split("\n"):
+                        if "|" in line:
+                            parts = line.split("|")
+                            try:
+                                local_counts[parts[0].strip()] = int(parts[1].strip())
+                            except ValueError:
+                                pass
+
+                # Remote counts
+                remote_counts = {}
+                if parsed:
+                    out_r, _, rc_r = run_cmd(
+                        [psql, "-h", parsed["host"], "-p", parsed["port"],
+                         "-U", parsed["user"], "-d", parsed["db"], "-tAc", union],
+                        env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=30,
+                    )
+                    if rc_r == 0:
+                        for line in out_r.strip().split("\n"):
+                            if "|" in line:
+                                parts = line.split("|")
+                                try:
+                                    remote_counts[parts[0].strip()] = int(parts[1].strip())
+                                except ValueError:
+                                    pass
+
+                # Build rows
+                for t in tables_def:
+                    lo = local_counts.get(t, 0)
+                    re = remote_counts.get(t, 0)
+                    synced = lo == re
+                    if synced:
+                        synced_count += 1
+                    status_icon = f"{G}✓{NC}" if synced else f"{R}✗{NC}"
+                    rows.append(f"{t}|{lo}|{re}|{status_icon}")
+                    colors.append(G if synced else R)
+
+            except Exception as e:
+                status_warn(f"Gagal query tables: {e}")
+
+        # Show max 10 tables, with "more" indicator
+        display_rows = rows[:10]
+        display_colors = colors[:10]
+        if len(rows) > 10:
+            display_rows.append(f"... +{len(rows) - 10} lainnya|||")
+            display_colors.append(D)
+
+        draw_colored_table("Tabel:Lokal:Cloud:Status", display_rows, display_colors)
+
+        # Sync summary
+        total_tables = len(tables_def)
+        sync_pct = (synced_count / total_tables * 100) if total_tables > 0 else 0
+        echo()
+        if sync_pct == 100:
+            status_ok(f"Tersinkron: {synced_count}/{total_tables} tabel ({sync_pct:.0f}%)")
+        else:
+            status_warn(f"Tersinkron: {synced_count}/{total_tables} tabel ({sync_pct:.0f}%)")
 
     # Auto-backup
     echo()
@@ -1185,8 +1374,10 @@ def cmd_push(args: argparse.Namespace) -> None:
         except OSError:
             pass
 
-        echo()
-        echo(f"  {G}{ICON_OK}{NC}  {B}Push selesai!{NC}")
+        # Summary
+        size_mb = Path(backup_file).stat().st_size / (1024 * 1024) if Path(backup_file).is_file() else 0
+        tables_synced = len(get_tables(env, tools)) if tools.get("psql") else 0
+        print_push_summary(backup_file, size_mb, tables_synced)
         log("✅ Push complete")
     finally:
         release_lock()
