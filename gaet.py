@@ -1173,10 +1173,9 @@ def cmd_status(args: argparse.Namespace) -> None:
     local_size = "?"
     if psql:
         out, _, rc = run_cmd(
-            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
+            [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
              "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';"],
-            env={"PGPASSWORD": w},
-            timeout=10,
+            env={"PGPASSWORD": w}, timeout=10,
         )
         if rc == 0 and out:
             try:
@@ -1185,10 +1184,9 @@ def cmd_status(args: argparse.Namespace) -> None:
                 pass
             echo(f"    {G}{ICON_OK}{NC}  {local_rows} tables")
             size_out, _, _ = run_cmd(
-                [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
+                [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
-                env={"PGPASSWORD": w},
-                timeout=5,
+                env={"PGPASSWORD": w}, timeout=5,
             )
             local_size = size_out
             status_arrow(f"Size: {size_out}")
@@ -1208,11 +1206,10 @@ def cmd_status(args: argparse.Namespace) -> None:
         box_section("Cloud Database")
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
         out, _, rc = run_cmd(
-            [psql, "-h", parsed["host"], "-p", parsed["port"],
+            [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
              "-U", parsed["user"], "-d", parsed["db"], "-tAc",
              "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';"],
-            env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
-            timeout=10,
+            env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=10,
         )
         if rc == 0 and out:
             try:
@@ -1221,11 +1218,10 @@ def cmd_status(args: argparse.Namespace) -> None:
                 pass
             echo(f"  {G}{ICON_OK}{NC}  {remote_rows} tables")
             size_out, _, _ = run_cmd(
-                [psql, "-h", parsed["host"], "-p", parsed["port"],
+                [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
                  "-U", parsed["user"], "-d", parsed["db"], "-tAc",
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
-                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
-                timeout=10,
+                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=10,
             )
             remote_size = size_out
             status_arrow(f"Size: {size_out}")
@@ -1250,7 +1246,7 @@ def cmd_status(args: argparse.Namespace) -> None:
                     for t in tables_def
                 )
                 out, _, rc = run_cmd(
-                    [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", union],
+                    [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", union],
                     env={"PGPASSWORD": w}, timeout=30,
                 )
                 local_counts = {}
@@ -1267,7 +1263,7 @@ def cmd_status(args: argparse.Namespace) -> None:
                 remote_counts = {}
                 if parsed:
                     out_r, _, rc_r = run_cmd(
-                        [psql, "-h", parsed["host"], "-p", parsed["port"],
+                        [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
                          "-U", parsed["user"], "-d", parsed["db"], "-tAc", union],
                         env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=30,
                     )
@@ -2222,6 +2218,18 @@ def main() -> None:
 
     # Default command: status
     if args.command is None:
+        if not ENV_FILE.is_file():
+            # No config yet — show friendly intro instead of failing
+            box_title(f"{NAME}")
+            echo(f"  {Y}Belum dikonfigurasi.{NC}")
+            echo()
+            echo(f"  Mulai dengan:")
+            echo(f"    {C}gaet init{NC}          Setup wizard")
+            echo()
+            echo(f"  Atau paste URL langsung:")
+            echo(f"    {C}gaet init{NC}          lalu pilih 'Paste connection URL'")
+            echo()
+            sys.exit(0)
         args.command = "status"
 
     # Set defaults for attributes that may not exist on main parser
