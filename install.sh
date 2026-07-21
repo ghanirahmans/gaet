@@ -43,14 +43,19 @@ mkdir -p "$GAET_CONFIG"
 
 # ── 4. Download gaet CLI ──────────────────────────────────────────────────
 echo -n "  Downloading gaet..."
-curl -sSL "$GITHUB_RAW/gaet.py" -o "$GAET_DIR/gaet"
+# Use GitHub API to bypass raw CDN cache
+curl -sSL "https://api.github.com/repos/ghanirahmans/gaet/contents/gaet.py?ref=master" \
+  | python3 -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" \
+  > "$GAET_DIR/gaet"
 chmod +x "$GAET_DIR/gaet"
 echo " OK"
 
 # ── 5. Download scripts ───────────────────────────────────────────────────
 mkdir -p "$GAET_DIR/scripts"
 for f in status.py scheduler.py service_manager.py installer.py __init__.py; do
-    curl -sSL "$GITHUB_RAW/scripts/$f" -o "$GAET_DIR/scripts/$f"
+    curl -sSL "https://api.github.com/repos/ghanirahmans/gaet/contents/scripts/$f?ref=master" \
+      | python3 -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" \
+      > "$GAET_DIR/scripts/$f"
 done
 echo "  Scripts downloaded"
 
