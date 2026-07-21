@@ -27,6 +27,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import base64
 import getpass
 import glob
 import json
@@ -39,6 +40,7 @@ import sys
 import tempfile
 import textwrap
 import time
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -2060,12 +2062,20 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     echo("")
 
 
-GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/master"
+GITHUB_API = "https://api.github.com/repos/ghanirahmans/gaet/contents"
+
+
+def _gh_download(url: str, timeout: int = 15) -> bytes:
+    """Download file from GitHub API, decoding base64 content."""
+    with urllib.request.urlopen(url, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode())
+    if isinstance(data, dict) and "content" in data:
+        return base64.b64decode(data["content"])
+    raise RuntimeError(f"GitHub API: {data.get('message', 'unknown error')}")
 
 
 def _update_download(install_dir: Path, skip_build: bool = False) -> None:
     """Update gaet by downloading files from GitHub (for curl-install users)."""
-    import urllib.request
     import io
     import zipfile
 
@@ -2077,10 +2087,9 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
     script_files = ["__init__.py", "status.py", "scheduler.py", "service_manager.py", "installer.py"]
 
     for src, dst in files:
-        url = f"{GITHUB_RAW}/{src}"
+        url = f"{GITHUB_API}/{src}?ref=master"
         try:
-            with urllib.request.urlopen(url, timeout=15) as resp:
-                data = resp.read()
+            data = _gh_download(url)
             dest_path = install_dir / dst
             dest_path.write_bytes(data)
             dest_path.chmod(0o755)
@@ -2092,10 +2101,9 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
     scripts_dst = install_dir / "scripts"
     scripts_dst.mkdir(parents=True, exist_ok=True)
     for sf in script_files:
-        url = f"{GITHUB_RAW}/scripts/{sf}"
+        url = f"{GITHUB_API}/scripts/{sf}?ref=master"
         try:
-            with urllib.request.urlopen(url, timeout=15) as resp:
-                data = resp.read()
+            data = _gh_download(url)
             (scripts_dst / sf).write_bytes(data)
             status_ok(f"scripts/{sf} → {scripts_dst}/")
         except Exception as e:
@@ -2111,10 +2119,9 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
                           "app/api/fetch/route.ts", "app/api/stop/route.ts"]
 
             for df in dash_files:
-                url = f"{GITHUB_RAW}/dashboard/{df}"
+                url = f"{GITHUB_API}/dashboard/{df}?ref=master"
                 try:
-                    with urllib.request.urlopen(url, timeout=15) as resp:
-                        data = resp.read()
+                    data = _gh_download(url)
                     df_path = dashboard_dst / df
                     df_path.parent.mkdir(parents=True, exist_ok=True)
                     df_path.write_bytes(data)

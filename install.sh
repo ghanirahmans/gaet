@@ -3,11 +3,11 @@
 # gaet — One-liner installer
 # Usage: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 # ============================================================================
-set -e
+set -eo pipefail
 
 GAET_DIR="$HOME/.local/bin"
 GAET_CONFIG="$HOME/.gaet"
-GITHUB_RAW="https://raw.githubusercontent.com/ghanirahmans/gaet/master"
+API_BASE="https://api.github.com/repos/ghanirahmans/gaet/contents"
 
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║  gaet — Database Backup & Sync CLI                  ║"
@@ -44,7 +44,7 @@ mkdir -p "$GAET_CONFIG"
 # ── 4. Download gaet CLI ──────────────────────────────────────────────────
 echo -n "  Downloading gaet..."
 # Use GitHub API to bypass raw CDN cache
-curl -sSL "https://api.github.com/repos/ghanirahmans/gaet/contents/gaet.py?ref=master" \
+curl -sSL "$API_BASE/gaet.py?ref=master" \
   | python3 -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" \
   > "$GAET_DIR/gaet"
 chmod +x "$GAET_DIR/gaet"
@@ -53,7 +53,7 @@ echo " OK"
 # ── 5. Download scripts ───────────────────────────────────────────────────
 mkdir -p "$GAET_DIR/scripts"
 for f in status.py scheduler.py service_manager.py installer.py __init__.py; do
-    curl -sSL "https://api.github.com/repos/ghanirahmans/gaet/contents/scripts/$f?ref=master" \
+    curl -sSL "$API_BASE/scripts/$f?ref=master" \
       | python3 -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" \
       > "$GAET_DIR/scripts/$f"
 done
@@ -76,6 +76,9 @@ if [ ! -f "$GAET_CONFIG/.env" ]; then
 
 # Retention (days)
 # GAET_RETENTION_DAYS=7
+
+# Tables to backup (comma-separated, auto-discovered if empty)
+# GAET_TABLES=
 
 # Dashboard port
 # GAET_DASHBOARD_PORT=9191
