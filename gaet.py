@@ -29,12 +29,10 @@ from __future__ import annotations
 import argparse
 import base64
 import getpass
-import glob
 import json
 import os
 import re
 import shutil
-import struct
 import subprocess
 import sys
 import tempfile
@@ -685,12 +683,13 @@ def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
     if not psql:
         die("psql tidak ditemukan")
 
-    pg_env = {"PGPASSWORD": w}
-    out, err, rc = run_cmd(
+    env_dict = pg_env(u, w)
+    out, _, rc = run_cmd(
         [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
-        env=pg_env,
+        env=env_dict,
         timeout=5,
     )
+    cleanup_pg_env(env_dict)
     if rc != 0 or out.strip() != "1":
         die(
             f"Cannot connect to local database ({h}:{p}/{n})\n"
@@ -714,7 +713,6 @@ try:
 except ImportError:
     # Fallback: inline minimal implementation
     def scheduler_is_active(prefix: str) -> bool:
-        """Check if auto-backup scheduler is active (fallback)."""
         if IS_LINUX:
             out, _, rc = run_cmd(
                 ["systemctl", "--user", "is-active", f"{prefix}-backup.timer"],
@@ -732,7 +730,6 @@ except ImportError:
         return False
 
     def scheduler_enable(prefix: str, interval: int, cli_path: str) -> bool:
-        """Enable scheduler (fallback)."""
         if IS_LINUX:
             user_systemd = HOME / ".config" / "systemd" / "user"
             user_systemd.mkdir(parents=True, exist_ok=True)
@@ -811,34 +808,34 @@ try:
         service_is_running,
         service_status,
     )
-
-    # Rename to short names for gaet.py usage
-    def _svc_start(*a, **kw):
-        return service_start(*a, **kw)
-
-    def _svc_stop():
-        return service_stop()
-
-    def _svc_is_running():
-        return service_is_running()
-
-    def _svc_status():
-        return service_status()
-
+    _svc_available = True
 except ImportError:
-    # Fallback: inline minimal (just print warning)
-    def _svc_start(dashboard_dir=None, port=9191, host="0.0.0.0", foreground=False):
-        print("  ⚠  service_manager module tidak tersedia. Jalankan dari folder proyek.")
-        return False, "module not found"
+    _svc_available = False
 
-    def _svc_stop():
-        return True, "module not loaded"
 
-    def _svc_is_running():
-        return False
+def _svc_start(dashboard_dir=None, port=9191, host="0.0.0.0", foreground=False):
+    if _svc_available:
+        return service_start(dashboard_dir, port, host, foreground)
+    print("  ⚠  service_manager module tidak tersedia. Jalankan dari folder proyek.")
+    return False, "module not found"
 
-    def _svc_status():
-        return {"running": False, "platform": "unknown", "pid": None}
+
+def _svc_stop():
+    if _svc_available:
+        return service_stop()
+    return True, "module not loaded"
+
+
+def _svc_is_running():
+    if _svc_available:
+        return service_is_running()
+    return False
+
+
+def _svc_status():
+    if _svc_available:
+        return service_status()
+    return {"running": False, "platform": "unknown", "pid": None}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1266,7 +1263,6 @@ def cmd_status(args: argparse.Namespace) -> None:
     parsed = parse_remote_url(remote_url)
     remote_rows = 0
     remote_size = "?"
-    ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
     if parsed:
         echo()
         box_section("Cloud Database")
@@ -1791,7 +1787,7 @@ def cmd_auto_on(args: argparse.Namespace) -> None:
     """Aktifkan auto-backup."""
     env = load_env()
     prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
-    interval = args.auto if args.auto else get_env_int(env, "GAET_AUTO_INTERVAL", DEF_AUTO_INTERVAL)
+    interval = args.auto if args.auto is not None else get_env_int(env, "GAET_AUTO_INTERVAL", DEF_AUTO_INTERVAL)
 
     # Validate interval
     if interval is None or interval <= 0:
@@ -2076,8 +2072,6 @@ def _gh_download(url: str, timeout: int = 15) -> bytes:
 
 def _update_download(install_dir: Path, skip_build: bool = False) -> None:
     """Update gaet by downloading files from GitHub (for curl-install users)."""
-    import io
-    import zipfile
 
     status_info("Mendownload gaet terbaru dari GitHub...")
 
