@@ -26,7 +26,7 @@ BACKUP_DIR = GAET_DIR / "backups"
 
 IS_LINUX = sys.platform.startswith("linux")
 IS_MACOS = sys.platform == "darwin"
-IS_WINDOWS = sys.platform == "win32"
+IS_WINDOWS = sys.platform == "win32" or sys.platform.startswith("msys") or sys.platform.startswith("cygwin")
 
 
 def detect_os() -> Dict[str, str]:
@@ -252,6 +252,22 @@ def check_psql() -> DepInfo:
     if rc == 0 and out:
         ver = out.split()[-1] if out.split() else "?"
         return DepInfo(name="psql (PostgreSQL)", version=ver, found=True, required=False)
+
+    # Windows: check common install paths if not in PATH
+    if IS_WINDOWS:
+        import glob
+        for pattern in [
+            r"C:\Program Files\PostgreSQL\*\bin\psql.exe",
+            r"C:\Program Files (x86)\PostgreSQL\*\bin\psql.exe",
+        ]:
+            matches = glob.glob(pattern)
+            if matches:
+                psql_path = matches[0]
+                out2, _, rc2 = _run([psql_path, "--version"])
+                if rc2 == 0 and out2:
+                    ver = out2.split()[-1] if out2.split() else "?"
+                    return DepInfo(name="psql (PostgreSQL)", version=ver, found=True, required=False)
+
     return DepInfo(name="psql (PostgreSQL)", found=False, required=False)
 
 
@@ -466,7 +482,15 @@ def setup_auto_backup(interval_hours: int) -> bool:
         return False
 
     status_info(f"Mengaktifkan auto-backup via {name} setiap {interval_hours} jam...")
-    scheduler_enable("gaet", interval_hours)
+
+    # Determine the CLI path for the scheduler
+    gaet_script = Path(__file__).resolve().parent.parent / "gaet.py"
+    if gaet_script.is_file():
+        cli_path = f"{sys.executable} {gaet_script}"
+    else:
+        cli_path = "gaet"
+
+    scheduler_enable("gaet", interval_hours, cli_path)
     status_ok(f"Auto-backup aktif setiap {interval_hours} jam")
     return True
 

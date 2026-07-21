@@ -24,13 +24,26 @@ try {
 } catch {
     Write-Host "NOT FOUND" -ForegroundColor Red
     Write-Host "  ✗ Python 3.8+ is required. Install from https://python.org"
-    exit 1
+    Write-Host ""
+    Read-Host "Press Enter to exit"
+    return
 }
 
 # ── 2. Check PostgreSQL tools ─────────────────────────────────────────────
 Write-Host "  Checking pg_dump... " -NoNewline
 try {
     $pgDumpPath = (Get-Command pg_dump -ErrorAction SilentlyContinue).Source
+    if (-not $pgDumpPath) {
+        # Check common Windows install paths
+        $pgVersions = Get-ChildItem "C:\Program Files\PostgreSQL" -Directory -ErrorAction SilentlyContinue
+        foreach ($ver in $pgVersions) {
+            $pgBin = Join-Path $ver.FullName "bin\pg_dump.exe"
+            if (Test-Path $pgBin) {
+                $pgDumpPath = $pgBin
+                break
+            }
+        }
+    }
     if ($pgDumpPath) {
         Write-Host "OK" -ForegroundColor Green
     } else {
@@ -44,18 +57,21 @@ try {
 # ── 3. Create directories ─────────────────────────────────────────────────
 New-Item -ItemType Directory -Force -Path $GAET_DIR | Out-Null
 New-Item -ItemType Directory -Force -Path $GAET_CONFIG | Out-Null
+New-Item -ItemType Directory -Force -Path "$GAET_DIR\scripts" | Out-Null
 
-# ── 4. Download gaet CLI ──────────────────────────────────────────────────
-Write-Host "  Downloading gaet..." -NoNewline
+# ── 4. Download gaet CLI (gaet.py) ───────────────────────────────────────
+Write-Host "  Downloading gaet.py... " -NoNewline
 try {
     # Use TLS 1.2 for GitHub
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri "$GITHUB_RAW/gaet" -OutFile "$GAET_DIR\gaet" -UseBasicParsing
+    Invoke-WebRequest -Uri "$GITHUB_RAW/gaet.py" -OutFile "$GAET_DIR\gaet.py" -UseBasicParsing
     Write-Host " OK" -ForegroundColor Green
 } catch {
     Write-Host " FAILED" -ForegroundColor Red
     Write-Host "  ✗ Download failed. Check your internet connection."
-    exit 1
+    Write-Host ""
+    Read-Host "Press Enter to exit"
+    return
 }
 
 # ── 5. Download scripts ───────────────────────────────────────────────────
@@ -69,7 +85,16 @@ foreach ($f in $scripts) {
 }
 Write-Host "  Scripts downloaded"
 
-# ── 6. Create config if not exists ────────────────────────────────────────
+# ── 6. Create gaet.cmd wrapper ────────────────────────────────────────────
+# This lets users run `gaet` directly from anywhere
+$wrapperContent = @"
+@echo off
+python "%~dp0gaet.py" %*
+"@
+$wrapperContent | Out-File -FilePath "$GAET_DIR\gaet.cmd" -Encoding ASCII
+Write-Host "  Wrapper created: $GAET_DIR\gaet.cmd"
+
+# ── 7. Create config if not exists ────────────────────────────────────────
 $envFile = "$GAET_CONFIG\.env"
 if (-not (Test-Path $envFile)) {
     $configContent = @"
@@ -80,7 +105,7 @@ if (-not (Test-Path $envFile)) {
 # Everything else has sensible defaults.
 
 # Cloud database (REQUIRED)
-# GAET_REMOTE_URL=postgresql://user:pass@host:5432/db
+# GAET_REMOTE_URL=postgresql://user:***@host:5432/db
 
 # Local database (default: postgres@127.0.0.1:5432/postgres)
 # GAET_LOCAL_URL=postgresql://postgres:@127.0.0.1:5432/postgres
@@ -97,29 +122,32 @@ if (-not (Test-Path $envFile)) {
     Write-Host "  Config exists: $envFile"
 }
 
-# ── 7. Check PATH ─────────────────────────────────────────────────────────
+# ── 8. Add to PATH if not already there ──────────────────────────────────
 Write-Host ""
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($userPath -like "*$GAET_DIR*") {
     Write-Host "  ✓ $GAET_DIR is in PATH" -ForegroundColor Green
 } else {
-    Write-Host "  ⚠  Add $GAET_DIR to your PATH:" -ForegroundColor Yellow
-    Write-Host "     [Environment]::SetEnvironmentVariable('Path', `"`$env:PATH;$GAET_DIR`", 'User')"
-    Write-Host ""
-    Write-Host "     Or add manually via System Properties → Environment Variables"
+    # Add to PATH for current session
+    $env:Path = "$GAET_DIR;$env:Path"
+
+    # Add to persistent User PATH
+    [Environment]::SetEnvironmentVariable("Path", "$GAET_DIR;$userPath", "User")
+    Write-Host "  ✓ Added $GAET_DIR to PATH" -ForegroundColor Green
+    Write-Host "    (restart your terminal to use 'gaet' from anywhere)" -ForegroundColor Yellow
 }
 
-# ── 8. Done ───────────────────────────────────────────────────────────────
+# ── 9. Done ───────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════════════╗" -ForegroundColor Green
 Write-Host "║  ✓ Installation complete!                           ║" -ForegroundColor Green
 Write-Host "╚══════════════════════════════════════════════════════╝" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Next steps:"
-Write-Host "    1. Configure:  python $GAET_DIR\gaet init"
-Write-Host "    2. Check:      python $GAET_DIR\gaet check"
-Write-Host "    3. Backup:     python $GAET_DIR\gaet push"
-Write-Host "    4. Dashboard:  python $GAET_DIR\gaet serve"
+Write-Host "    1. Configure:  gaet init"
+Write-Host "    2. Check:      gaet check"
+Write-Host "    3. Backup:     gaet push"
+Write-Host "    4. Dashboard:  gaet serve"
 Write-Host ""
 Write-Host "  Docs: https://github.com/ghanirahmans/gaet"
 Write-Host ""

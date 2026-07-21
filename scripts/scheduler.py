@@ -243,7 +243,13 @@ def _windows_is_active(prefix: str) -> bool:
 
 def _windows_enable(prefix: str, interval: int, cli_path: str) -> bool:
     """Create a scheduled task via ``schtasks /Create``."""
-    cli = shutil.which(cli_path) or cli_path
+    # Resolve full path for reliability — schtasks needs absolute paths
+    cli = cli_path
+    if not cli_path.endswith(".py") and not cli_path.startswith(sys.executable):
+        which_result = shutil.which(cli_path)
+        if which_result:
+            cli = which_result
+
     log = _log_path(prefix)
 
     # schtasks /Create accepts:

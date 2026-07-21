@@ -23,7 +23,7 @@ import sys
 import textwrap
 import time
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 # ─── Platform detection ───────────────────────────────────────────────
 IS_LINUX = sys.platform.startswith("linux")
@@ -106,7 +106,7 @@ def _next_cmd(dashboard_dir: Path) -> Optional[List[str]]:
     for c in candidates:
         if c.exists():
             # Use node to execute next.js (avoids shebang/symlink issues in systemd)
-            node = shutil.which("node")
+            node = _find_node()
             if node:
                 return [node, str(c)]
             return [str(c)]
