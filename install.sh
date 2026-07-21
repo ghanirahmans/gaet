@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================================
 # gaet — One-liner installer
-# Usage: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 # ============================================================================
 set -e
 
