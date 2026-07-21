@@ -1716,8 +1716,37 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
         shutil.rmtree(scripts_dir)
         echo(f"    {G}✓{NC} Removed: {scripts_dir}")
     
-    # ── 4. Purge mode: remove config ─────────────────────────────────
+    # ── 4. Purge mode: remove service files + config ────────────────
     if purge:
+        echo(f"  {C}▸{NC} Removing service files...")
+        
+        if IS_LINUX:
+            # Remove systemd unit files
+            systemd_dir = Path.home() / ".config" / "systemd" / "user"
+            for pattern in ["gaet-dashboard.service", "gaet-dashboard.timer",
+                          "gaet-scheduler.service", "gaet-scheduler.timer"]:
+                unit_path = systemd_dir / pattern
+                if unit_path.exists():
+                    unit_path.unlink()
+                    echo(f"    {G}✓{NC} Removed: {unit_path}")
+            
+            # Reload systemd daemon
+            try:
+                import subprocess
+                subprocess.run(["systemctl", "--user", "daemon-reload"],
+                             capture_output=True, timeout=10)
+                echo(f"    {G}✓{NC} Systemd daemon reloaded")
+            except Exception:
+                pass
+        
+        elif IS_MACOS:
+            # Plists already removed in step 2 (unload + unlink)
+            echo(f"    {D}  Plists already removed{NC}")
+        
+        elif IS_WINDOWS:
+            # Tasks already removed in step 2
+            echo(f"    {D}  Tasks already removed{NC}")
+        
         echo(f"  {C}▸{NC} Removing config and data...")
         
         config_dir = Path.home() / ".gaet"
