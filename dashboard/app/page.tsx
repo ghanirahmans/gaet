@@ -13,7 +13,6 @@ type TableRow = {
 
 type StatusData = {
   total_rows?: number;
-  memories: number;
   local_size: string;
   remote_size: string;
   tables: TableRow[];
@@ -179,13 +178,20 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    fetchStatus();
-    const iv = setInterval(fetchStatus, 8000);
-    return () => clearInterval(iv);
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = () => {
+      fetchStatus().then(() => {
+        timer = setTimeout(poll, 8000);
+      });
+    };
+    fetchStatus().then(() => {
+      timer = setTimeout(poll, 8000);
+    });
+    return () => clearTimeout(timer);
   }, [fetchStatus]);
 
-  const act = async (action: string, label: string) => {
-    setBusy(label);
+  const act = async (action: string, label: string, loadingLabel?: string) => {
+    setBusy(loadingLabel || label);
     try {
       const r = await fetch(`/api/${action}`, { method: "POST" });
       const d = await r.json();
@@ -296,21 +302,23 @@ export default function Page() {
           </div>
           <div className="section-body">
             <div className="actions">
-              <button className="btn btn-primary" onClick={() => act("push", "Push")} disabled={!!busy}>
-                {busy === "Push" ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <Icons.Upload />}
-                Push ke Cloud
+              <button className="btn btn-primary" onClick={() => act("push", "Push", "Pushing...")} disabled={!!busy}>
+                {busy && busy !== "Auto" && busy !== "Stop" ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <Icons.Upload />}
+                {busy === "Pushing..." ? "Pushing..." : "Push ke Cloud"}
               </button>
-              <button className="btn btn-secondary" onClick={() => act("fetch", "Fetch")} disabled={!!busy}>
-                {busy === "Fetch" ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <Icons.Download />}
-                Fetch dari Cloud
+              <button className="btn btn-secondary" onClick={() => act("fetch", "Fetch", "Fetching...")} disabled={!!busy}>
+                {busy === "Fetching..." ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <Icons.Download />}
+                {busy === "Fetching..." ? "Fetching..." : "Fetch dari Cloud"}
               </button>
               {d?.cron_active ? (
-                <button className="btn btn-danger" onClick={() => act("stop", "Stop")} disabled={!!busy}>
-                  <Icons.Stop /> Stop Auto-Backup
+                <button className="btn btn-danger" onClick={() => act("stop", "Stop", "Stopping...")} disabled={!!busy}>
+                  {busy === "Stopping..." ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <Icons.Stop />}
+                  {busy === "Stopping..." ? "Stopping..." : "Stop Auto-Backup"}
                 </button>
               ) : (
-                <button className="btn btn-secondary" onClick={() => act("push?auto=1", "Auto")} disabled={!!busy}>
-                  <Icons.Activity /> Enable Auto-Backup
+                <button className="btn btn-secondary" onClick={() => act("push?auto=1", "Auto", "Enabling...")} disabled={!!busy}>
+                  {busy === "Enabling..." ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <Icons.Activity />}
+                  {busy === "Enabling..." ? "Enabling..." : "Enable Auto-Backup"}
                 </button>
               )}
             </div>

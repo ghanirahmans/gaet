@@ -24,6 +24,7 @@ import textwrap
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from xml.sax.saxutils import escape as xml_escape
 
 # ─── Platform detection ───────────────────────────────────────────────
 IS_LINUX = sys.platform.startswith("linux")
@@ -78,7 +79,9 @@ def _ensure_dirs() -> None:
 
 def _write_pid(pid: int) -> None:
     _ensure_dirs()
-    PID_FILE.write_text(str(pid))
+    fd = os.open(str(PID_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w') as f:
+        f.write(str(pid))
 
 
 def _read_pid() -> Optional[int]:
@@ -203,18 +206,18 @@ def _macos_start(dashboard_dir: Path, port: int, host: str, node: str) -> Tuple[
         <string>com.gaet.dashboard</string>
         <key>ProgramArguments</key>
         <array>
-            <string>{"</string><string>".join(plist_args)}</string>
+            {"".join(f'<string>{xml_escape(arg)}</string>' + chr(10) + "            " for arg in plist_args).rstrip()}
         </array>
         <key>WorkingDirectory</key>
-        <string>{dashboard_dir}</string>
+        <string>{xml_escape(str(dashboard_dir))}</string>
         <key>KeepAlive</key>
         <true/>
         <key>RunAtLoad</key>
         <true/>
         <key>StandardOutPath</key>
-        <string>{log}</string>
+        <string>{xml_escape(log)}</string>
         <key>StandardErrorPath</key>
-        <string>{log}</string>
+        <string>{xml_escape(log)}</string>
     </dict>
     </plist>
     """)
@@ -246,11 +249,13 @@ def _windows_is_running() -> bool:
     pid = _read_pid()
     if pid is None:
         return False
-    # tasklist returns "INFO: No tasks ..." if PID not found
-    out, _, rc = _run(["tasklist", "/FI", f"PID eq {pid}", "/NH"])
-    if str(pid) in out:
-        return True
-    # Stale PID
+    out, _, rc = _run(["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"])
+    if rc != 0 or "INFO:" in out:
+        _delete_pid()
+        return False
+    for line in out.strip().splitlines():
+        if f'"{pid}"' in line and ("node" in line.lower() or "next" in line.lower()):
+            return True
     _delete_pid()
     return False
 
@@ -275,10 +280,14 @@ def _windows_start(dashboard_dir: Path, port: int, host: str, node: str) -> Tupl
             close_fds=True,
         )
         _write_pid(proc.pid)
-        time.sleep(2)  # Wait for startup
-        if _windows_is_running():
-            return True, f"started (PID {proc.pid})"
-        return False, "process exited immediately"
+        for _ in range(10):
+            time.sleep(0.5)
+            if proc.poll() is not None:
+                break
+        if proc.poll() is not None:
+            _delete_pid()
+            return False, "process exited immediately"
+        return True, f"started (PID {proc.pid})"
     except Exception as e:
         return False, str(e)
 
@@ -396,20 +405,20 @@ def log(msg: str) -> None:
     _ensure_dirs()
     ts = time.strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{ts}] {msg}\n"
-    with open(LOG_FILE, "a") as f:
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(line)
     print(msg, file=sys.stderr)
 
 
 def _find_dashboard_dir() -> Optional[Path]:
     """Auto-detect dashboard directory."""
-    # Check relative to common locations
     candidates = [
         Path.cwd() / "dashboard",
-        Path(sys.argv[0]).resolve().parent / "dashboard",
-        Path(sys.argv[0]).resolve().parent.parent / "dashboard",
-        HOME / "Projects" / "gaet" / "dashboard",
+        Path(__file__).resolve().parent.parent / "dashboard",
+        GAET_DIR / "dashboard",
     ]
+    if "GAET_PROJECT_DIR" in os.environ:
+        candidates.insert(0, Path(os.environ["GAET_PROJECT_DIR"]) / "dashboard")
     for d in candidates:
         if d.is_dir() and (d / "package.json").is_file():
             return d.resolve()

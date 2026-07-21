@@ -7,13 +7,16 @@ Backup PostgreSQL lokal ke cloud (Supabase, Neon, RDS, VPS).
 Usage:
   gaet init              Setup wizard
   gaet push              Local → cloud
+  gaet push --dry-run    Simulasi push
   gaet fetch             Cloud → local
+  gaet fetch --dry-run   Simulasi fetch
   gaet update            Update ke versi terbaru
   gaet --version         Show version
   gaet status            Tampilkan status
   gaet status --json     Status dalam JSON
   gaet check             Validasi konfigurasi
   gaet log               View backup log
+  gaet log --filter      Filter log berdasarkan keyword
   gaet push --auto[=N]   Aktifkan auto-backup tiap N jam (default 6)
   gaet stop              Stop auto-backup
   gaet serve             Start web dashboard
@@ -24,15 +27,16 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import getpass
 import glob
 import json
 import os
 import re
 import shutil
-import signal
 import struct
 import subprocess
 import sys
+import tempfile
 import textwrap
 import time
 from datetime import datetime
@@ -80,6 +84,13 @@ PRESETS: Dict[str, Dict[str, str]] = {
         "local_pass": "hindsight",
         "tables": "memory_units,banks,chunks,entities,documents,async_operations,audit_log,file_storage,memory_links",
         "description": "Hindsight AI memory database",
+    },
+    "hindsight-hermes": {
+        "local_user": "hindsight",
+        "local_db": "hindsight",
+        "local_pass": "hindsight",
+        "tables": "memory_units,banks,chunks,entities,documents,memory_links,unit_entities,entity_cooccurrences,observation_history,mental_models,mental_model_history,directives,async_operations,webhooks,file_storage,audit_log,llm_requests,graph_maintenance_queue",
+        "description": "Hindsight memory database for Hermes Agent (Nous Research)",
     },
 }
 
@@ -204,23 +215,28 @@ def get_env_int(env: Dict[str, str], key: str, default: int) -> int:
 def parse_remote_url(url: str) -> Optional[Dict[str, str]]:
     """
     Parse postgresql://user:pass@host:port/db.
-    Returns dict or None.
+    Password is optional. Returns dict or None.
     """
     if not url:
         return None
     m = re.match(
-        r"postgres(?:ql)?://([^:]+):([^@]+)@([^:]+):(\d+)/([^?\s]+)",
+        r"postgres(?:ql)?://([^:]+)(?::([^@]*))?@([^:]+):(\d+)/([^?\s]+)",
         url,
     )
     if not m:
         return None
     return {
         "user": m.group(1),
-        "pass": m.group(2),
+        "pass": m.group(2) or "",
         "host": m.group(3),
         "port": m.group(4),
         "db": m.group(5),
     }
+
+
+def mask_url_password(url: str) -> str:
+    """Mask password in a PostgreSQL URL for safe display."""
+    return re.sub(r"(postgres(?:ql)?://[^:]+):([^@]+)@", r"\1:****@", url)
 
 
 def get_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
@@ -229,9 +245,8 @@ def get_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
     if url:
         p = parse_remote_url(url)
         if p:
-            return p["host"], p["port"], p["user"], p["db"], p["pass"]
-        # Try with default password if URL doesn't have one
-        return p["host"], p["port"], p["user"], p["db"], ""
+            passwd = p["pass"] or get_env_str(env, "GAET_LOCAL_DB_PASS", DEF_LOCAL_PASS)
+            return p["host"], p["port"], p["user"], p["db"], passwd
     # Fallback: individual vars (backward compat)
     return (
         get_env_str(env, "GAET_LOCAL_DB_HOST", DEF_LOCAL_HOST),
@@ -411,10 +426,8 @@ def echo(msg: str = "", end: str = "\n") -> None:
 
 def box_title(title: str) -> None:
     """Draw a boxed title with Unicode double-line box characters."""
-    import re as _re
-    
     # Remove ANSI codes for visible length calculation
-    clean_title = _re.sub(r'\033\[[0-9;]*m', '', title)
+    clean_title = re.sub(r'\033\[[0-9;]*m', '', title)
     
     # Double-line box - professional look
     width = 50
@@ -523,9 +536,7 @@ def draw_colored_table(headers: str, rows: List[str], colors: Optional[List[str]
         vals = vals + [""] * (ncols - len(vals))
         data.append(vals)
         for i, v in enumerate(vals):
-            # Strip ANSI for width calculation
-            import re as _re
-            clean = _re.sub(r'\033\[[0-9;]*m', '', v)
+            clean = re.sub(r'\033\[[0-9;]*m', '', v)
             widths[i] = max(widths[i], len(clean))
 
     def sep_row(left: str, mid: str, right: str, junction: str) -> str:
@@ -556,8 +567,7 @@ def draw_colored_table(headers: str, rows: List[str], colors: Optional[List[str]
         row_color = colors[idx] if colors and idx < len(colors) else ""
         row = f"  {D}║{NC}"
         for i, v in enumerate(vals):
-            import re as _re
-            clean = _re.sub(r'\033\[[0-9;]*m', '', v)
+            clean = re.sub(r'\033\[[0-9;]*m', '', v)
             pad = widths[i] - len(clean)
             row += f" {row_color}{v}{NC}{' ' * (pad + 1)}{D}║{NC}"
         echo(row)
@@ -614,6 +624,36 @@ def run_cmd(
         return "", f"Command not found: {cmd[0]}", 127
     except Exception as e:
         return "", str(e), 1
+
+
+def pg_env(user: str, passwd: str, ssl_mode: Optional[str] = None) -> Dict[str, str]:
+    """Create env dict using PGPASSFILE instead of PGPASSWORD (avoids /proc leak).
+    Caller must call cleanup_pg_env(env) after use to delete the temp file."""
+    env: Dict[str, str] = {}
+    if not passwd:
+        return env
+    pgpass_content = f"*:*:*:{user}:{passwd}\n"
+    try:
+        fd, pgpass_path = tempfile.mkstemp(prefix=".pgpass_", suffix=".tmp")
+        with os.fdopen(fd, 'w') as f:
+            f.write(pgpass_content)
+        os.chmod(pgpass_path, 0o600)
+        env["PGPASSFILE"] = pgpass_path
+    except OSError:
+        env["PGPASSWORD"] = passwd
+    if ssl_mode:
+        env["PGSSLMODE"] = ssl_mode
+    return env
+
+
+def cleanup_pg_env(env: Dict[str, str]) -> None:
+    """Delete the PGPASSFILE temp file if one was created."""
+    pgpass = env.get("PGPASSFILE")
+    if pgpass:
+        try:
+            os.unlink(pgpass)
+        except OSError:
+            pass
 
 
 def check_tools(env: Dict[str, str]) -> None:
@@ -697,12 +737,12 @@ except ImportError:
             svc = user_systemd / f"{prefix}-backup.service"
             svc.write_text(
                 f"[Unit]\nDescription={NAME} backup\nAfter=network.target\n\n"
-                f"[Service]\nType=oneshot\nExecStart={cli_path} push --cron\n"
+                f"[Service]\nType=oneshot\nExecStart=\"{cli_path}\" push --cron\n"
             )
             tim = user_systemd / f"{prefix}-backup.timer"
             tim.write_text(
                 f"[Unit]\nDescription={NAME} periodic backup (every {interval}h)\n\n"
-                f"[Timer]\nOnCalendar=*-*-* 00/0{interval}:00:00\nPersistent=true\n\n"
+                f"[Timer]\nOnCalendar=*-*-* 00/{interval}:00:00\nPersistent=true\n\n"
                 f"[Install]\nWantedBy=timers.target\n"
             )
             run_cmd(["systemctl", "--user", "daemon-reload"], timeout=10)
@@ -712,13 +752,14 @@ except ImportError:
             )
             return rc == 0
         elif IS_MACOS:
+            from xml.sax.saxutils import escape as xml_escape
             plist = HOME / "Library" / "LaunchAgents" / f"{prefix}-backup.plist"
             plist.parent.mkdir(parents=True, exist_ok=True)
             plist.write_text(
                 f'<?xml version="1.0"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
                 f'"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">'
-                f"<dict><key>Label</key><string>{prefix}-backup</string>"
-                f"<key>ProgramArguments</key><array><string>{cli_path}</string>"
+                f"<dict><key>Label</key><string>{xml_escape(f'{prefix}-backup')}</string>"
+                f"<key>ProgramArguments</key><array><string>{xml_escape(cli_path)}</string>"
                 f"<string>push</string><string>--cron</string></array>"
                 f"<key>StartInterval</key><integer>{interval * 3600}</integer>"
                 f"<key>RunAtLoad</key><true/></dict></plist>"
@@ -808,7 +849,10 @@ def cmd_init(args: argparse.Namespace) -> None:
     box_title(f"{NAME} init")
 
     # Resolve preset
-    preset_name = getattr(args, "preset_flag", None) or getattr(args, "preset", None)
+    preset_name = getattr(args, "preset_flag", None)
+    if not preset_name:
+        preset_raw = getattr(args, "preset", None)
+        preset_name = "-".join(preset_raw) if preset_raw else None
     preset: Optional[Dict[str, str]] = None
     if preset_name:
         preset = PRESETS.get(preset_name.lower())
@@ -828,6 +872,15 @@ def cmd_init(args: argparse.Namespace) -> None:
 
     GAET_DIR.mkdir(parents=True, exist_ok=True)
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Backup existing config before re-init
+    if ENV_FILE.is_file():
+        backup_path = GAET_DIR / f".env.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        try:
+            shutil.copy2(str(ENV_FILE), str(backup_path))
+            status_info(f"Config lama dibackup ke: {backup_path}")
+        except OSError:
+            pass
 
     if not ENV_FILE.is_file():
         echo()
@@ -920,6 +973,14 @@ def cmd_init(args: argparse.Namespace) -> None:
         if preset and "tables" in preset:
             tables_line = f"# GAET_TABLES={preset['tables']}"
 
+        # Build local URL without password in the URL string
+        if w:
+            local_url = f"postgresql://{u}@{h}:{p}/{n}"
+            pass_line = f"GAET_LOCAL_DB_PASS={w}"
+        else:
+            local_url = f"postgresql://{u}@{h}:{p}/{n}"
+            pass_line = "# GAET_LOCAL_DB_PASS="
+
         env_content = textwrap.dedent(f"""\
         # ══════════════════════════════════════════════════════════════
         # gaet — Konfigurasi
@@ -928,7 +989,8 @@ def cmd_init(args: argparse.Namespace) -> None:
         # ══════════════════════════════════════════════════════════════
 
         # Local Database
-        GAET_LOCAL_URL=postgresql://{u}:{w}@{h}:{p}/{n}
+        GAET_LOCAL_URL={local_url}
+        {pass_line}
 
         # Remote Database (Cloud)
         GAET_REMOTE_URL={remote_url}
@@ -937,8 +999,9 @@ def cmd_init(args: argparse.Namespace) -> None:
         GAET_RETENTION_DAYS={ret}
         {tables_line}""")
 
-        ENV_FILE.write_text(env_content)
-        ENV_FILE.chmod(0o600)
+        fd = os.open(str(ENV_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, 'w') as f:
+            f.write(env_content)
         echo()
         status_ok(f"Config tersimpan di {ENV_FILE}")
     else:
@@ -970,7 +1033,7 @@ def _manual_db_input() -> Tuple[str, str, str, str, str]:
     p = input(f"  Port [5432]: ").strip() or "5432"
     u = input(f"  User [postgres]: ").strip() or "postgres"
     n = input(f"  Database [postgres]: ").strip() or "postgres"
-    w = input(f"  Password []: ").strip()
+    w = getpass.getpass(f"  Password []: ").strip()
     return h, p, u, n, w
 
 
@@ -993,10 +1056,11 @@ def _print_summary(env: Dict[str, str], tools: Dict[str, str]) -> None:
     else:
         echo()
 
-    # Remote status
+    # Remote status — mask password in display
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or ""
     if remote_url:
-        echo(f"  {C}☁️{NC}   Remote: {remote_url[:60]}{'...' if len(remote_url) > 60 else ''}")
+        display_url = mask_url_password(remote_url)
+        echo(f"  {C}☁️{NC}   Remote: {display_url[:60]}{'...' if len(display_url) > 60 else ''}")
     else:
         echo(f"  {C}☁️{NC}   Remote: {Y}not configured{NC} (set GAET_REMOTE_URL later)")
 
@@ -1288,7 +1352,7 @@ def cmd_status(args: argparse.Namespace) -> None:
                     colors.append(G if synced else R)
 
             except Exception as e:
-                status_warn(f"Failed to query tables: {e}")
+                status_warn(f"Gagal query tabel: {e}")
 
         # Show max 10 tables, with "more" indicator
         display_rows = rows[:10]
@@ -1456,6 +1520,28 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
 
 def cmd_push(args: argparse.Namespace) -> None:
     """Backup local → cloud."""
+    dry_run = getattr(args, "dry_run", False)
+
+    if dry_run:
+        env = load_env()
+        tools = find_pg_tools(env)
+        h, p, u, n, w = get_local_db(env)
+        remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
+        parsed = parse_remote_url(remote_url)
+        tables = get_tables(env, tools)
+        box_title("gaet push --dry-run")
+        echo(f"  {C}📦{NC}  {B}Simulasi push local → cloud{NC}")
+        echo()
+        status_arrow(f"Local:  {u}@{h}:{p}/{n}")
+        status_arrow(f"Cloud:  {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}" if parsed else "Cloud: not configured")
+        status_arrow(f"Tables: {len(tables)} ditemukan")
+        status_arrow(f"Backup: ~/.gaet/backups/gaet_*.dump")
+        retention = get_env_int(env, "GAET_RETENTION_DAYS", DEF_RETENTION_DAYS)
+        status_arrow(f"Retensi: {retention} hari")
+        echo()
+        status_info("Dry-run: Tidak ada perubahan yang dilakukan.")
+        return
+
     acquire_lock()
     try:
         env = load_env()
@@ -1466,7 +1552,11 @@ def cmd_push(args: argparse.Namespace) -> None:
         remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
         parsed = parse_remote_url(remote_url)
         if not parsed:
-            die("GAET_REMOTE_URL not configured")
+            die(
+                "GAET_REMOTE_URL belum dikonfigurasi.\n"
+                f"  Jalankan: {C}gaet init{NC} lalu set remote URL\n"
+                f"  Atau edit langsung: {D}{ENV_FILE}{NC}"
+            )
 
         log("🚀 Push: local → cloud")
         box_title("gaet push")
@@ -1498,9 +1588,8 @@ def cmd_push(args: argparse.Namespace) -> None:
                 Path(backup_file).unlink(missing_ok=True)
                 die("Dump korup — backup dibatalkan")
         else:
-            echo(f"    {R}{ICON_FAIL}{NC}  Dump gagal!")
             Path(backup_file).unlink(missing_ok=True)
-            sys.exit(2)
+            die("Dump gagal")
 
         # Step 2: Restore to cloud with timeout
         echo(f"  {C}☁️{NC}   {B}Mensinkronkan ke cloud...{NC}")
@@ -1539,6 +1628,24 @@ def cmd_push(args: argparse.Namespace) -> None:
 
 def cmd_fetch(args: argparse.Namespace) -> None:
     """Restore cloud → local."""
+    dry_run = getattr(args, "dry_run", False)
+
+    if dry_run:
+        env = load_env()
+        tools = find_pg_tools(env)
+        h, p, u, n, w = get_local_db(env)
+        remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
+        parsed = parse_remote_url(remote_url)
+        box_title("gaet fetch --dry-run")
+        echo(f"  {C}☁️{NC}   {B}Simulasi fetch cloud → local{NC}")
+        echo()
+        status_arrow(f"Cloud:  {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}" if parsed else "Cloud: not configured")
+        status_arrow(f"Local:  {u}@{h}:{p}/{n}")
+        status_arrow(f"Aksi:   Dump cloud → restore ke local (overwrite)")
+        echo()
+        status_info("Dry-run: Tidak ada perubahan yang dilakukan.")
+        return
+
     acquire_lock()
     try:
         env = load_env()
@@ -1547,7 +1654,11 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
         parsed = parse_remote_url(remote_url)
         if not parsed:
-            die("GAET_REMOTE_URL not configured")
+            die(
+                "GAET_REMOTE_URL belum dikonfigurasi.\n"
+                f"  Jalankan: {C}gaet init{NC} lalu set remote URL\n"
+                f"  Atau edit langsung: {D}{ENV_FILE}{NC}"
+            )
 
         tools = find_pg_tools(env)
         psql = tools["psql"]
@@ -1556,6 +1667,17 @@ def cmd_fetch(args: argparse.Namespace) -> None:
 
         log("⬇️ Fetch: cloud → local")
         box_title("gaet fetch")
+
+        # Confirmation before overwriting local DB
+        echo(f"  {Y}⚠  PERINGATAN: Operasi ini akan OVERWRITE database lokal!{NC}")
+        echo(f"  {D}Database: {u}@{h}:{p}/{n}{NC}")
+        echo(f"  {D}Cloud:    {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}{NC}")
+        echo()
+        confirm = input(f"  Ketik 'yes' untuk melanjutkan: ").strip().lower()
+        if confirm != "yes":
+            echo(f"  {G}Dibatalkan.{NC}")
+            return
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Step 1: Cloud dump
@@ -1575,13 +1697,13 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             size_mb = Path(fetch_file).stat().st_size / (1024 * 1024)
             echo(f"    {G}{ICON_OK}{NC}  Dump cloud tersimpan {D}({size_mb:.1f} MB){NC}")
         else:
-            echo(f"    {R}{ICON_FAIL}{NC}  Dump cloud gagal!")
             Path(fetch_file).unlink(missing_ok=True)
-            sys.exit(2)
+            die("Dump cloud gagal")
 
         # Step 2: Restore to local
         echo(f"  {C}💾{NC}  {B}Restoring to local database...{NC}")
         # Terminate connections first
+        status_warn("Menutup koneksi aktif ke database lokal...")
         run_cmd(
             [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
              "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
@@ -1635,6 +1757,16 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
         timeout=120,
     )
     if rc == 0 and Path(cron_file).is_file():
+        # Integrity check
+        out_check, _, rc_check = run_cmd(
+            [pg_restore, "--list", cron_file],
+            timeout=30,
+        )
+        if rc_check != 0:
+            Path(cron_file).unlink(missing_ok=True)
+            cronlog("❌ [cron] Dump korup — backup dibatalkan")
+            return
+
         out2, err2, rc2 = run_cmd(
             [pg_restore, "-h", parsed["host"], "-p", parsed["port"],
              "-U", parsed["user"], "-d", parsed["db"],
@@ -1659,19 +1791,26 @@ def cmd_auto_on(args: argparse.Namespace) -> None:
     prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
     interval = args.auto if args.auto else get_env_int(env, "GAET_AUTO_INTERVAL", DEF_AUTO_INTERVAL)
 
-    if interval < 1 or interval > 23:
-        die("Interval harus 1-23 jam.")
+    # Validate interval
+    if interval is None or interval <= 0:
+        die("Interval harus berupa angka positif (jam).\n"
+            f"  Contoh: {C}gaet push --auto=4{NC}  (auto-backup setiap 4 jam)")
+    if interval > 24:
+        die("Interval maksimal 24 jam.\n"
+            f"  Contoh: {C}gaet push --auto=12{NC}  (auto-backup setiap 12 jam)")
 
     box_title("Auto-backup")
-    status_info(f"Enabling auto-backup every {interval} hours...")
+    status_info(f"Mengaktifkan auto-backup setiap {interval} jam (scheduler: {get_scheduler_name()})")
 
     # Determine cli_path for the scheduler to call
     cli_path = str(Path(sys.argv[0]).resolve())
 
     if scheduler_enable(prefix, interval, cli_path):
-        echo(f"    {G}{ICON_OK}{NC}  Auto-backup active!")
+        echo(f"    {G}{ICON_OK}{NC}  Auto-backup aktif setiap {interval} jam!")
+        status_arrow(f"Interval: {interval} jam")
+        status_arrow(f"Scheduler: {get_scheduler_name()}")
     else:
-        status_fail("Failed to enable auto-backup")
+        status_fail("Gagal mengaktifkan auto-backup")
         echo(f"    {Y}{ICON_WARN}{NC}  Di sistem ini, aktifkan auto-backup secara manual.")
 
 
@@ -1686,37 +1825,39 @@ def cmd_stop_auto(args: argparse.Namespace) -> None:
         if _svc_is_running():
             ok, msg = _svc_stop()
             if ok:
-                status_ok("Dashboard stopped")
+                status_ok("Dashboard dihentikan")
             else:
-                status_warn(f"Failed to stop dashboard: {msg}")
+                status_warn(f"Gagal menghentikan dashboard: {msg}")
         else:
-            status_warn("Dashboard not running")
+            status_warn("Dashboard tidak aktif")
         return
 
     if getattr(args, "scheduler", False):
         # Only stop auto-backup
         status_info("Menghentikan auto-backup...")
         scheduler_disable(prefix)
-        status_ok("Auto-backup stopped")
+        status_ok("Auto-backup dihentikan")
         return
 
     # Default: stop both
     status_info("Menghentikan auto-backup...")
     scheduler_disable(prefix)
-    status_ok("Auto-backup stopped")
+    status_ok("Auto-backup dihentikan")
 
     if _svc_is_running():
         status_info("Menghentikan dashboard...")
         ok, msg = _svc_stop()
         if ok:
-            status_ok("Dashboard stopped")
+            status_ok("Dashboard dihentikan")
         else:
-            status_warn(f"Failed to stop dashboard: {msg}")
+            status_warn(f"Gagal menghentikan dashboard: {msg}")
 
 
 def cmd_log(args: argparse.Namespace) -> None:
     """View backup log."""
     lines = args.lines or 30
+    filter_str = getattr(args, "filter", None) or ""
+    since_str = getattr(args, "since", None) or ""
     if not LOG_FILE.is_file():
         echo(f"  {Y}Belum ada log. Jalankan 'gaet push' dulu.{NC}")
         return
@@ -1724,13 +1865,24 @@ def cmd_log(args: argparse.Namespace) -> None:
     with open(str(LOG_FILE), "r", encoding="utf-8", errors="replace") as f:
         all_lines = f.readlines()
 
+    # Apply filters
+    filtered = all_lines
+    if filter_str:
+        filtered = [l for l in filtered if filter_str.lower() in l.lower()]
+    if since_str:
+        filtered = [l for l in filtered if l.startswith(f"[{since_str}") or since_str in l]
+
     total = len(all_lines)
-    start = max(0, total - lines)
+    total_filtered = len(filtered)
+    start = max(0, total_filtered - lines)
 
     box_title(f"{NAME} log")
-    echo(f"  {D}{total} last lines (showing {lines}){NC}")
+    echo(f"  {D}{total} total lines", end="")
+    if filter_str or since_str:
+        echo(f" ({total_filtered} filtered)", end="")
+    echo(f" (showing {min(lines, total_filtered)}){NC}")
     echo()
-    for line in all_lines[start:]:
+    for line in filtered[start:]:
         echo(f"  {D}│{NC} {line.rstrip()}")
 
 
@@ -1763,68 +1915,65 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     box_title(f"{NAME} uninstall ({mode})")
     
     if purge:
-        echo(f"  {Y}⚠  PURGE MODE: Will remove gaet AND all config/backups{NC}")
+        echo(f"  {Y}⚠  PURGE MODE: Akan menghapus gaet DAN semua config/backup{NC}")
         echo("")
-        confirm = input(f"  Type 'yes' to confirm: ").strip().lower()
+        confirm = input(f"  Ketik 'yes' untuk konfirmasi: ").strip().lower()
         if confirm != "yes":
-            echo(f"  {G}Cancelled.{NC}")
+            echo(f"  {G}Dibatalkan.{NC}")
             return
     
     # ── 1. Stop services ──────────────────────────────────────────────
-    echo(f"  {C}▸{NC} Stopping services...")
+    echo(f"  {C}▸{NC} Menghentikan service...")
+    
+    # Stop scheduler
+    try:
+        if scheduler_is_active(DEF_SERVICE_PREFIX):
+            scheduler_disable(DEF_SERVICE_PREFIX)
+            echo(f"    {G}✓{NC} Scheduler dihentikan")
+        else:
+            echo(f"    {D}  Scheduler tidak aktif{NC}")
+    except Exception as e:
+        echo(f"    {Y}⚠  Scheduler error: {e}{NC}")
     
     # Stop dashboard
     try:
-        from scripts.scheduler import stop_scheduler, _service_name, _scheduler_enabled
-        from scripts.service_manager import stop_dashboard
-        
-        scheduler_stopped = stop_scheduler()
-        dashboard_stopped = stop_dashboard()
-        
-        if scheduler_stopped:
-            echo(f"    {G}✓{NC} Scheduler stopped")
+        if _svc_is_running():
+            ok, msg = _svc_stop()
+            if ok:
+                echo(f"    {G}✓{NC} Dashboard dihentikan")
+            else:
+                echo(f"    {Y}⚠  Dashboard gagal dihentikan: {msg}{NC}")
         else:
-            echo(f"    {D}  Scheduler was not running{NC}")
-        
-        if dashboard_stopped:
-            echo(f"    {G}✓{NC} Dashboard stopped")
-        else:
-            echo(f"    {D}  Dashboard was not running{NC}")
+            echo(f"    {D}  Dashboard tidak aktif{NC}")
     except Exception as e:
-        echo(f"    {Y}⚠  Service stop error: {e}{NC}")
+        echo(f"    {Y}⚠  Dashboard error: {e}{NC}")
     
     # ── 2. Disable services ──────────────────────────────────────────
-    echo(f"  {C}▸{NC} Disabling services...")
+    echo(f"  {C}▸{NC} Menonaktifkan service...")
     
     if IS_LINUX:
         # Disable systemd services
         try:
-            import subprocess
-            svc = _service_name("service")
-            timer = _service_name("timer")
+            prefix = DEF_SERVICE_PREFIX
+            timer = f"{prefix}-backup.timer"
+            svc = f"{prefix}-backup.service"
             
-            # Stop and disable timer
-            subprocess.run(["systemctl", "--user", "disable", "--now", timer],
-                         capture_output=True, timeout=10)
-            echo(f"    {G}✓{NC} Timer disabled: {timer}")
+            run_cmd(["systemctl", "--user", "disable", "--now", timer], timeout=10)
+            echo(f"    {G}✓{NC} Timer dinonaktifkan: {timer}")
             
-            # Stop and disable service
-            subprocess.run(["systemctl", "--user", "disable", "--now", svc],
-                         capture_output=True, timeout=10)
-            echo(f"    {G}✓{NC} Service disabled: {svc}")
+            run_cmd(["systemctl", "--user", "disable", "--now", svc], timeout=10)
+            echo(f"    {G}✓{NC} Service dinonaktifkan: {svc}")
         except Exception as e:
             echo(f"    {Y}⚠  Disable error: {e}{NC}")
     
     elif IS_MACOS:
         # Unload launchd plists
         try:
-            import subprocess
             plist_dir = Path.home() / "Library" / "LaunchAgents"
-            for pattern in ["com.gaet.dashboard.plist", "com.gaet.scheduler.plist"]:
+            for pattern in ["com.gaet.dashboard.plist", f"{DEF_SERVICE_PREFIX}-backup.plist"]:
                 plist_path = plist_dir / pattern
                 if plist_path.exists():
-                    subprocess.run(["launchctl", "unload", str(plist_path)],
-                                 capture_output=True, timeout=10)
+                    run_cmd(["launchctl", "unload", str(plist_path)], timeout=10)
                     plist_path.unlink()
                     echo(f"    {G}✓{NC} Unloaded: {pattern}")
         except Exception as e:
@@ -1833,20 +1982,15 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     elif IS_WINDOWS:
         # Remove Task Scheduler tasks
         try:
-            import subprocess
-            result = subprocess.run(
-                ["schtasks", "/Query", "/TN", "gaet-backup"],
-                capture_output=True, text=True, timeout=10
-            )
-            if result.returncode == 0:
-                subprocess.run(["schtasks", "/Delete", "/TN", "gaet-backup", "/F"],
-                             capture_output=True, timeout=10)
-                echo(f"    {G}✓{NC} Task Scheduler removed")
+            _, _, rc = run_cmd(["schtasks", "/Query", "/TN", f"{DEF_SERVICE_PREFIX}-backup"], timeout=10)
+            if rc == 0:
+                run_cmd(["schtasks", "/Delete", "/TN", f"{DEF_SERVICE_PREFIX}-backup", "/F"], timeout=10)
+                echo(f"    {G}✓{NC} Task Scheduler dihapus")
         except Exception as e:
             echo(f"    {Y}⚠  Task removal error: {e}{NC}")
     
     # ── 3. Remove CLI and scripts ────────────────────────────────────
-    echo(f"  {C}▸{NC} Removing gaet CLI...")
+    echo(f"  {C}▸{NC} Menghapus gaet CLI...")
     
     bin_dir = Path.home() / ".local" / "bin"
     
@@ -1854,74 +1998,147 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     gaet_bin = bin_dir / "gaet"
     if gaet_bin.exists():
         gaet_bin.unlink()
-        echo(f"    {G}✓{NC} Removed: {gaet_bin}")
+        echo(f"    {G}✓{NC} Dihapus: {gaet_bin}")
     
     # Remove scripts directory
     scripts_dir = bin_dir / "scripts"
     if scripts_dir.exists():
-        import shutil
         shutil.rmtree(scripts_dir)
-        echo(f"    {G}✓{NC} Removed: {scripts_dir}")
+        echo(f"    {G}✓{NC} Dihapus: {scripts_dir}")
     
     # ── 4. Purge mode: remove service files + config ────────────────
     if purge:
-        echo(f"  {C}▸{NC} Removing service files...")
+        echo(f"  {C}▸{NC} Menghapus service files...")
         
+        prefix = DEF_SERVICE_PREFIX
         if IS_LINUX:
             # Remove systemd unit files
-            systemd_dir = Path.home() / ".config" / "systemd" / "user"
-            for pattern in ["gaet-dashboard.service", "gaet-dashboard.timer",
-                          "gaet-scheduler.service", "gaet-scheduler.timer"]:
+            systemd_dir = HOME / ".config" / "systemd" / "user"
+            for pattern in [f"{prefix}-dashboard.service", f"{prefix}-backup.service",
+                          f"{prefix}-backup.timer", "gaet-dashboard.service"]:
                 unit_path = systemd_dir / pattern
                 if unit_path.exists():
                     unit_path.unlink()
-                    echo(f"    {G}✓{NC} Removed: {unit_path}")
+                    echo(f"    {G}✓{NC} Dihapus: {unit_path}")
             
             # Reload systemd daemon
             try:
-                import subprocess
-                subprocess.run(["systemctl", "--user", "daemon-reload"],
-                             capture_output=True, timeout=10)
+                run_cmd(["systemctl", "--user", "daemon-reload"], timeout=10)
                 echo(f"    {G}✓{NC} Systemd daemon reloaded")
             except Exception:
                 pass
         
         elif IS_MACOS:
             # Plists already removed in step 2 (unload + unlink)
-            echo(f"    {D}  Plists already removed{NC}")
+            echo(f"    {D}  Plist sudah dihapus{NC}")
         
         elif IS_WINDOWS:
             # Tasks already removed in step 2
-            echo(f"    {D}  Tasks already removed{NC}")
+            echo(f"    {D}  Task sudah dihapus{NC}")
         
-        echo(f"  {C}▸{NC} Removing config and data...")
+        echo(f"  {C}▸{NC} Menghapus config dan data...")
         
-        config_dir = Path.home() / ".gaet"
+        config_dir = GAET_DIR
         if config_dir.exists():
-            import shutil
             shutil.rmtree(config_dir)
-            echo(f"    {G}✓{NC} Removed: {config_dir}")
+            echo(f"    {G}✓{NC} Dihapus: {config_dir}")
         else:
-            echo(f"    {D}  Config directory not found{NC}")
+            echo(f"    {D}  Config directory tidak ditemukan{NC}")
     
     # ── 5. Summary ───────────────────────────────────────────────────
     echo("")
-    echo(f"  {G}✓ Uninstall complete ({mode} mode){NC}")
+    echo(f"  {G}✓ Uninstall selesai ({mode} mode){NC}")
     echo("")
     
     if purge:
-        echo(f"  Everything has been removed.")
+        echo(f"  Semua sudah dihapus.")
     else:
-        echo(f"  Config kept at: ~/.gaet/")
-        echo(f"  To remove config too, run: gaet uninstall --purge")
+        echo(f"  Config disimpan di: {GAET_DIR}/")
+        echo(f"  Untuk hapus config juga, jalankan: gaet uninstall --purge")
     
-    echo(f"  To reinstall: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash")
+    echo(f"  Untuk reinstall: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash")
     echo("")
+
+
+GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/main"
+
+
+def _update_download(install_dir: Path, skip_build: bool = False) -> None:
+    """Update gaet by downloading files from GitHub (for curl-install users)."""
+    import urllib.request
+    import io
+    import zipfile
+
+    status_info("Mendownload gaet terbaru dari GitHub...")
+
+    files = [
+        ("gaet.py", "gaet"),
+    ]
+    script_files = ["__init__.py", "status.py", "scheduler.py", "service_manager.py", "installer.py"]
+
+    for src, dst in files:
+        url = f"{GITHUB_RAW}/{src}"
+        try:
+            with urllib.request.urlopen(url, timeout=15) as resp:
+                data = resp.read()
+            dest_path = install_dir / dst
+            dest_path.write_bytes(data)
+            dest_path.chmod(0o755)
+            status_ok(f"{dst} → {dest_path}")
+        except Exception as e:
+            die(f"Gagal mendownload {src}: {e}")
+
+    # Download scripts
+    scripts_dst = install_dir / "scripts"
+    scripts_dst.mkdir(parents=True, exist_ok=True)
+    for sf in script_files:
+        url = f"{GITHUB_RAW}/scripts/{sf}"
+        try:
+            with urllib.request.urlopen(url, timeout=15) as resp:
+                data = resp.read()
+            (scripts_dst / sf).write_bytes(data)
+            status_ok(f"scripts/{sf} → {scripts_dst}/")
+        except Exception as e:
+            status_warn(f"Gagal mendownload scripts/{sf}: {e}")
+
+    # Download and build dashboard
+    if not skip_build:
+        try:
+            dashboard_dst = install_dir / "dashboard"
+            dash_files = ["package.json", "next.config.ts", "tsconfig.json", "postcss.config.js",
+                          "app/layout.tsx", "app/page.tsx", "app/globals.css",
+                          "app/api/status/route.ts", "app/api/push/route.ts",
+                          "app/api/fetch/route.ts", "app/api/stop/route.ts"]
+
+            for df in dash_files:
+                url = f"{GITHUB_RAW}/dashboard/{df}"
+                try:
+                    with urllib.request.urlopen(url, timeout=15) as resp:
+                        data = resp.read()
+                    df_path = dashboard_dst / df
+                    df_path.parent.mkdir(parents=True, exist_ok=True)
+                    df_path.write_bytes(data)
+                except Exception:
+                    pass  # some files may not exist
+
+            node = shutil.which("node")
+            npm = shutil.which("npm")
+            if node and npm and dashboard_dst.is_dir() and (dashboard_dst / "package.json").is_file():
+                status_info("Building dashboard...")
+                run_cmd([npm, "install"], cwd=str(dashboard_dst), timeout=120)
+                run_cmd([npm, "run", "build"], cwd=str(dashboard_dst), timeout=120)
+                status_ok("Dashboard built")
+        except Exception as e:
+            status_warn(f"Dashboard update skipped: {e}")
+
+    status_ok("Update selesai!")
 
 
 def cmd_update(args: argparse.Namespace) -> None:
     """Update gaet to latest version from GitHub."""
     box_title(f"{NAME} update")
+
+    install_dir = Path.home() / ".local" / "bin"
     
     # Find project directory (where .git exists)
     script_dir = Path(sys.argv[0]).resolve().parent
@@ -1939,7 +2156,10 @@ def cmd_update(args: argparse.Namespace) -> None:
             break
     
     if not project_dir:
-        die("Project directory tidak ditemukan. Jalankan dari folder gaet atau set GAET_PROJECT_DIR")
+        # No git repo found — use download fallback for curl-install users
+        status_info("Mode: curl-install (download from GitHub)")
+        _update_download(install_dir, skip_build=args.skip_build)
+        return
     
     echo(f"  {C}📁{NC}  Project: {D}{project_dir}{NC}")
     
@@ -2063,11 +2283,10 @@ def cmd_serve(args: argparse.Namespace) -> None:
     env = load_env()
 
     # Cari dashboard directory
-    script_dir = Path(sys.argv[0]).resolve().parent
+    script_dir = Path(__file__).resolve().parent
     candidates = [
         script_dir / "dashboard",
         script_dir.parent / "dashboard",
-        HOME / "Projects/gaet/dashboard",
         GAET_DIR / "dashboard",
         HOME / ".local/share/gaet/dashboard",
     ]
@@ -2093,11 +2312,11 @@ def cmd_serve(args: argparse.Namespace) -> None:
     box_title(f"{NAME} serve")
 
     if not dashboard_dir:
-        die("Dashboard directory not found")
+        die("Dashboard tidak ditemukan")
 
     # Check if dashboard is built
     if not (dashboard_dir / ".next").is_dir():
-        status_info("Dashboard not built. Building...")
+        status_info("Dashboard belum di-build. Building...")
         node = shutil.which("node")
         npm = shutil.which("npm")
         if node and npm:
@@ -2105,7 +2324,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
             run_cmd([npm, "run", "build"], cwd=str(dashboard_dir), timeout=120)
             status_ok("Dashboard built")
         else:
-            die("Node.js/npm tidak ditemukan. Install dulu.")
+            die("Node.js/npm tidak ditemukan. Install Node.js terlebih dahulu.")
 
     # Stop existing service first
     if _svc_is_running():
@@ -2119,6 +2338,12 @@ def cmd_serve(args: argparse.Namespace) -> None:
     if ok:
         echo(f"\n  {G}{ICON_OK}{NC}  {B}Dashboard is running!{NC}")
         echo(f"  {D}{ICON_ARROW}{NC}  http://localhost:{port}")
+        # Auto-open browser
+        import webbrowser
+        try:
+            webbrowser.open(f"http://localhost:{port}")
+        except Exception:
+            pass
     else:
         status_fail(f"Dashboard failed: {msg}")
 
@@ -2136,11 +2361,14 @@ def main() -> None:
             Commands:
               init              Setup wizard (config + test)
               push              Backup local → cloud
+              push --dry-run    Simulasi push tanpa eksekusi
               fetch             Restore cloud → local
+              fetch --dry-run   Simulasi fetch tanpa eksekusi
               status            Show sync status
               status --json     Status dalam JSON
               check             Validate config & connections
               log               View backup log
+              log --filter      Filter log berdasarkan keyword
               push --auto[=N]   Aktifkan auto-backup tiap N jam
               stop              Stop auto-backup & dashboard
               serve             Start web dashboard (background)
@@ -2158,8 +2386,8 @@ def main() -> None:
     # init
     init_parser = subparsers.add_parser("init", help="Interactive setup wizard")
     init_parser.add_argument(
-        "preset", nargs="?", default=None,
-        help="Preset database (contoh: hindsight)",
+        "preset", nargs="*", default=None,
+        help="Preset database (contoh: hindsight, hindsight hermes)",
     )
     init_parser.add_argument(
         "--preset", dest="preset_flag", default=None,
@@ -2180,9 +2408,11 @@ def main() -> None:
         help="Aktifkan auto-backup (opsional: interval jam, default 6)",
     )
     push_parser.add_argument("--cron", action="store_true", help="Jalankan dari scheduler (internal)")
+    push_parser.add_argument("--dry-run", action="store_true", help="Simulasi tanpa mengeksekusi")
 
     # fetch
-    subparsers.add_parser("fetch", help="Restore cloud → local")
+    fetch_parser = subparsers.add_parser("fetch", help="Restore cloud → local")
+    fetch_parser.add_argument("--dry-run", action="store_true", help="Simulasi tanpa mengeksekusi")
 
     # stop
     stop_parser = subparsers.add_parser("stop", help="Stop auto-backup &/or dashboard")
@@ -2192,6 +2422,8 @@ def main() -> None:
     # log
     log_parser = subparsers.add_parser("log", help="View backup log")
     log_parser.add_argument("lines", nargs="?", type=int, default=30, help="Jumlah baris (default 30)")
+    log_parser.add_argument("--filter", "-f", type=str, default="", help="Filter log berdasarkan keyword")
+    log_parser.add_argument("--since", "-s", type=str, default="", help="Filter sejak tanggal (YYYY-MM-DD)")
 
     # serve
     subparsers.add_parser("serve", help="Start web dashboard")
@@ -2239,6 +2471,8 @@ def main() -> None:
         args.cron = False
     if not hasattr(args, "auto"):
         args.auto = None
+    if not hasattr(args, "dry_run"):
+        args.dry_run = False
 
     # ── auto mode (push --auto = enable scheduler) ──
     if args.command == "push":

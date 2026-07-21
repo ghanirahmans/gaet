@@ -1,30 +1,33 @@
-import { NextResponse } from "next/server";
-import { execSync } from "child_process";
+import { NextRequest, NextResponse } from "next/server";
+import { execFileSync } from "child_process";
+import { findGaet } from "../utils";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const out = execSync("gaet status --json 2>/dev/null", { timeout: 30000, encoding: "utf-8" });
-    const data = JSON.parse(out);
-    return NextResponse.json(data);
-  } catch {
-    // Fallback: try Python module directly
-    try {
-      const out2 = execSync(
-        `python3 -c "
-import sys, json, os
-sys.path.insert(0, os.path.expanduser('~/.gaet'))
-sys.path.insert(0, os.path.expanduser('~/Projects/gaet/scripts'))
-from status import get_status
-print(json.dumps(get_status()))
-" 2>/dev/null`, { timeout: 30000, encoding: "utf-8" }
-      );
-      return NextResponse.json(JSON.parse(out2));
-    } catch {
-      return NextResponse.json({
-        memories: 0, synced: false, local_size: "?", remote_size: "?",
-        tables: [], backup_count: 0, last_backup: null, cron_active: false,
-        error: "Tidak bisa dapat status"
-      });
+    const origin = req.headers.get("origin");
+    const allowedOrigin = process.env.DASHBOARD_ORIGIN || "http://localhost:9191";
+    if (origin && origin !== allowedOrigin) {
+      return NextResponse.json({ ok: false, msg: "Forbidden" }, { status: 403 });
     }
+
+    const gaet = findGaet();
+    const out = execFileSync(gaet, ["status", "--json"], { timeout: 30000, encoding: "utf-8" });
+    const data = JSON.parse(out);
+    return NextResponse.json({
+      total_rows: data.total_rows,
+      synced: data.synced,
+      local_size: data.local_size,
+      remote_size: data.remote_size,
+      tables: data.tables,
+      backup_count: data.backup_count,
+      last_backup: data.last_backup,
+      cron_active: data.cron_active,
+    });
+  } catch {
+    return NextResponse.json({
+      total_rows: 0, synced: false, local_size: "?", remote_size: "?",
+      tables: [], backup_count: 0, last_backup: null, cron_active: false,
+      error: "Tidak bisa dapat status"
+    });
   }
 }

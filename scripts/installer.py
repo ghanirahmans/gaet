@@ -66,9 +66,14 @@ def _run(cmd: List[str], timeout: int = 30) -> Tuple[str, str, int]:
         return "", str(e), 1
 
 
-def _run_interactive(cmd: List[str]) -> int:
-    """Run command showing live output."""
-    return subprocess.run(cmd).returncode
+def _run_interactive(cmd: List[str], timeout: int = 600, cwd: Optional[str] = None) -> int:
+    """Run command showing live output with timeout."""
+    try:
+        return subprocess.run(cmd, timeout=timeout, cwd=cwd).returncode
+    except FileNotFoundError:
+        return 1
+    except subprocess.TimeoutExpired:
+        return 1
 
 
 def echo(msg: str = "") -> None:
@@ -405,7 +410,10 @@ def setup_config() -> Dict[str, str]:
     # Add backup schedule
     env_lines.append(f'GAET_SERVICE_PREFIX=gaet')
 
-    ENV_FILE.write_text("\n".join(env_lines) + "\n")
+    ENV_DIR = str(ENV_FILE.parent)
+    fd = os.open(str(ENV_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w') as f:
+        f.write("\n".join(env_lines) + "\n")
     status_ok(f"Konfigurasi tersimpan di {ENV_FILE}")
 
     return config
@@ -415,11 +423,10 @@ def setup_config() -> Dict[str, str]:
 
 def find_dashboard_dir() -> Optional[Path]:
     """Locate the dashboard directory."""
-    script_dir = Path(sys.argv[0]).resolve().parent
+    script_dir = Path(__file__).resolve().parent
     candidates = [
         script_dir / "dashboard",
         script_dir.parent / "dashboard",
-        HOME / "Projects/gaet/dashboard",
         GAET_DIR / "dashboard",
         Path.cwd() / "dashboard",
     ]
@@ -654,7 +661,7 @@ def _read_existing_config() -> Dict[str, str]:
     """Read existing .env file into dict."""
     config: Dict[str, str] = {}
     if ENV_FILE.exists():
-        for line in ENV_FILE.read_text().splitlines():
+        for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line and "=" in line and not line.startswith("#"):
                 k, v = line.split("=", 1)

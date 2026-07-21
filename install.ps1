@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $GAET_DIR = "$env:USERPROFILE\.local\bin"
 $GAET_CONFIG = "$env:USERPROFILE\.gaet"
-$GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/master"
+$GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/main"
 
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════════════╗" -ForegroundColor Cyan

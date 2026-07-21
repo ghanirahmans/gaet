@@ -9,11 +9,13 @@ Uses only Python standard library — no external dependencies.
 """
 
 import os
+import re
 import sys
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from xml.sax.saxutils import escape as xml_escape
 
 # ── Platform detection ──────────────────────────────────────────────────────
 
@@ -94,7 +96,7 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStart={cli} push --cron
+ExecStart="{cli}" push --cron
 StandardOutput=append:{log}
 StandardError=append:{log}
 """
@@ -110,7 +112,7 @@ StandardError=append:{log}
 Description=gaet periodic backup (every {interval}h)
 
 [Timer]
-OnCalendar=*-*-* 00/0{interval}:00:00
+OnCalendar=*-*-* 00/{interval}:00:00
 Persistent=true
 RandomizedDelaySec=30
 
@@ -189,19 +191,19 @@ def _macos_enable(prefix: str, interval: int, cli_path: str) -> bool:
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>{prefix}-backup</string>
+    <string>{xml_escape(f"{prefix}-backup")}</string>
     <key>ProgramArguments</key>
     <array>
-        <string>{cli}</string>
+        <string>{xml_escape(cli)}</string>
         <string>push</string>
         <string>--cron</string>
     </array>
     <key>StartInterval</key>
     <integer>{seconds}</integer>
     <key>StandardOutPath</key>
-    <string>{log}</string>
+    <string>{xml_escape(str(log))}</string>
     <key>StandardErrorPath</key>
-    <string>{log}</string>
+    <string>{xml_escape(str(log))}</string>
     <key>RunAtLoad</key>
     <true/>
 </dict>
@@ -412,6 +414,10 @@ def _main() -> None:
     parser.add_argument("--cli-path", default="gaet")
 
     args = parser.parse_args()
+
+    if not re.match(r'^[a-zA-Z0-9_-]+$', args.prefix):
+        print(f"Error: prefix '{args.prefix}' contains invalid characters")
+        sys.exit(1)
 
     if args.action == "status":
         name = get_scheduler_name()

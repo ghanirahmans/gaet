@@ -9,7 +9,7 @@ Supports dynamic table discovery:
   - Preset fallback (backward compatible)
 """
 
-import subprocess, os, sys, json, glob, re
+import subprocess, os, sys, json, glob, re, tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -24,33 +24,24 @@ FALLBACK_TABLES = [
     "async_operations", "audit_log", "file_storage", "memory_links"
 ]
 
-PRESETS = {
-    "hindsight": {
-        "local_user": "hindsight",
-        "local_db": "hindsight",
-        "local_pass": "hindsight",
-        "tables": FALLBACK_TABLES,
-    },
-}
-
 
 def load_env(path):
     """Parse .env file, return dict."""
     d = {}
     if not os.path.isfile(path):
         return d
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            m = re.match(r'^export\s+([^=]+)="?(.*?)"?\s*(?:#.*)?$', line)
+            m = re.match(r'^export\s+([^=]+)=["\']?(.*?)["\']?\s*(?:#.*)?$', line)
             if m:
-                d[m.group(1)] = m.group(2).strip('"')
+                d[m.group(1).strip()] = m.group(2).strip()
                 continue
-            m = re.match(r'^([^=]+)=(.*)$', line)
+            m = re.match(r'^([^=]+)=["\']?(.*?)["\']?\s*(?:#.*)?$', line)
             if m:
-                d[m.group(1)] = m.group(2).strip('" ')
+                d[m.group(1).strip()] = m.group(2).strip()
     return d
 
 
@@ -85,7 +76,7 @@ def find_psql():
         p = subprocess.run(["which", "psql"], capture_output=True, text=True, timeout=5)
         if p.returncode == 0:
             return p.stdout.strip()
-    except:
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         pass
     return "psql"
 
@@ -148,9 +139,10 @@ def discover_tables(psql, host, port, user, db, passwd) -> List[str]:
         "WHERE table_schema = 'public' AND table_type = 'BASE TABLE' "
         "ORDER BY table_name"
     )
-    env = {"PGPASSWORD": passwd}
+    env = _pgpass_env(user, passwd)
     out, _, rc = sh([psql, "-h", host, "-p", port, "-U", user, "-d", db,
                       "-tAc", query], env=env, timeout=10)
+    _cleanup_pgpass(env)
     if rc == 0 and out.strip():
         return [t.strip() for t in out.strip().split("\n") if t.strip()]
     return []
@@ -179,18 +171,57 @@ def get_tables(cfg) -> List[str]:
 
 # ─── Table Counts ─────────────────────────────────────────────────────
 
+_TABLE_NAME_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+
+
+def _validate_table_name(name: str) -> bool:
+    """Return True if name is a safe PostgreSQL identifier."""
+    return bool(_TABLE_NAME_RE.match(name))
+
+
+def _pgpass_env(user: str, passwd: str) -> Dict[str, str]:
+    """Create env dict with PGPASSFILE (avoids /proc leak of PGPASSWORD).
+    Caller must call _cleanup_pgpass(env) after use."""
+    env: Dict[str, str] = {}
+    if not passwd:
+        return env
+    pgpass_content = f"*:*:*:{user}:{passwd}\n"
+    try:
+        fd, pgpass_path = tempfile.mkstemp(prefix=".pgpass_", suffix=".tmp")
+        os.fdopen(fd, 'w').write(pgpass_content)
+        os.chmod(pgpass_path, 0o600)
+        env["PGPASSFILE"] = pgpass_path
+    except OSError:
+        env["PGPASSWORD"] = passwd
+    return env
+
+
+def _cleanup_pgpass(env: Dict[str, str]) -> None:
+    """Delete PGPASSFILE temp file if created."""
+    pgpass = env.get("PGPASSFILE")
+    if pgpass:
+        try:
+            os.unlink(pgpass)
+        except OSError:
+            pass
+
+
 def get_table_counts(psql, host, port, user, db, passwd, tables, ssl_mode=None):
     """Hitung semua tabel dalam 1 query."""
     if not tables:
         return {}
+    safe_tables = [t for t in tables if _validate_table_name(t)]
+    if not safe_tables:
+        return {}
     union = " UNION ALL ".join(
-        f"SELECT '{t}'::text as tbl, count(*)::int as cnt FROM public.{t}" for t in tables
+        f"SELECT '{t}'::text as tbl, count(*)::int as cnt FROM public.{t}" for t in safe_tables
     )
-    env = {"PGPASSWORD": passwd}
+    env = _pgpass_env(user, passwd)
     if ssl_mode:
         env["PGSSLMODE"] = ssl_mode
     cmd = [psql, "-h", host, "-p", port, "-U", user, "-d", db, "-tAc", union]
     out, _, rc = sh(cmd, env=env, timeout=30)
+    _cleanup_pgpass(env)
     counts = {}
     for line in out.strip().split("\n"):
         line = line.strip()
@@ -233,11 +264,13 @@ def get_status():
     tables = get_tables(cfg)
 
     # Cek koneksi lokal
-    lok_env = {"PGPASSWORD": cfg["local_pass"]}
+    lok_env = _pgpass_env(cfg["local_user"], cfg["local_pass"])
     ok, _, _ = sh([psql, "-h", cfg["local_host"], "-p", cfg["local_port"],
                     "-U", cfg["local_user"], "-d", cfg["local_name"],
                     "-tAc", "SELECT 1"], env=lok_env, timeout=5)
+    _cleanup_pgpass(lok_env)
     if ok != "1":
+        # Clean up remote pgpass too if already created
         return {
             "total_rows": 0, "synced": False,
             "local_size": "?",
@@ -282,28 +315,32 @@ def get_status():
             f = files[0]
             last_bak = {"file": os.path.basename(f), "size": os.path.getsize(f),
                         "date": os.path.getmtime(f)}
-    except:
+    except (OSError, ValueError):
         pass
 
     # Cron status
     cron_active = is_cron_active()
 
     # DB sizes
+    lok_env = _pgpass_env(cfg["local_user"], cfg["local_pass"])
     local_size = "?"
     out, _, _ = sh([psql, "-h", cfg["local_host"], "-p", cfg["local_port"],
                      "-U", cfg["local_user"], "-d", cfg["local_name"], "-tAc",
                      "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1)"],
                     env=lok_env)
+    _cleanup_pgpass(lok_env)
     if out:
         local_size = out + " MB"
 
     remote_size = "?"
     if all(su) and remote_counts:
         user, pw, host, port, db = su
-        env_rm = {"PGPASSWORD": pw, "PGSSLMODE": "require"}
+        env_rm = _pgpass_env(user, pw)
+        env_rm["PGSSLMODE"] = "require"
         out, _, _ = sh([psql, "-h", host, "-p", port, "-U", user, "-d", db, "-tAc",
                          "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1)"],
                         env=env_rm, timeout=15)
+        _cleanup_pgpass(env_rm)
         if out:
             remote_size = out + " MB"
 
