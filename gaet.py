@@ -856,7 +856,7 @@ def cmd_init(args: argparse.Namespace) -> None:
     if preset_name:
         preset = PRESETS.get(preset_name.lower())
         if not preset:
-            die(f"Preset '{preset_name}' tidak dikenal. Tersedia: {', '.join(PRESETS.keys())}")
+            die(f"Preset '{preset_name}' not found. Available: {', '.join(PRESETS.keys())}")
         echo(f"  {C}📋{NC}  Preset: {preset.get('description', preset_name)}")
 
     # PG Tools
@@ -867,7 +867,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         if path:
             status_ok(f"{name:12} {D}\"{path}\"{NC}")
         else:
-            status_fail(f"{name:12} tidak ditemukan")
+            status_fail(f"{name:12} not found")
 
     GAET_DIR.mkdir(parents=True, exist_ok=True)
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
@@ -877,7 +877,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         backup_path = GAET_DIR / f".env.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         try:
             shutil.copy2(str(ENV_FILE), str(backup_path))
-            status_info(f"Config lama dibackup ke: {backup_path}")
+            status_info(f"Old config backed up to: {backup_path}")
         except OSError:
             pass
 
@@ -889,7 +889,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         detected = []
         psql = tools.get("psql", "")
         if psql:
-            status_info("Auto-detect PostgreSQL lokal...")
+            status_info("Auto-detecting local PostgreSQL...")
             detected = detect_local_pg(psql)
 
         h, p, u, n, w = "", "", "", "", ""
@@ -907,10 +907,10 @@ def cmd_init(args: argparse.Namespace) -> None:
                 for i, inst in enumerate(detected):
                     echo(f"  {C}{i + 1}{NC}  {inst['user']}@{inst['host']}:{inst['port']}")
                     echo(f"      {D}Databases: {inst['databases']}{NC}")
-                echo(f"  {C}0{NC}  Gunakan default (127.0.0.1:5432)")
+                echo(f"  {C}0{NC}  Use default (127.0.0.1:5432)")
                 echo()
 
-                choice = input(f"  Pilih instance [{len(detected)}]: ").strip() or str(len(detected))
+                choice = input(f"  Select instance [{len(detected)}]: ").strip() or str(len(detected))
                 try:
                     idx = int(choice) - 1
                     if 0 <= idx < len(detected):
@@ -941,10 +941,10 @@ def cmd_init(args: argparse.Namespace) -> None:
             for i, inst in enumerate(detected):
                 echo(f"  {C}{i + 1}{NC}  {inst['user']}@{inst['host']}:{inst['port']}")
                 echo(f"      {D}Databases: {inst['databases']}{NC}")
-            echo(f"  {C}0{NC}  Masukkan URL manual / input manual")
+            echo(f"  {C}0{NC}  Enter connection URL manually / Manual input")
             echo()
 
-            choice = input(f"  Pilih [1]: ").strip() or "1"
+            choice = input(f"  Select [1]: ").strip() or "1"
             try:
                 idx = int(choice) - 1
                 if 0 <= idx < len(detected):
@@ -962,13 +962,13 @@ def cmd_init(args: argparse.Namespace) -> None:
                 h, p, u, n, w = _manual_db_input()
         else:
             # No detection — offer URL or manual
-            echo(f"  {D}Tidak ada PostgreSQL terdeteksi.{NC}")
+            echo(f"  {D}No PostgreSQL detected.{NC}")
             echo()
             echo(f"  {C}1{NC}  Paste connection URL")
-            echo(f"  {C}2{NC}  Input manual")
+            echo(f"  {C}2{NC}  Manual input")
             echo()
 
-            choice = input(f"  Pilih [1]: ").strip() or "1"
+            choice = input(f"  Select [1]: ").strip() or "1"
             if choice == "1":
                 h, p, u, n, w = _url_input()
             else:
@@ -977,7 +977,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         # Test connection immediately
         echo()
         if psql and h:
-            echo(f"  {C}💾{NC}  Testing koneksi {u}@{h}:{p}/{n}... ", end="")
+            echo(f"  {C}💾{NC}  Testing connection {u}@{h}:{p}/{n}... ", end="")
             out, _, rc = run_cmd(
                 [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
                 env={"PGPASSWORD": w},
@@ -986,19 +986,19 @@ def cmd_init(args: argparse.Namespace) -> None:
             if rc == 0 and out.strip() == "1":
                 echo(f"{G}OK{NC}")
             else:
-                echo(f"{Y}WARN{NC} — koneksi gagal, tapi config tetap disimpan")
-                echo(f"  {D}Pastikan PostgreSQL berjalan dan password benar{NC}")
+                echo(f"{Y}WARN{NC} — connection failed, but config is still saved")
+                echo(f"  {D}Make sure PostgreSQL is running and password is correct{NC}")
 
         echo()
         box_section("Cloud / Remote Database (optional)")
-        echo(f"  {D}Masukkan connection string PostgreSQL tujuan.{NC}")
-        echo(f"  {D}Bisa dari Supabase, Neon, RDS, atau VPS sendiri.{NC}")
-        echo(f"  {D}Tekan Enter untuk skip.{NC}")
+        echo(f"  {D}Enter the target PostgreSQL connection string.{NC}")
+        echo(f"  {D}Can be from Supabase, Neon, RDS, or your own VPS.{NC}")
+        echo(f"  {D}Press Enter to skip.{NC}")
         remote_url = input("  GAET_REMOTE_URL: ").strip()
 
         echo()
         box_section("Backup")
-        ret_inp = input(f"  Retensi (hari) [{DEF_RETENTION_DAYS}]: ").strip()
+        ret_inp = input(f"  Retention (days) [{DEF_RETENTION_DAYS}]: ").strip()
         ret = ret_inp or str(DEF_RETENTION_DAYS)
 
         # Tables line for preset (ACTIVE, not commented)
@@ -1036,9 +1036,9 @@ def cmd_init(args: argparse.Namespace) -> None:
         with os.fdopen(fd, 'w') as f:
             f.write(env_content)
         echo()
-        status_ok(f"Config tersimpan di {ENV_FILE}")
+        status_ok(f"Config saved to {ENV_FILE}")
     else:
-        status_info(f"Config sudah ada: {ENV_FILE}")
+        status_info(f"Config already exists: {ENV_FILE}")
 
     echo()
     box_section("Summary")
@@ -1212,9 +1212,9 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
 
 def cmd_check(args: argparse.Namespace) -> None:
     """Validate config & connections."""
+    box_title(f"{NAME} check")
     env = load_env()
     tools = find_pg_tools(env)
-    box_title(f"{NAME} check")
     cmd_check_inner(env, tools)
 
 
@@ -1562,16 +1562,23 @@ def cmd_push(args: argparse.Namespace) -> None:
         parsed = parse_remote_url(remote_url)
         tables = get_tables(env, tools)
         box_title("gaet push --dry-run")
-        echo(f"  {C}📦{NC}  {B}Simulasi push local → cloud{NC}")
-        echo()
-        status_arrow(f"Local:  {u}@{h}:{p}/{n}")
-        status_arrow(f"Cloud:  {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}" if parsed else "Cloud: not configured")
-        status_arrow(f"Tables: {len(tables)} ditemukan")
-        status_arrow(f"Backup: ~/.gaet/backups/gaet_*.dump")
+        
+        box_section("Simulation Details")
+        status_arrow(f"Source:  {u}@{h}:{p}/{n}")
+        if parsed:
+            status_arrow(f"Target:  {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}")
+        else:
+            status_warn("Target: Cloud not configured")
+        status_arrow(f"Tables:  {len(tables)} tables")
+        status_arrow(f"Backup:  ~/.gaet/backups/gaet_*.dump")
         retention = get_env_int(env, "GAET_RETENTION_DAYS", DEF_RETENTION_DAYS)
-        status_arrow(f"Retensi: {retention} hari")
+        status_arrow(f"Retention: {retention} days")
+        
         echo()
-        status_info("Dry-run: Tidak ada perubahan yang dilakukan.")
+        status_info("Dry-run mode: No changes will be made")
+        echo()
+        status_info("To proceed: gaet push")
+        echo()
         return
 
     acquire_lock()
@@ -1757,14 +1764,27 @@ def cmd_fetch(args: argparse.Namespace) -> None:
 
         Path(fetch_file).unlink(missing_ok=True)
         echo()
-        echo(f"  {G}{ICON_OK}{NC}  {B}Fetch complete!{NC}")
+        
+        box_section("Summary")
+        status_ok("Fetch complete - local database updated")
+        status_arrow(f"Source: {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}")
+        status_arrow(f"Target: {u}@{h}:{p}/{n}")
+        
+        echo()
+        status_info("Next: gaet push  (to sync changes back to cloud)")
+        echo()
+        
         log("⬇️ Fetch complete")
     finally:
         release_lock()
 
 
 def cmd_push_cron(env: Dict[str, str]) -> None:
-    """Cron job execution (internal, no output to terminal)."""
+    """Cron job execution - no terminal output (logs to file only).
+    
+    Called by scheduler with --cron flag. Output goes to ~/.gaet/backups/cron.log
+    Check log with: gaet log | grep CRON
+    """
     tools = find_pg_tools(env)
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
     parsed = parse_remote_url(remote_url)
@@ -1818,32 +1838,34 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
 
 
 def cmd_auto_on(args: argparse.Namespace) -> None:
-    """Aktifkan auto-backup."""
+    """Enable auto-backup."""
     env = load_env()
     prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
     interval = args.auto if args.auto is not None else get_env_int(env, "GAET_AUTO_INTERVAL", DEF_AUTO_INTERVAL)
 
     # Validate interval
     if interval is None or interval <= 0:
-        die("Interval harus berupa angka positif (jam).\n"
-            f"  Contoh: {C}gaet push --auto=4{NC}  (auto-backup setiap 4 jam)")
+        die("Interval must be a positive number (hours).\n"
+            f"  Example: {C}gaet push --auto=4{NC}  (auto-backup every 4 hours)")
     if interval > 24:
-        die("Interval maksimal 24 jam.\n"
-            f"  Contoh: {C}gaet push --auto=12{NC}  (auto-backup setiap 12 jam)")
+        die("Maximum interval is 24 hours.\n"
+            f"  Example: {C}gaet push --auto=12{NC}  (auto-backup every 12 hours)")
 
     box_title("Auto-backup")
-    status_info(f"Mengaktifkan auto-backup setiap {interval} jam (scheduler: {get_scheduler_name()})")
+    status_info(f"Enabling auto-backup every {interval} hours (scheduler: {get_scheduler_name()})")
 
     # Determine cli_path for the scheduler to call
     cli_path = str(Path(sys.argv[0]).resolve())
 
     if scheduler_enable(prefix, interval, cli_path):
-        echo(f"    {G}{ICON_OK}{NC}  Auto-backup aktif setiap {interval} jam!")
-        status_arrow(f"Interval: {interval} jam")
+        status_ok(f"Auto-backup enabled every {interval} hours!")
+        status_arrow(f"Interval: {interval} hours")
         status_arrow(f"Scheduler: {get_scheduler_name()}")
+        echo()
     else:
-        status_fail("Gagal mengaktifkan auto-backup")
-        echo(f"    {Y}{ICON_WARN}{NC}  Di sistem ini, aktifkan auto-backup secara manual.")
+        status_fail("Failed to enable auto-backup")
+        status_warn("On this system, enable auto-backup manually.")
+        echo()
 
 
 def cmd_stop_auto(args: argparse.Namespace) -> None:
@@ -2053,15 +2075,20 @@ def cmd_set(args: argparse.Namespace) -> None:
 
 
 def cmd_install(args: argparse.Namespace) -> None:
-    """Jalankan installer universal."""
+    """Setup/install dependencies & config."""
     try:
         from scripts.installer import run as installer_run
     except ImportError:
-        print("  ⚠  Module scripts.installer tidak ditemukan.")
-        print("     Jalankan dari folder root proyek gaet atau: pip install -e .")
+        box_title(f"{NAME} install")
+        status_fail("installer module not found")
+        status_warn("Run from project root: pip install -e .")
+        echo()
         sys.exit(1)
 
     box_title(f"{NAME} install")
+    status_info("Starting installation process...")
+    echo()
+    
     rc = installer_run(
         yes=args.yes,
         skip_deps=getattr(args, "skip_deps", False),
@@ -2070,6 +2097,14 @@ def cmd_install(args: argparse.Namespace) -> None:
         skip_service=getattr(args, "skip_service", False),
         interval=getattr(args, "interval", 0),
     )
+    
+    echo()
+    if rc == 0:
+        status_ok("Installation complete")
+    else:
+        status_fail(f"Installation failed (exit code: {rc})")
+    echo()
+    
     sys.exit(rc)
 
 
@@ -2440,8 +2475,15 @@ def cmd_update(args: argparse.Namespace) -> None:
     # Show version
     echo()
     box_section("Version")
-    r = run_cmd([sys.executable, str(dst), "--version"], timeout=5)
-    status_ok(r[0].strip() if r[0] else "Updated")
+    try:
+        r = run_cmd([sys.executable, str(dst), "--version"], timeout=5)
+        if r[2] == 0 and r[0].strip():  # rc == 0 and stdout
+            status_ok(f"Version: {r[0].strip()}")
+        else:
+            status_ok("Update complete - version check skipped")
+    except Exception as e:
+        status_warn(f"Version check failed: {e}")
+        status_ok("Update complete")
     
     echo()
     status_ok("Update complete!")
