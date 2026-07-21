@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ============================================================================
 # gaet — One-liner installer
 # Usage: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
@@ -14,10 +14,28 @@ echo "║  gaet — Database Backup & Sync CLI                  ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 
+# ── 0. Check prerequisites ─────────────────────────────────────────────────
+echo -n "  Checking curl... "
+if ! command -v curl &>/dev/null; then
+    echo "NOT FOUND"
+    echo "  ✗ curl is required. Install it first."
+    echo "     Ubuntu/Debian: sudo apt install curl"
+    echo "     macOS:         brew install curl"
+    exit 1
+fi
+echo "OK"
+
 # ── 1. Check Python ───────────────────────────────────────────────────────
 echo -n "  Checking Python... "
-if command -v python3 &>/dev/null; then
-    PYTHON_VER=$(python3 --version 2>&1 | awk '{print $2}')
+PYTHON=""
+for cmd in python3 python; do
+    if command -v "$cmd" &>/dev/null; then
+        PYTHON="$cmd"
+        break
+    fi
+done
+if [ -n "$PYTHON" ]; then
+    PYTHON_VER=$($PYTHON --version 2>&1 | awk '{print $2}')
     echo "OK ($PYTHON_VER)"
 else
     echo "NOT FOUND"
@@ -44,18 +62,29 @@ mkdir -p "$GAET_CONFIG"
 # ── 4. Download gaet CLI ──────────────────────────────────────────────────
 echo -n "  Downloading gaet..."
 # Use GitHub API to bypass raw CDN cache
-curl -sSL "$API_BASE/gaet.py?ref=master" \
-  | python3 -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" \
-  > "$GAET_DIR/gaet"
-chmod +x "$GAET_DIR/gaet"
-echo " OK"
+api_json=$(curl -sSL "$API_BASE/gaet.py?ref=master")
+# Validate API response
+if echo "$api_json" | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if 'content' in d else 1)" 2>/dev/null; then
+    echo "$api_json" | "$PYTHON" -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" > "$GAET_DIR/gaet"
+    chmod +x "$GAET_DIR/gaet"
+    echo " OK"
+else
+    err_msg=$(echo "$api_json" | "$PYTHON" -c "import json,sys; print(json.load(sys.stdin).get('message','API error'))" 2>/dev/null || echo "unknown error")
+    echo " FAILED"
+    echo "  ✗ GitHub API: $err_msg"
+    exit 1
+fi
 
 # ── 5. Download scripts ───────────────────────────────────────────────────
 mkdir -p "$GAET_DIR/scripts"
 for f in status.py scheduler.py service_manager.py installer.py __init__.py; do
-    curl -sSL "$API_BASE/scripts/$f?ref=master" \
-      | python3 -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" \
-      > "$GAET_DIR/scripts/$f"
+    api_json=$(curl -sSL "$API_BASE/scripts/$f?ref=master")
+    if echo "$api_json" | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if 'content' in d else 1)" 2>/dev/null; then
+        echo "$api_json" | "$PYTHON" -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" > "$GAET_DIR/scripts/$f"
+    else
+        err_msg=$(echo "$api_json" | "$PYTHON" -c "import json,sys; print(json.load(sys.stdin).get('message','API error'))" 2>/dev/null || echo "unknown error")
+        echo "  ⚠  Gagal mendownload scripts/$f: $err_msg"
+    fi
 done
 echo "  Scripts downloaded"
 
@@ -90,14 +119,32 @@ fi
 
 # ── 7. Check PATH ─────────────────────────────────────────────────────────
 echo ""
-if echo "$PATH" | tr ':' '\n' | grep -q "$HOME/.local/bin"; then
-    echo "  ✓ ~/.local/bin is in PATH"
-else
-    echo "  ⚠  Add ~/.local/bin to your PATH:"
-    echo "     export PATH=\"\$HOME/.local/bin:\$PATH\""
-    echo ""
-    echo "     Add to ~/.bashrc or ~/.zshrc for persistence."
-fi
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        # Windows: PATH uses ;
+        if echo "$PATH" | tr ';' '\n' | grep -qF "$GAET_DIR"; then
+            echo "  ✓ ~/.local/bin is in PATH"
+        else
+            echo "  ⚠  Add ~/.local/bin to your PATH"
+            echo "     Add this to your shell profile:"
+            echo '     export PATH="$HOME/.local/bin:$PATH"'
+        fi
+        # Windows: add .exe for better compatibility
+        if [ ! -f "$GAET_DIR/gaet.exe" ]; then
+            cp "$GAET_DIR/gaet" "$GAET_DIR/gaet.exe" 2>/dev/null || true
+        fi
+        ;;
+    *)
+        if echo "$PATH" | tr ':' '\n' | grep -qF "$GAET_DIR"; then
+            echo "  ✓ ~/.local/bin is in PATH"
+        else
+            echo "  ⚠  Add ~/.local/bin to your PATH:"
+            echo "     export PATH=\"\$HOME/.local/bin:\$PATH\""
+            echo ""
+            echo "     Add to ~/.bashrc or ~/.zshrc for persistence."
+        fi
+        ;;
+esac
 
 # ── 8. Done ───────────────────────────────────────────────────────────────
 echo ""
