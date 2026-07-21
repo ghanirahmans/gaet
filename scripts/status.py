@@ -10,8 +10,7 @@ Supports dynamic table discovery:
 """
 
 import subprocess, os, sys, json, glob, re, tempfile
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 HOME = os.path.expanduser("~")
 GAET_DIR = f"{HOME}/.gaet"
@@ -139,7 +138,7 @@ def discover_tables(psql, host, port, user, db, passwd) -> List[str]:
         "WHERE table_schema = 'public' AND table_type = 'BASE TABLE' "
         "ORDER BY table_name"
     )
-    env = _pgpass_env(user, passwd)
+    env = _pgpass_env(user or "", passwd or "")
     out, _, rc = sh([psql, "-h", host, "-p", port, "-U", user, "-d", db,
                       "-tAc", query], env=env, timeout=10)
     _cleanup_pgpass(env)
@@ -179,7 +178,7 @@ def _validate_table_name(name: str) -> bool:
     return bool(_TABLE_NAME_RE.match(name))
 
 
-def _pgpass_env(user: str, passwd: str) -> Dict[str, str]:
+def _pgpass_env(user: str = "", passwd: str = "") -> Dict[str, str]:
     """Create env dict with PGPASSFILE (avoids /proc leak of PGPASSWORD).
     Caller must call _cleanup_pgpass(env) after use."""
     env: Dict[str, str] = {}

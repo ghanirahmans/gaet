@@ -895,14 +895,48 @@ def cmd_init(args: argparse.Namespace) -> None:
         h, p, u, n, w = "", "", "", "", ""
 
         if preset:
-            # Preset mode: use preset defaults
+            # Preset mode: show preset info, then select instance or use default
             u = preset.get("local_user", "postgres")
             n = preset.get("local_db", "postgres")
             w = preset.get("local_pass", "")
             echo(f"  {D}Preset '{preset_name}': user={u}, db={n}{NC}")
+            echo()
+
+            if detected:
+                # Offer to select from detected instances when using preset
+                for i, inst in enumerate(detected):
+                    echo(f"  {C}{i + 1}{NC}  {inst['user']}@{inst['host']}:{inst['port']}")
+                    echo(f"      {D}Databases: {inst['databases']}{NC}")
+                echo(f"  {C}0{NC}  Gunakan default (127.0.0.1:5432)")
+                echo()
+
+                choice = input(f"  Pilih instance [{len(detected)}]: ").strip() or str(len(detected))
+                try:
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(detected):
+                        inst = detected[idx]
+                        h = inst["host"]
+                        p = inst["port"]
+                        echo(f"  {D}→ {u}@{h}:{p}/{n}{NC}")
+                    elif choice == "0":
+                        # Use default
+                        h = "127.0.0.1"
+                        p = "5432"
+                        echo(f"  {D}→ {u}@{h}:{p}/{n}{NC}")
+                    else:
+                        raise ValueError()
+                except (ValueError, IndexError):
+                    h = "127.0.0.1"
+                    p = "5432"
+                    echo(f"  {D}→ {u}@{h}:{p}/{n}{NC}")
+            else:
+                # No detection — use default silently for preset
+                h = "127.0.0.1"
+                p = "5432"
+                echo(f"  {D}→ {u}@{h}:{p}/{n} (default){NC}")
 
         elif detected:
-            # Auto-detected instances
+            # Auto-detected instances (non-preset mode)
             echo()
             for i, inst in enumerate(detected):
                 echo(f"  {C}{i + 1}{NC}  {inst['user']}@{inst['host']}:{inst['port']}")
@@ -967,10 +1001,10 @@ def cmd_init(args: argparse.Namespace) -> None:
         ret_inp = input(f"  Retensi (hari) [{DEF_RETENTION_DAYS}]: ").strip()
         ret = ret_inp or str(DEF_RETENTION_DAYS)
 
-        # Tables line for preset
+        # Tables line for preset (ACTIVE, not commented)
         tables_line = ""
         if preset and "tables" in preset:
-            tables_line = f"# GAET_TABLES={preset['tables']}"
+            tables_line = f"GAET_TABLES={preset['tables']}"
 
         # Build local URL without password in the URL string
         if w:
@@ -1884,6 +1918,140 @@ def cmd_log(args: argparse.Namespace) -> None:
         echo(f"  {D}│{NC} {line.rstrip()}")
 
 
+def cmd_get(args: argparse.Namespace) -> None:
+    """Get environment variables from .env file.
+    
+    Usage:
+      gaet get                 Show all variables
+      gaet get KEY             Show specific key
+      gaet get KEY1 KEY2 ...   Show multiple keys
+    """
+    env = load_env()
+    
+    if not env:
+        status_warn("No .env file found or file is empty")
+        return
+    
+    box_title(f"{NAME} get")
+    
+    # Determine which keys to show
+    if hasattr(args, 'keys') and args.keys:
+        keys_to_show = args.keys
+    else:
+        keys_to_show = sorted(env.keys())
+    
+    # Display variables
+    found_count = 0
+    not_found = []
+    
+    for key in keys_to_show:
+        if key in env:
+            value = env[key]
+            # Mask sensitive values in display
+            display_value = value
+            if key.lower().endswith("password") or key.lower().endswith("url") or key == "GAET_REMOTE_URL":
+                if len(value) > 20:
+                    display_value = value[:10] + "***" + value[-5:]
+                else:
+                    display_value = "***"
+            status_ok(f"{C}{key}{NC}  =  {display_value}")
+            found_count += 1
+        else:
+            not_found.append(key)
+    
+    # Report not found keys
+    if not_found:
+        for key in not_found:
+            status_warn(f"{key} not found")
+    
+    echo()
+    if hasattr(args, 'keys') and args.keys:
+        # User requested specific keys
+        if found_count > 0:
+            status_info(f"Showing {found_count} of {len(keys_to_show)} requested variables")
+    else:
+        # Show all
+        status_info(f"Total {found_count} variables configured")
+    echo()
+
+
+def cmd_set(args: argparse.Namespace) -> None:
+    """Set environment variables in .env file.
+    
+    Usage:
+      gaet set KEY=value
+      gaet set KEY1=value1 KEY2=value2
+      gaet set GAET_REMOTE_URL=postgres://...
+    """
+    if not args.variables:
+        die("Usage: gaet set KEY=value [KEY2=value2] ...")
+    
+    # Ensure .env directory exists
+    GAET_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Load existing env
+    env = load_env()
+    
+    # Parse and update variables
+    updates = {}
+    for var in args.variables:
+        if "=" not in var:
+            die(f"Invalid format: {var}. Use KEY=value")
+        key, value = var.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            die("Key cannot be empty")
+        updates[key] = value
+        env[key] = value
+    
+    # Save back to .env file
+    lines = []
+    existing_keys = set()
+    
+    # First pass: update existing lines
+    if ENV_FILE.is_file():
+        with open(str(ENV_FILE), "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                original_line = line.rstrip("\n")
+                # Check if this line contains a key we're updating
+                m = re.match(r"^(?:export\s+)?([^=]+)=", original_line)
+                if m:
+                    key = m.group(1).strip()
+                    existing_keys.add(key)
+                    if key in updates:
+                        lines.append(f"export {key}={updates[key]}\n")
+                    else:
+                        lines.append(original_line + "\n")
+                else:
+                    # Keep comments and empty lines
+                    lines.append(original_line + "\n")
+    
+    # Second pass: add new keys
+    for key, value in updates.items():
+        if key not in existing_keys:
+            lines.append(f"export {key}={value}\n")
+    
+    # Write back
+    with open(str(ENV_FILE), "w", encoding="utf-8") as f:
+        f.writelines(lines)
+    
+    # Display result
+    box_title(f"{NAME} set")
+    for key, value in updates.items():
+        # Mask sensitive values in display
+        display_value = value
+        if key.lower().endswith("password") or key.lower().endswith("url") or key == "GAET_REMOTE_URL":
+            if len(value) > 20:
+                display_value = value[:10] + "***" + value[-5:]
+            else:
+                display_value = "***"
+        status_ok(f"{C}{key}{NC}  =  {display_value}")
+    echo()
+    status_info(f"Config saved: {ENV_FILE}")
+    echo()
+
+
 def cmd_install(args: argparse.Namespace) -> None:
     """Jalankan installer universal."""
     try:
@@ -2361,6 +2529,8 @@ def main() -> None:
         epilog=textwrap.dedent("""\
             Commands:
               init              Setup wizard (config + test)
+              get               Get environment variables
+              set               Set environment variables
               push              Backup local → cloud
               push --dry-run    Simulasi push tanpa eksekusi
               fetch             Restore cloud → local
@@ -2428,6 +2598,20 @@ def main() -> None:
 
     # serve
     subparsers.add_parser("serve", help="Start web dashboard")
+
+    # get
+    get_parser = subparsers.add_parser("get", help="Get environment variables")
+    get_parser.add_argument(
+        "keys", nargs="*", default=[],
+        help="Keys to retrieve (if empty, shows all)"
+    )
+
+    # set
+    set_parser = subparsers.add_parser("set", help="Set environment variables")
+    set_parser.add_argument(
+        "variables", nargs="+",
+        help="Variables to set (format: KEY=value)"
+    )
 
     # install
     install_parser = subparsers.add_parser("install", help="Setup/install dependencies & config")
@@ -2500,6 +2684,8 @@ def main() -> None:
         "stop": lambda: cmd_stop_auto(args),
         "log": lambda: cmd_log(args),
         "serve": lambda: cmd_serve(args),
+        "get": lambda: cmd_get(args),
+        "set": lambda: cmd_set(args),
         "install": lambda: cmd_install(args),
         "update": lambda: cmd_update(args),
         "uninstall": lambda: cmd_uninstall(args),
