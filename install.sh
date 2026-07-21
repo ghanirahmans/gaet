@@ -43,7 +43,7 @@ mkdir -p "$GAET_CONFIG"
 
 # ── 4. Download gaet CLI ──────────────────────────────────────────────────
 echo -n "  Downloading gaet..."
-curl -sSL "$GITHUB_RAW/gaet" -o "$GAET_DIR/gaet"
+curl -sSL "$GITHUB_RAW/gaet.py" -o "$GAET_DIR/gaet"
 chmod +x "$GAET_DIR/gaet"
 echo " OK"
 
