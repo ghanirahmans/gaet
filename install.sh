@@ -7,7 +7,7 @@ set -e
 
 GAET_DIR="$HOME/.local/bin"
 GAET_CONFIG="$HOME/.gaet"
-GITHUB_RAW="https://raw.githubusercontent.com/ghanirahmans/gaet/main"
+GITHUB_RAW="https://raw.githubusercontent.com/ghanirahmans/gaet/master"
 
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║  gaet — Database Backup & Sync CLI                  ║"

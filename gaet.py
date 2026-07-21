@@ -2060,7 +2060,7 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     echo("")
 
 
-GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/main"
+GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/master"
 
 
 def _update_download(install_dir: Path, skip_build: bool = False) -> None:
