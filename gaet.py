@@ -242,6 +242,52 @@ def get_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
     )
 
 
+def detect_local_pg(psql_path: str) -> List[Dict[str, str]]:
+    """
+    Auto-detect running PostgreSQL instances on this machine.
+    Returns list of dicts with keys: host, port, user, databases.
+    """
+    results: List[Dict[str, str]] = []
+    if not psql_path:
+        return results
+
+    # Common ports to scan
+    ports_to_try = ["5432", "5433", "5434", "5435", "5436"]
+    users_to_try = ["postgres", "root"]
+
+    for port in ports_to_try:
+        for user in users_to_try:
+            # Try connecting with no password (common for local dev)
+            out, _, rc = run_cmd(
+                [psql_path, "-h", "127.0.0.1", "-p", port, "-U", user,
+                 "-d", "postgres", "-tAc",
+                 "SELECT current_database();"],
+                env={"PGPASSWORD": ""},
+                timeout=3,
+            )
+            if rc == 0 and out.strip():
+                db = out.strip()
+                # List all databases on this server
+                dbs_out, _, _ = run_cmd(
+                    [psql_path, "-h", "127.0.0.1", "-p", port, "-U", user,
+                     "-d", "postgres", "-tAc",
+                     "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"],
+                    env={"PGPASSWORD": ""},
+                    timeout=3,
+                )
+                databases = [d.strip() for d in dbs_out.strip().split("\n") if d.strip()] if dbs_out.strip() else [db]
+                results.append({
+                    "host": "127.0.0.1",
+                    "port": port,
+                    "user": user,
+                    "databases": ", ".join(databases),
+                    "default_db": db,
+                })
+                break  # Found this port, no need to try other users
+
+    return results
+
+
 # ─── Table Discovery ─────────────────────────────────────────────────────
 
 def discover_tables(psql: str, h: str, p: str, u: str, n: str, w: str) -> List[str]:
@@ -785,34 +831,83 @@ def cmd_init(args: argparse.Namespace) -> None:
 
     if not ENV_FILE.is_file():
         echo()
-        box_section("Local Database Configuration")
+        box_section("Local Database")
 
-        # Apply preset defaults if provided
-        h, p, u, n, w = get_local_db(env)
+        # Auto-detect running PostgreSQL
+        detected = []
+        psql = tools.get("psql", "")
+        if psql:
+            status_info("Auto-detect PostgreSQL lokal...")
+            detected = detect_local_pg(psql)
+
+        h, p, u, n, w = "", "", "", "", ""
+
         if preset:
-            u = preset.get("local_user", u)
-            n = preset.get("local_db", n)
-            w = preset.get("local_pass", w)
+            # Preset mode: use preset defaults
+            u = preset.get("local_user", "postgres")
+            n = preset.get("local_db", "postgres")
+            w = preset.get("local_pass", "")
             echo(f"  {D}Preset '{preset_name}': user={u}, db={n}{NC}")
-        else:
-            echo(f"  {D}Default: postgres@127.0.0.1:5432/postgres{NC}")
 
-        h_inp = input(f"  Host [{h}]: ").strip()
-        if h_inp: h = h_inp
-        p_inp = input(f"  Port [{p}]: ").strip()
-        if p_inp: p = p_inp
-        u_inp = input(f"  User [{u}]: ").strip()
-        if u_inp: u = u_inp
-        n_inp = input(f"  Database [{n}]: ").strip()
-        if n_inp: n = n_inp
-        w_inp = input(f"  Password [{w}]: ").strip()
-        if w_inp: w = w_inp
+        elif detected:
+            # Auto-detected instances
+            echo()
+            for i, inst in enumerate(detected):
+                echo(f"  {C}{i + 1}{NC}  {inst['user']}@{inst['host']}:{inst['port']}")
+                echo(f"      {D}Databases: {inst['databases']}{NC}")
+            echo(f"  {C}0{NC}  Masukkan URL manual / input manual")
+            echo()
+
+            choice = input(f"  Pilih [1]: ").strip() or "1"
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(detected):
+                    inst = detected[idx]
+                    h = inst["host"]
+                    p = inst["port"]
+                    u = inst["user"]
+                    n = inst["default_db"]
+                    w = ""
+                    echo(f"  {D}→ {u}@{h}:{p}/{n}{NC}")
+                else:
+                    # Manual mode
+                    h, p, u, n, w = _manual_db_input()
+            except (ValueError, IndexError):
+                h, p, u, n, w = _manual_db_input()
+        else:
+            # No detection — offer URL or manual
+            echo(f"  {D}Tidak ada PostgreSQL terdeteksi.{NC}")
+            echo()
+            echo(f"  {C}1{NC}  Paste connection URL")
+            echo(f"  {C}2{NC}  Input manual")
+            echo()
+
+            choice = input(f"  Pilih [1]: ").strip() or "1"
+            if choice == "1":
+                h, p, u, n, w = _url_input()
+            else:
+                h, p, u, n, w = _manual_db_input()
+
+        # Test connection immediately
+        echo()
+        if psql and h:
+            echo(f"  {C}💾{NC}  Testing koneksi {u}@{h}:{p}/{n}... ", end="")
+            out, _, rc = run_cmd(
+                [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+                env={"PGPASSWORD": w},
+                timeout=5,
+            )
+            if rc == 0 and out.strip() == "1":
+                echo(f"{G}OK{NC}")
+            else:
+                echo(f"{Y}WARN{NC} — koneksi gagal, tapi config tetap disimpan")
+                echo(f"  {D}Pastikan PostgreSQL berjalan dan password benar{NC}")
 
         echo()
-        box_section("Cloud / Remote Database")
+        box_section("Cloud / Remote Database (optional)")
         echo(f"  {D}Masukkan connection string PostgreSQL tujuan.{NC}")
         echo(f"  {D}Bisa dari Supabase, Neon, RDS, atau VPS sendiri.{NC}")
-        echo(f"  {D}Format: postgresql://user:***@host:5432/db{NC}")
+        echo(f"  {D}Tekan Enter untuk skip.{NC}")
         remote_url = input("  GAET_REMOTE_URL: ").strip()
 
         echo()
@@ -850,11 +945,67 @@ def cmd_init(args: argparse.Namespace) -> None:
         status_info(f"Config sudah ada: {ENV_FILE}")
 
     echo()
-    box_section("Pre-flight Check")
-    # Continue to check
+    box_section("Summary")
     env = load_env()  # reload
     tools = find_pg_tools(env)
-    cmd_check_inner(env, tools)
+    _print_summary(env, tools)
+
+
+def _url_input() -> Tuple[str, str, str, str, str]:
+    """Input via connection URL. Returns (host, port, user, db, passwd)."""
+    echo(f"  {D}Format: postgresql://user:password@host:5432/dbname{NC}")
+    url = input("  URL: ").strip()
+    if url:
+        parsed = parse_remote_url(url)
+        if parsed:
+            return parsed["host"], parsed["port"], parsed["user"], parsed["db"], parsed["pass"]
+        else:
+            echo(f"  {Y}URL tidak valid, fallback ke input manual{NC}")
+    return _manual_db_input()
+
+
+def _manual_db_input() -> Tuple[str, str, str, str, str]:
+    """Manual field-by-field input with smart defaults."""
+    h = input(f"  Host [127.0.0.1]: ").strip() or "127.0.0.1"
+    p = input(f"  Port [5432]: ").strip() or "5432"
+    u = input(f"  User [postgres]: ").strip() or "postgres"
+    n = input(f"  Database [postgres]: ").strip() or "postgres"
+    w = input(f"  Password []: ").strip()
+    return h, p, u, n, w
+
+
+def _print_summary(env: Dict[str, str], tools: Dict[str, str]) -> None:
+    """Print config summary after init."""
+    h, p, u, n, w = get_local_db(env)
+    psql = tools.get("psql", "")
+
+    # Local DB status
+    echo(f"  {C}💾{NC}  Local:  {u}@{h}:{p}/{n}", end="")
+    if psql:
+        out, _, rc = run_cmd(
+            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+            env={"PGPASSWORD": w}, timeout=5,
+        )
+        if rc == 0 and out.strip() == "1":
+            echo(f"  {G}connected{NC}")
+        else:
+            echo(f"  {Y}not connected yet{NC}")
+    else:
+        echo()
+
+    # Remote status
+    remote_url = get_env_str(env, "GAET_REMOTE_URL") or ""
+    if remote_url:
+        echo(f"  {C}☁️{NC}   Remote: {remote_url[:60]}{'...' if len(remote_url) > 60 else ''}")
+    else:
+        echo(f"  {C}☁️{NC}   Remote: {Y}not configured{NC} (set GAET_REMOTE_URL later)")
+
+    echo()
+    echo(f"  {D}Config:{NC}  {ENV_FILE}")
+    echo(f"  {D}Edit:{NC}    gaet init  (re-run to change)")
+    echo(f"  {D}Check:{NC}   gaet check")
+    echo(f"  {D}Push:{NC}    gaet push")
+    echo()
 
 
 def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
