@@ -2558,6 +2558,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
 # ═══════════════════════════════════════════════════════════════════════════
 
 def main() -> None:
+    """CLI entry point. Routes commands to their handlers."""
     parser = argparse.ArgumentParser(
         prog=NAME,
         description=f"{NAME} — Database Backup & Sync CLI",
@@ -2568,15 +2569,15 @@ def main() -> None:
               get               Get environment variables
               set               Set environment variables
               push              Backup local → cloud
-              push --dry-run    Simulasi push tanpa eksekusi
+              push --dry-run    Simulate push without execution
               fetch             Restore cloud → local
-              fetch --dry-run   Simulasi fetch tanpa eksekusi
+              fetch --dry-run   Simulate fetch without execution
               status            Show sync status
-              status --json     Status dalam JSON
+              status --json     Output status as JSON
               check             Validate config & connections
               log               View backup log
-              log --filter      Filter log berdasarkan keyword
-              push --auto[=N]   Aktifkan auto-backup tiap N jam
+              log --filter      Filter log by keyword
+              push --auto[=N]   Enable auto-backup every N hours
               stop              Stop auto-backup & dashboard
               serve             Start web dashboard (background)
               install           Setup/install dependencies & config
