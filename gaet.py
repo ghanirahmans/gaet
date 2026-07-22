@@ -1262,7 +1262,6 @@ def cmd_status(args: argparse.Namespace) -> None:
     # Local DB - get row counts
     box_section("Local Database")
     local_rows = 0
-    local_size = "?"
     if psql:
         out, _, rc = run_cmd(
             [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
@@ -1280,7 +1279,6 @@ def cmd_status(args: argparse.Namespace) -> None:
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
                 env={"PGPASSWORD": w}, timeout=5,
             )
-            local_size = size_out
             status_arrow(f"Size: {size_out}")
         else:
             echo(f"    {Y}tidak tersedia{NC}")
@@ -1291,7 +1289,6 @@ def cmd_status(args: argparse.Namespace) -> None:
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
     parsed = parse_remote_url(remote_url)
     remote_rows = 0
-    remote_size = "?"
     if parsed:
         echo()
         box_section("Cloud Database")
@@ -1314,7 +1311,6 @@ def cmd_status(args: argparse.Namespace) -> None:
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
                 env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=10,
             )
-            remote_size = size_out
             status_arrow(f"Size: {size_out}")
         else:
             echo(f"  {Y}tidak terjangkau{NC}")
@@ -1594,7 +1590,6 @@ def cmd_push(args: argparse.Namespace) -> None:
 
         log("🚀 Push: local → cloud")
         box_title("gaet push")
-        psql = tools["psql"]
         pg_dump = tools["pg_dump"]
         pg_restore = tools["pg_restore"]
 
@@ -1787,6 +1782,7 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
     if not parsed:
         cronlog("❌ GAET_REMOTE_URL tidak dikonfigurasi")
         sys.exit(1)
+    assert parsed is not None
 
     h, p, u, n, w = get_local_db(env)
     pg_dump = tools["pg_dump"]
@@ -1806,7 +1802,7 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
     )
     if rc == 0 and Path(cron_file).is_file():
         # Integrity check
-        out_check, _, rc_check = run_cmd(
+        _, _, rc_check = run_cmd(
             [pg_restore, "--list", cron_file],
             timeout=30,
         )
