@@ -802,12 +802,7 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════════════════
 
 try:
-    from scripts.service_manager import (
-        service_start,
-        service_stop,
-        service_is_running,
-        service_status,
-    )
+    from scripts import service_manager as _svc_mod
     _svc_available = True
 except ImportError:
     _svc_available = False
@@ -815,26 +810,26 @@ except ImportError:
 
 def _svc_start(dashboard_dir=None, port=9191, host="0.0.0.0", foreground=False):
     if _svc_available:
-        return service_start(dashboard_dir, port, host, foreground)
+        return _svc_mod.service_start(dashboard_dir, port, host, foreground)
     print("  ⚠  service_manager module tidak tersedia. Jalankan dari folder proyek.")
     return False, "module not found"
 
 
 def _svc_stop():
     if _svc_available:
-        return service_stop()
+        return _svc_mod.service_stop()
     return True, "module not loaded"
 
 
 def _svc_is_running():
     if _svc_available:
-        return service_is_running()
+        return _svc_mod.service_is_running()
     return False
 
 
 def _svc_status():
     if _svc_available:
-        return service_status()
+        return _svc_mod.service_status()
     return {"running": False, "platform": "unknown", "pid": None}
 
 
@@ -1678,7 +1673,8 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         box_title("gaet fetch --dry-run")
         echo(f"  {C}☁️{NC}   {B}Simulasi fetch cloud → local{NC}")
         echo()
-        status_arrow(f"Cloud:  {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}" if parsed else "Cloud: not configured")
+        cloud_info = f"Cloud:  {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}" if parsed else "Cloud: not configured"
+        status_arrow(cloud_info)
         status_arrow(f"Local:  {u}@{h}:{p}/{n}")
         status_arrow(f"Aksi:   Dump cloud → restore ke local (overwrite)")
         echo()
@@ -2276,7 +2272,7 @@ def _gh_download(url: str, timeout: int = 15) -> bytes:
 def _update_download(install_dir: Path, skip_build: bool = False) -> None:
     """Update gaet by downloading files from GitHub (for curl-install users)."""
 
-    status_info("Mendownload gaet terbaru dari GitHub...")
+    status_info("Downloading latest gaet from GitHub...")
 
     files = [
         ("gaet.py", "gaet"),
@@ -2292,7 +2288,7 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
             dest_path.chmod(0o755)
             status_ok(f"{dst} → {dest_path}")
         except Exception as e:
-            die(f"Gagal mendownload {src}: {e}")
+            die(f"Failed to download {src}: {e}")
 
     # Download scripts
     scripts_dst = install_dir / "scripts"
@@ -2304,7 +2300,7 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
             (scripts_dst / sf).write_bytes(data)
             status_ok(f"scripts/{sf} → {scripts_dst}/")
         except Exception as e:
-            status_warn(f"Gagal mendownload scripts/{sf}: {e}")
+            status_warn(f"Failed to download scripts/{sf}: {e}")
 
     # Download and build dashboard
     if not skip_build:
@@ -2335,7 +2331,8 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
         except Exception as e:
             status_warn(f"Dashboard update skipped: {e}")
 
-    status_ok("Update selesai!")
+    echo()
+    status_ok("Update complete!")
 
 
 def cmd_update(args: argparse.Namespace) -> None:
@@ -2370,7 +2367,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     # Check if git is available
     git = shutil.which("git") or ""
     if not git:
-        die("git tidak ditemukan. Install git dulu.")
+        die("git not found. Please install git first.")
     
     # Check if there are local changes
     out, _, rc = run_cmd([git, "-C", str(project_dir), "status", "--porcelain"], timeout=10)
@@ -2389,7 +2386,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     status_info("Fetching from remote...")
     out, err, rc = run_cmd([git, "-C", str(project_dir), "fetch", "origin"], timeout=30)
     if rc != 0:
-        die(f"Fetch gagal: {err}")
+        die(f"Fetch failed: {err}")
     status_ok("Fetch complete")
     
     # Check current vs remote
@@ -2404,7 +2401,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     out_log, _, _ = run_cmd([git, "-C", str(project_dir), "log", "--oneline", f"{out_local.strip()}..{out_remote.strip()}"], timeout=10)
     if out_log.strip():
         echo()
-        box_section("Commits baru")
+        box_section("New commits")
         for line in out_log.strip().split("\n")[:5]:
             status_arrow(line)
     
@@ -2413,7 +2410,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     box_section("Pulling update")
     out, err, rc = run_cmd([git, "-C", str(project_dir), "pull", "origin", "master"], timeout=30)
     if rc != 0:
-        die(f"Pull gagal: {err}")
+        die(f"Pull failed: {err}")
     status_ok("Pull complete")
     
     # Copy to install location
@@ -2466,11 +2463,11 @@ def cmd_update(args: argparse.Namespace) -> None:
                     if ok:
                         status_ok("Dashboard service restarted")
                     else:
-                        status_warn(f"Gagal restart: {msg}")
+                        status_warn(f"Restart failed: {msg}")
             except Exception:
                 pass
         else:
-            status_warn("Node.js/npm tidak ditemukan — skip dashboard build")
+            status_warn("Node.js/npm not found — skipping dashboard build")
     
     # Show version
     echo()
