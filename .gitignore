@@ -27,3 +27,11 @@ __pycache__/
 *.swp
 *.swo
 *~
+
+# ─── Audit files ─────────────────────────────────────
+AUDIT_*.md
+AUDIT_*.txt
+UX_AUDIT_*.md
+UX_FIXES_*.md
+CONSISTENCY_*.md
+README_AUDIT.md
