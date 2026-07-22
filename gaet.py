@@ -2389,27 +2389,28 @@ def cmd_update(args: argparse.Namespace) -> None:
     out_local, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "HEAD"], timeout=5)
     out_remote, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "origin/master"], timeout=5)
     
-    if out_local.strip() == out_remote.strip():
-        status_ok("Already up to date!")
-        return
+    is_up_to_date = out_local.strip() == out_remote.strip()
     
-    # Show what will be updated
-    out_log, _, _ = run_cmd([git, "-C", str(project_dir), "log", "--oneline", f"{out_local.strip()}..{out_remote.strip()}"], timeout=10)
-    if out_log.strip():
+    if not is_up_to_date:
+        # Show what will be updated
+        out_log, _, _ = run_cmd([git, "-C", str(project_dir), "log", "--oneline", f"{out_local.strip()}..{out_remote.strip()}"], timeout=10)
+        if out_log.strip():
+            echo()
+            box_section("New commits")
+            for line in out_log.strip().split("\n")[:5]:
+                status_arrow(line)
+        
+        # Pull
         echo()
-        box_section("New commits")
-        for line in out_log.strip().split("\n")[:5]:
-            status_arrow(line)
+        box_section("Pulling update")
+        out, err, rc = run_cmd([git, "-C", str(project_dir), "pull", "origin", "master"], timeout=30)
+        if rc != 0:
+            die(f"Pull failed: {err}")
+        status_ok("Pull complete")
+    else:
+        status_ok("Already up to date!")
     
-    # Pull
-    echo()
-    box_section("Pulling update")
-    out, err, rc = run_cmd([git, "-C", str(project_dir), "pull", "origin", "master"], timeout=30)
-    if rc != 0:
-        die(f"Pull failed: {err}")
-    status_ok("Pull complete")
-    
-    # Copy to install location
+    # Always copy to install location (even if already up to date)
     echo()
     box_section("Installing")
     install_dir = Path.home() / ".local" / "bin"
