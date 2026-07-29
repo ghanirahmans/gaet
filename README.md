@@ -22,7 +22,7 @@
 
 ```bash
 # Install
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 
 # Configure (one time)
 gaet init
@@ -60,16 +60,16 @@ gaet serve       # Dashboard at localhost:9191
 
 | Feature | What it does | Why it matters |
 |---------|--------------|----------------|
-| 🔒 **Concurrency lock** | Prevents overlapping backups | Your data stays consistent |
-| ⏱️ **120s timeout** | Cloud connections never hang | No frozen terminals |
+| 🔒 **Concurrency lock** | PID tracking & auto stale lock cleanup | Prevents overlap without permanent lockouts if crashed |
+| ⏱️ **Configurable timeout** | `GAET_TIMEOUT` (default: 600s / 10m) | Multi-GB database backups & slow cloud links never hang |
 | ✅ **Integrity check** | Validates dump before upload | No corrupt backups |
 | 📦 **Compressed dumps** | Custom format, compression 9 | 70% smaller files |
-| 🧹 **Auto-retention** | Old backups auto-deleted | No disk space waste |
+| 🧹 **Safety retention** | Auto-cleanup, keeps min 2 latest backups | Prevents data loss during backup gaps |
 | 🔄 **Auto-backup** | Periodic via OS scheduler | Set it and forget it |
-| 🚀 **Web dashboard** | Real-time status, one-click actions | See everything at a glance |
+| 🚀 **Web dashboard** | Real-time status, non-blocking async API | See everything at a glance without UI freezing |
 | 🔌 **Multi-cloud** | Supabase, Neon, RDS, VPS | Works with your stack |
 | 📊 **Sync visualization** | Per-table status with progress | Know exactly what's synced |
-| 🌓 **Light/Dight mode** | Dashboard supports both themes | Comfortable for everyone |
+| 🌓 **Light/Dark mode** | Dashboard supports both themes | Comfortable for everyone |
 
 ---
 
@@ -87,7 +87,7 @@ gaet serve       # Dashboard at localhost:9191
 
 ```bash
 # Linux/macOS
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 
 # Windows (PowerShell)
 irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
@@ -316,7 +316,8 @@ All config in `~/.gaet/.env`:
 | `GAET_REMOTE_URL` | — | PostgreSQL URL for cloud (REQUIRED) |
 | `GAET_LOCAL_URL` | `postgresql://postgres:@127.0.0.1:5432/postgres` | Local database |
 | `GAET_TABLES` | *(auto-discover)* | Comma-separated table list |
-| `GAET_RETENTION_DAYS` | `7` | Days to keep backups |
+| `GAET_RETENTION_DAYS` | `7` | Days to keep backups (always retains min 2 latest dumps) |
+| `GAET_TIMEOUT` | `600` | Timeout in seconds for pg_dump and pg_restore (10 mins) |
 | `GAET_DASHBOARD_PORT` | `9191` | Dashboard web port |
 | `GAET_DASHBOARD_HOST` | `0.0.0.0` | Dashboard bind address |
 | `GAET_AUTO_INTERVAL` | `6` | Auto-backup interval (hours) |

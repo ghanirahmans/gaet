@@ -7,7 +7,7 @@ set -e
 
 GAET_DIR="$HOME/.local/bin"
 GAET_CONFIG="$HOME/.gaet"
-GITHUB_RAW="https://raw.githubusercontent.com/ghanirahmans/gaet/main"
+GITHUB_RAW="https://raw.githubusercontent.com/ghanirahmans/gaet/master"
 
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║  gaet — Database Backup & Sync CLI                  ║"
@@ -97,6 +97,17 @@ echo "╔═══════════════════════�
 echo "║  ✓ Installation complete!                           ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
+
+if [ -t 0 ]; then
+    read -p "  Jalankan setup wizard ('gaet init') sekarang? [Y/n]: " RUN_INIT
+    RUN_INIT=${RUN_INIT:-Y}
+    if [[ "$RUN_INIT" =~ ^[Yy]$ ]]; then
+        echo ""
+        "$GAET_DIR/gaet" init
+        exit 0
+    fi
+fi
+
 echo "  Next steps:"
 echo "    1. Configure:  gaet init"
 echo "    2. Check:      gaet check"

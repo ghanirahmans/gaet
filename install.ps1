@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $GAET_DIR = "$env:USERPROFILE\.local\bin"
 $GAET_CONFIG = "$env:USERPROFILE\.gaet"
-$GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/main"
+$GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/master"
 
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════════════╗" -ForegroundColor Cyan
@@ -143,6 +143,14 @@ Write-Host "╔═════════════════════�
 Write-Host "║  ✓ Installation complete!                           ║" -ForegroundColor Green
 Write-Host "╚══════════════════════════════════════════════════════╝" -ForegroundColor Green
 Write-Host ""
+
+$runInit = Read-Host "  Jalankan setup wizard ('gaet init') sekarang? [Y/n]"
+if (-not $runInit -or $runInit -match "^[Yy]") {
+    Write-Host ""
+    & "$pythonCmd" "$GAET_DIR\gaet.py" init
+    return
+}
+
 Write-Host "  Next steps:"
 Write-Host "    1. Configure:  gaet init"
 Write-Host "    2. Check:      gaet check"
