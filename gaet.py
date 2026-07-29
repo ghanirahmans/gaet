@@ -281,6 +281,15 @@ def get_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
     )
 
 
+def is_port_open(host: str, port: int, timeout: float = 1.0) -> bool:
+    import socket
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except (OSError, socket.timeout):
+        return False
+
+
 def detect_local_pg(psql_path: str) -> List[Dict[str, Any]]:
     """
     Auto-detect running PostgreSQL instances on this machine.
@@ -288,8 +297,6 @@ def detect_local_pg(psql_path: str) -> List[Dict[str, Any]]:
     """
     import getpass
     results: List[Dict[str, Any]] = []
-    if not psql_path:
-        return results
 
     # Common ports to scan
     ports_to_try = ["5432", "5433", "5434", "5435", "5436"]
@@ -304,45 +311,66 @@ def detect_local_pg(psql_path: str) -> List[Dict[str, Any]]:
         users_to_try.append(cur_user)
     users_to_try.extend(["root", "admin"])
 
-    for port in ports_to_try:
-        for user in users_to_try:
-            out, _, rc = run_cmd(
-                [psql_path, "-w", "-h", "127.0.0.1", "-p", port, "-U", user,
-                 "-d", "postgres", "-tAc", "SELECT current_database();"],
-                env={"PGPASSWORD": ""},
-                timeout=3,
-            )
-            if rc == 0 and out.strip():
-                db = out.strip()
-                # List all non-template databases
-                dbs_out, _, _ = run_cmd(
-                    [psql_path, "-w", "-h", "127.0.0.1", "-p", port, "-U", user,
-                     "-d", "postgres", "-tAc",
-                     "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"],
+    for port_str in ports_to_try:
+        port = int(port_str)
+        # 1. Socket level check to detect active PostgreSQL server
+        if not is_port_open("127.0.0.1", port):
+            continue
+
+        # 2. Server is active! Try passwordless SQL queries
+        found_auth = False
+        if psql_path:
+            for user in users_to_try:
+                out, _, rc = run_cmd(
+                    [psql_path, "-w", "-h", "127.0.0.1", "-p", port_str, "-U", user,
+                     "-d", "postgres", "-tAc", "SELECT current_database();"],
                     env={"PGPASSWORD": ""},
                     timeout=3,
                 )
-                databases = [d.strip() for d in dbs_out.strip().split("\n") if d.strip()] if dbs_out.strip() else [db]
+                if rc == 0 and out.strip():
+                    db = out.strip()
+                    # List all non-template databases
+                    dbs_out, _, _ = run_cmd(
+                        [psql_path, "-w", "-h", "127.0.0.1", "-p", port_str, "-U", user,
+                         "-d", "postgres", "-tAc",
+                         "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"],
+                        env={"PGPASSWORD": ""},
+                        timeout=3,
+                    )
+                    databases = [d.strip() for d in dbs_out.strip().split("\n") if d.strip()] if dbs_out.strip() else [db]
 
-                # List non-system users from pg_user
-                users_out, _, _ = run_cmd(
-                    [psql_path, "-w", "-h", "127.0.0.1", "-p", port, "-U", user,
-                     "-d", "postgres", "-tAc",
-                     "SELECT usename FROM pg_user WHERE usename NOT LIKE 'pg_%' ORDER BY usename;"],
-                    env={"PGPASSWORD": ""},
-                    timeout=3,
-                )
-                pg_users = [u.strip() for u in users_out.strip().split("\n") if u.strip()] if users_out.strip() else [user]
+                    # List non-system users from pg_user
+                    users_out, _, _ = run_cmd(
+                        [psql_path, "-w", "-h", "127.0.0.1", "-p", port_str, "-U", user,
+                         "-d", "postgres", "-tAc",
+                         "SELECT usename FROM pg_user WHERE usename NOT LIKE 'pg_%' ORDER BY usename;"],
+                        env={"PGPASSWORD": ""},
+                        timeout=3,
+                    )
+                    pg_users = [u.strip() for u in users_out.strip().split("\n") if u.strip()] if users_out.strip() else [user]
 
-                results.append({
-                    "host": "127.0.0.1",
-                    "port": port,
-                    "user": user,
-                    "users": ", ".join(pg_users),
-                    "databases": ", ".join(databases),
-                    "default_db": db,
-                })
-                break  # Found this port
+                    results.append({
+                        "host": "127.0.0.1",
+                        "port": port_str,
+                        "user": user,
+                        "users": ", ".join(pg_users),
+                        "databases": ", ".join(databases),
+                        "default_db": db,
+                    })
+                    found_auth = True
+                    break
+
+        if not found_auth:
+            # Server is running on port but password is required!
+            default_u = "postgres"
+            results.append({
+                "host": "127.0.0.1",
+                "port": port_str,
+                "user": default_u,
+                "users": f"{default_u} (butuh password)",
+                "databases": "postgres",
+                "default_db": "postgres",
+            })
 
     return results
 
@@ -977,7 +1005,7 @@ def cmd_init(args: argparse.Namespace) -> None:
                         n_inp = input(f"  Database PostgreSQL [{inst['default_db']}]: ").strip()
                         n = n_inp or inst["default_db"]
 
-                        w = input(f"  Password untuk user '{u}' (opsional): ").strip()
+                        w = get_masked_password(f"  Password for user '{u}' (optional): ")
                         echo(f"  {D}→ Configured: {u}@{h}:{p}/{n}{NC}")
                     else:
                         h, p, u, n, w = _manual_db_input()
@@ -1014,10 +1042,8 @@ def cmd_init(args: argparse.Namespace) -> None:
 
         echo()
         box_section("Cloud / Remote Database (optional)")
-        echo(f"  {D}Masukkan connection string PostgreSQL tujuan.{NC}")
-        echo(f"  {D}Bisa dari Supabase, Neon, RDS, atau VPS sendiri.{NC}")
-        echo(f"  {D}Tekan Enter untuk skip.{NC}")
-        remote_url = input("  GAET_REMOTE_URL: ").strip()
+        echo(f"  {D}Example: postgresql://user:pass@host:port/dbname{NC}")
+        remote_url = input("  GAET_REMOTE_URL [Press Enter to skip]: ").strip()
 
         echo()
         box_section("Backup")
@@ -1058,9 +1084,82 @@ def cmd_init(args: argparse.Namespace) -> None:
     _print_summary(env, tools)
 
 
+def get_masked_password(prompt: str = "  Password []: ") -> str:
+    """Prompt for password displaying asterisks (****) for each character."""
+    import sys
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+
+    # Try Windows msvcrt
+    try:
+        import msvcrt
+        buf = []
+        while True:
+            ch = msvcrt.getch()
+            if ch in (b"\r", b"\n"):
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return "".join(buf)
+            elif ch == b"\x08":  # Backspace
+                if buf:
+                    buf.pop()
+                    sys.stdout.write("\b \b")
+                    sys.stdout.flush()
+            elif ch == b"\x03":  # Ctrl+C
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                raise KeyboardInterrupt
+            else:
+                try:
+                    char = ch.decode("utf-8", errors="ignore")
+                    if char and ord(char) >= 32:
+                        buf.append(char)
+                        sys.stdout.write("*")
+                        sys.stdout.flush()
+                except Exception:
+                    pass
+    except ImportError:
+        pass
+
+    # Try Unix termios
+    try:
+        import tty, termios
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        buf = []
+        try:
+            tty.setraw(fd)
+            while True:
+                ch = sys.stdin.read(1)
+                if ch in ("\r", "\n"):
+                    sys.stdout.write("\r\n")
+                    sys.stdout.flush()
+                    return "".join(buf)
+                elif ch in ("\x7f", "\x08"):  # Backspace
+                    if buf:
+                        buf.pop()
+                        sys.stdout.write("\b \b")
+                        sys.stdout.flush()
+                elif ch == "\x03":  # Ctrl+C
+                    raise KeyboardInterrupt
+                else:
+                    if ord(ch) >= 32:
+                        buf.append(ch)
+                        sys.stdout.write("*")
+                        sys.stdout.flush()
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    except Exception:
+        pass
+
+    # Fallback to standard getpass
+    import getpass
+    return getpass.getpass("")
+
+
 def _url_input() -> Tuple[str, str, str, str, str]:
     """Input via connection URL. Returns (host, port, user, db, passwd)."""
-    echo(f"  {D}Format: postgresql://user:password@host:5432/dbname{NC}")
+    echo(f"  {D}Example: postgresql://user:password@host:port/dbname{NC}")
     url = input("  URL: ").strip()
     if url:
         parsed = parse_remote_url(url)
@@ -1077,7 +1176,7 @@ def _manual_db_input() -> Tuple[str, str, str, str, str]:
     p = input(f"  Port [5432]: ").strip() or "5432"
     u = input(f"  User [postgres]: ").strip() or "postgres"
     n = input(f"  Database [postgres]: ").strip() or "postgres"
-    w = input(f"  Password []: ").strip()
+    w = get_masked_password("  Password []: ")
     return h, p, u, n, w
 
 
