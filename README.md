@@ -447,4 +447,4 @@ MIT License
 
 ---
 
-*gaet v3.0.0. Designed to be a safety net for your database.*
+*gaet v3.5.0. Designed to be a safety net for your database.*
