@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ghanirahmans/gaet/master/dashboard/public/gaet-logo.png" alt="gaet logo" width="120">
+  <img src="https://raw.githubusercontent.com/ghanirahmans/gaet/main/dashboard/public/gaet-logo.png" alt="gaet logo" width="120">
 </p>
 
 <h1 align="center">gaet</h1>
@@ -22,7 +22,7 @@
 
 ```bash
 # Install
-curl -fsSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash
 
 # Configure (one time)
 gaet init
@@ -87,10 +87,10 @@ gaet serve       # Dashboard at localhost:9191
 
 ```bash
 # Linux/macOS
-curl -fsSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash
 
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
+irm https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.ps1 | iex
 ```
 
 ---

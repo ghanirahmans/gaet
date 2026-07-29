@@ -1984,7 +1984,7 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
         echo(f"  Config kept at: ~/.gaet/")
         echo(f"  To remove config too, run: gaet uninstall --purge")
     
-    echo(f"  To reinstall: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash")
+    echo(f"  To reinstall: curl -fsSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash")
     echo("")
 
 
@@ -2039,7 +2039,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     
     # Check current vs remote
     out_local, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "HEAD"], timeout=5)
-    out_remote, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "origin/master"], timeout=5)
+    out_remote, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "origin/main"], timeout=5)
     
     if out_local.strip() == out_remote.strip():
         status_ok("Already up to date!")
@@ -2056,7 +2056,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     # Pull
     echo()
     box_section("Pulling update")
-    out, err, rc = run_cmd([git, "-C", str(project_dir), "pull", "origin", "master"], timeout=30)
+    out, err, rc = run_cmd([git, "-C", str(project_dir), "pull", "origin", "main"], timeout=30)
     if rc != 0:
         die(f"Pull gagal: {err}")
     status_ok("Pull complete")
