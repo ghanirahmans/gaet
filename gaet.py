@@ -2131,113 +2131,129 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
 
 def cmd_update(args: argparse.Namespace) -> None:
     """Update gaet to latest version from GitHub."""
+    import urllib.request
+
     box_title(f"{NAME} update")
-    
-    # Find project directory (where .git exists)
+
+    # 1. Check if running inside a Git repository
     script_dir = Path(sys.argv[0]).resolve().parent
     candidates = [
-        script_dir.parent,  # installed from project root
+        script_dir.parent,
         script_dir / "..",
         HOME / "Projects/gaet",
         HOME / ".local/share/gaet",
     ]
-    
+
     project_dir = None
     for cand in candidates:
         if (cand / ".git").is_dir() and (cand / "gaet.py").is_file():
             project_dir = cand.resolve()
             break
-    
-    if not project_dir:
-        die("Project directory tidak ditemukan. Jalankan dari folder gaet atau set GAET_PROJECT_DIR")
-    
-    echo(f"  {C}📁{NC}  Project: {D}{project_dir}{NC}")
-    
-    # Check if git is available
-    git = shutil.which("git") or ""
-    if not git:
-        die("git tidak ditemukan. Install git dulu.")
-    
-    # Check if there are local changes
-    out, _, rc = run_cmd([git, "-C", str(project_dir), "status", "--porcelain"], timeout=10)
-    if out.strip():
-        status_warn("Local changes detected in project")
-        if not args.force:
-            status_info("Commit changes first or use --force")
-            echo(f"    {D}git -C {project_dir} stash{NC}")
-            echo(f"    {D}gaet update --force{NC}")
-            return
-    
-    # Fetch and pull
-    echo()
-    box_section("Fetching update")
-    
-    status_info("Fetching from remote...")
-    out, err, rc = run_cmd([git, "-C", str(project_dir), "fetch", "origin"], timeout=30)
-    if rc != 0:
-        die(f"Fetch gagal: {err}")
-    status_ok("Fetch complete")
-    
-    # Check current vs remote
-    out_local, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "HEAD"], timeout=5)
-    out_remote, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "origin/main"], timeout=5)
-    
-    if out_local.strip() == out_remote.strip():
-        status_ok("Already up to date!")
-        return
-    
-    # Show what will be updated
-    out_log, _, _ = run_cmd([git, "-C", str(project_dir), "log", "--oneline", f"{out_local.strip()}..{out_remote.strip()}"], timeout=10)
-    if out_log.strip():
-        echo()
-        box_section("Commits baru")
-        for line in out_log.strip().split("\n")[:5]:
-            status_arrow(line)
-    
-    # Pull
-    echo()
-    box_section("Pulling update")
-    out, err, rc = run_cmd([git, "-C", str(project_dir), "pull", "origin", "main"], timeout=30)
-    if rc != 0:
-        die(f"Pull gagal: {err}")
-    status_ok("Pull complete")
-    
-    # Copy to install location
-    echo()
-    box_section("Installing")
+
     install_dir = Path.home() / ".local" / "bin"
     install_dir.mkdir(parents=True, exist_ok=True)
-    
-    src = project_dir / "gaet.py"
-    dst = install_dir / "gaet"
-    
-    if src.is_file():
-        shutil.copy2(str(src), str(dst))
-        dst.chmod(0o755)
-        status_ok(f"gaet → {dst}")
-    
-    # Copy scripts if exists
-    scripts_src = project_dir / "scripts"
-    if scripts_src.is_dir():
-        scripts_dst = install_dir / "scripts"
-        scripts_dst.mkdir(parents=True, exist_ok=True)
-        for f in scripts_src.glob("*.py"):
-            shutil.copy2(str(f), str(scripts_dst / f.name))
-        status_ok(f"scripts → {scripts_dst}/")
-    
-    # Copy dashboard if exists and rebuild
-    dashboard_src = project_dir / "dashboard"
-    if dashboard_src.is_dir() and not args.skip_build:
-        echo()
-        box_section("Building dashboard")
-        node = shutil.which("node")
-        npm = shutil.which("npm")
-        if node and npm:
-            status_info("Installing dependencies...")
-            run_cmd([npm, "install"], cwd=str(dashboard_src), timeout=120)
-            status_info("Building...")
-            run_cmd([npm, "run", "build"], cwd=str(dashboard_src), timeout=120)
-            status_ok("Dashboard built")
+
+    if project_dir and shutil.which("git"):
+        # ── Git Repository Update Mode ──
+        echo(f"  {C}📁{NC}  Git Mode: {D}{project_dir}{NC}")
+        git = shutil.which("git") or "git"
+
+        # Check local changes
+        out, _, _ = run_cmd([git, "-C", str(project_dir), "status", "--porcelain"], timeout=10)
+        if out.strip() and not args.force:
+            status_warn("Local changes detected in project repo")
+            status_info("Use --force to update anyway")
+            return
+
+        box_section("Fetching update from GitHub")
+        status_info("Fetching from origin/main...")
+        out, err, rc = run_cmd([git, "-C", str(project_dir), "fetch", "origin"], timeout=30)
+        if rc != 0:
+            die(f"Fetch gagal: {err}")
+
+        out_local, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "HEAD"], timeout=5)
+        out_remote, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "origin/main"], timeout=5)
+
+        if out_local.strip() == out_remote.strip() and not args.force:
+            status_ok(f"Already up to date! ({NAME} v{VERSION})")
+            return
+
+        box_section("Pulling update")
+        out, err, rc = run_cmd([git, "-C", str(project_dir), "pull", "origin", "main"], timeout=30)
+        if rc != 0:
+            die(f"Pull gagal: {err}")
+        status_ok("Pull complete")
+
+        # Copy to install directory
+        src_py = project_dir / "gaet.py"
+        if src_py.is_file():
+            shutil.copy2(str(src_py), str(install_dir / "gaet.py"))
+            if not IS_WINDOWS:
+                shutil.copy2(str(src_py), str(install_dir / "gaet"))
+                (install_dir / "gaet").chmod(0o755)
+
+        scripts_src = project_dir / "scripts"
+        if scripts_src.is_dir():
+            scripts_dst = install_dir / "scripts"
+            scripts_dst.mkdir(parents=True, exist_ok=True)
+            for f in scripts_src.glob("*.py"):
+                shutil.copy2(str(f), str(scripts_dst / f.name))
+
+        status_ok(f"{NAME} updated to latest commit!")
+
+    else:
+        # ── Standalone Direct Download Update Mode ──
+        echo(f"  {C}🌐{NC}  Downloading directly from GitHub Raw...")
+        raw_base = "https://raw.githubusercontent.com/ghanirahmans/gaet/main"
+
+        try:
+            status_info("Checking latest version from GitHub...")
+            req = urllib.request.Request(f"{raw_base}/gaet.py", headers={"User-Agent": "gaet-cli"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                remote_code = resp.read().decode("utf-8")
+
+            # Extract remote version
+            m = re.search(r'VERSION\s*=\s*"([^"]+)"', remote_code)
+            remote_ver = m.group(1) if m else "unknown"
+
+            if remote_ver == VERSION and not getattr(args, "force", False):
+                status_ok(f"Already up to date! ({NAME} v{VERSION})")
+                return
+
+            status_info(f"Updating {NAME}: v{VERSION} → v{remote_ver}")
+            box_section("Downloading & Updating")
+
+            # Overwrite gaet.py
+            gaet_py_target = install_dir / "gaet.py"
+            gaet_py_target.write_text(remote_code, encoding="utf-8")
+            if not IS_WINDOWS:
+                gaet_bin = install_dir / "gaet"
+                gaet_bin.write_text(remote_code, encoding="utf-8")
+                gaet_bin.chmod(0o755)
+
+            # Ensure gaet.cmd wrapper exists on Windows
+            if IS_WINDOWS:
+                wrapper = install_dir / "gaet.cmd"
+                py_cmd = sys.executable
+                wrapper.write_text(f'@echo off\n"{py_cmd}" "%~dp0gaet.py" %*\n', encoding="utf-8")
+
+            # Download scripts
+            scripts_dir = install_dir / "scripts"
+            scripts_dir.mkdir(parents=True, exist_ok=True)
+
+            script_files = ["status.py", "scheduler.py", "service_manager.py", "installer.py", "__init__.py"]
+            for sf in script_files:
+                try:
+                    s_req = urllib.request.Request(f"{raw_base}/scripts/{sf}", headers={"User-Agent": "gaet-cli"})
+                    with urllib.request.urlopen(s_req, timeout=10) as s_resp:
+                        (scripts_dir / sf).write_bytes(s_resp.read())
+                except Exception as ex:
+                    status_warn(f"Failed updating script {sf}: {ex}")
+
+            status_ok(f"{NAME} successfully updated to v{remote_ver}!")
+
+        except Exception as e:
+            die(f"Gagal memperbarui gaet dari GitHub: {e}")
             
             # Restart dashboard service if running
             try:
