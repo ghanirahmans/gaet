@@ -894,7 +894,17 @@ def cmd_init(args: argparse.Namespace) -> None:
     GAET_DIR.mkdir(parents=True, exist_ok=True)
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
-    if not ENV_FILE.is_file():
+    reconfigure = True
+    if ENV_FILE.is_file() and not preset_name:
+        existing = load_env()
+        if existing.get("GAET_REMOTE_URL") or existing.get("GAET_LOCAL_URL"):
+            status_info(f"Config sudah ada: {ENV_FILE}")
+            echo()
+            reconfigure = yesno("Ingin memperbarui konfigurasi database?", default=True)
+        else:
+            reconfigure = True
+
+    if reconfigure:
         echo()
         box_section("Local Database")
 
@@ -932,7 +942,7 @@ def cmd_init(args: argparse.Namespace) -> None:
                     p = inst["port"]
                     u = inst["user"]
                     n = inst["default_db"]
-                    w = ""
+                    w = input(f"  Password untuk user '{u}' (opsional): ").strip()
                     echo(f"  {D}→ {u}@{h}:{p}/{n}{NC}")
                 else:
                     # Manual mode
@@ -958,7 +968,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         if psql and h:
             echo(f"  {C}💾{NC}  Testing koneksi {u}@{h}:{p}/{n}... ", end="")
             out, _, rc = run_cmd(
-                [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+                [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
                 env={"PGPASSWORD": w},
                 timeout=5,
             )
@@ -1006,8 +1016,6 @@ def cmd_init(args: argparse.Namespace) -> None:
         ENV_FILE.chmod(0o600)
         echo()
         status_ok(f"Config tersimpan di {ENV_FILE}")
-    else:
-        status_info(f"Config sudah ada: {ENV_FILE}")
 
     echo()
     box_section("Summary")
@@ -1045,18 +1053,18 @@ def _print_summary(env: Dict[str, str], tools: Dict[str, str]) -> None:
     psql = tools.get("psql", "")
 
     # Local DB status
-    echo(f"  {C}💾{NC}  Local:  {u}@{h}:{p}/{n}", end="")
+    echo(f"  {C}💾{NC}  Local:  {u}@{h}:{p}/{n}... ", end="")
     if psql:
         out, _, rc = run_cmd(
-            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+            [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
             env={"PGPASSWORD": w}, timeout=5,
         )
         if rc == 0 and out.strip() == "1":
-            echo(f"  {G}connected{NC}")
+            echo(f"{G}connected{NC}")
         else:
-            echo(f"  {Y}not connected yet{NC}")
+            echo(f"{Y}not connected yet{NC}")
     else:
-        echo()
+        echo(f"{Y}psql tidak ada{NC}")
 
     # Remote status
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or ""
