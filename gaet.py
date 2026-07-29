@@ -58,6 +58,20 @@ CRON_LOG = BACKUP_DIR / "cron.log"
 LOCK_PATH = BACKUP_DIR / ".gaet.lock"
 ENV_FILE = GAET_DIR / ".env"
 
+# ─── Ensure scripts module directory is in sys.path ───────────────────────
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_CANDIDATE_PATHS = [
+    _SCRIPT_DIR,
+    _SCRIPT_DIR / "scripts",
+    HOME / ".local" / "bin",
+    HOME / ".local" / "bin" / "scripts",
+    GAET_DIR,
+]
+for _p in _CANDIDATE_PATHS:
+    _p_str = str(_p)
+    if _p.is_dir() and _p_str not in sys.path:
+        sys.path.insert(0, _p_str)
+
 # ─── Defaults ─────────────────────────────────────────────────────────────
 DEF_LOCAL_HOST = "127.0.0.1"
 DEF_LOCAL_PORT = "5432"
@@ -70,6 +84,7 @@ DEF_DASHBOARD_PORT = 9191
 DEF_DASHBOARD_HOST = "0.0.0.0"
 DEF_REMOTE_SSLMODE = "require"
 DEF_SERVICE_PREFIX = "gaet"
+DEF_TIMEOUT = 600
 
 # ─── Presets ──────────────────────────────────────────────────────────────
 # Predefined configs for popular databases
@@ -144,15 +159,39 @@ def cronlog(msg: str) -> None:
 
 def acquire_lock() -> None:
     """Acquire exclusive lock via directory creation (atomic cross-platform)."""
+    pid_file = LOCK_PATH / "pid"
     try:
         LOCK_PATH.mkdir(parents=True, exist_ok=False)
+        pid_file.write_text(str(os.getpid()))
     except FileExistsError:
+        # Check if lock holder process is still alive (Stale lock cleanup)
+        if pid_file.is_file():
+            try:
+                old_pid = int(pid_file.read_text().strip())
+                running = False
+                if IS_WINDOWS:
+                    out, _, rc = run_cmd(["tasklist", "/FI", f"PID eq {old_pid}", "/NH"], timeout=5)
+                    running = rc == 0 and str(old_pid) in out
+                else:
+                    try:
+                        os.kill(old_pid, 0)
+                        running = True
+                    except OSError:
+                        running = False
+
+                if not running:
+                    release_lock()
+                    acquire_lock()
+                    return
+            except (ValueError, OSError):
+                pass
         die(f"gaet sedang berjalan (lock: {LOCK_PATH})")
 
 
 def release_lock() -> None:
     """Release lock."""
     try:
+        (LOCK_PATH / "pid").unlink(missing_ok=True)
         LOCK_PATH.rmdir()
     except (OSError, FileNotFoundError):
         pass
@@ -404,9 +443,25 @@ def find_pg_tools(env: Dict[str, str]) -> Dict[str, str]:
 
 # ─── Terminal UI ─────────────────────────────────────────────────────────
 
+if IS_WINDOWS:
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+
 def echo(msg: str = "", end: str = "\n") -> None:
     """Print with our formatting conventions."""
-    print(msg, end=end, flush=True)
+    try:
+        print(msg, end=end, flush=True)
+    except UnicodeEncodeError:
+        enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+        safe_msg = msg.encode(enc, errors="replace").decode(enc, errors="replace")
+        print(safe_msg, end=end, flush=True)
+
 
 
 def box_title(title: str) -> None:
@@ -630,9 +685,19 @@ def check_tools(env: Dict[str, str]) -> None:
         status_fail("psql tidak ditemukan")
         ok = False
     if not ok:
-        die(
-            "Pasang PostgreSQL tools dulu, atau set GAET_PG_DUMP dll di .env"
-        )
+        echo()
+        box_section("Panduan Instalasi PostgreSQL Tools:")
+        if IS_WINDOWS:
+            status_info("Windows (Winget): winget install -e --id PostgreSQL.PostgreSQL")
+            status_info("Atau unduh installer dari: https://www.postgresql.org/download/windows/")
+        elif IS_MACOS:
+            status_info("macOS (Homebrew): brew install postgresql")
+        else:
+            status_info("Ubuntu/Debian: sudo apt install postgresql-client")
+            status_info("Fedora/RHEL:   sudo dnf install postgresql")
+        echo()
+        die("Pasang PostgreSQL tools terlebih dahulu, atau atur GAET_PG_DUMP di ~/.gaet/.env")
+
 
 
 def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
@@ -1479,12 +1544,13 @@ def cmd_push(args: argparse.Namespace) -> None:
         echo(f"  {C}📦{NC}  {B}Dumping local database...{NC}")
         backup_file = str(BACKUP_DIR / f"gaet_{timestamp}.dump")
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        op_timeout = get_env_int(env, "GAET_TIMEOUT", DEF_TIMEOUT)
 
         out, err, rc = run_cmd(
             [pg_dump, "-h", h, "-p", p, "-U", u, "-d", n,
              "--format=custom", "--compress=9", f"--file={backup_file}"],
             env={"PGPASSWORD": w},
-            timeout=120,
+            timeout=op_timeout,
         )
         if rc == 0 and Path(backup_file).is_file():
             size_mb = Path(backup_file).stat().st_size / (1024 * 1024)
@@ -1511,20 +1577,21 @@ def cmd_push(args: argparse.Namespace) -> None:
              "--clean", "--if-exists", "--no-owner", "--no-acl",
              backup_file],
             env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
-            timeout=120,
+            timeout=op_timeout,
         )
         if rc3 == 0:
             echo(f"    {G}{ICON_OK}{NC}  Sinkronisasi selesai!")
         else:
             echo(f"    {Y}{ICON_WARN}{NC}  Sinkronisasi selesai (dengan peringatan)")
 
-        # Step 3: Retention
+        # Step 3: Retention (Always keep at least 2 latest backups)
         retention = get_env_int(env, "GAET_RETENTION_DAYS", DEF_RETENTION_DAYS)
         cutoff = time.time() - (retention * 86400)
         try:
-            for f in BACKUP_DIR.glob("gaet_*.dump"):
+            backups = sorted(BACKUP_DIR.glob("gaet_*.dump"), key=lambda p: p.stat().st_mtime, reverse=True)
+            for f in backups[2:]:
                 if f.stat().st_mtime < cutoff:
-                    f.unlink()
+                    f.unlink(missing_ok=True)
         except OSError:
             pass
 
@@ -1561,6 +1628,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         # Step 1: Cloud dump
         echo(f"  {C}☁️{NC}   {B}Dumping database cloud...{NC}")
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
+        op_timeout = get_env_int(env, "GAET_TIMEOUT", DEF_TIMEOUT)
         fetch_file = str(BACKUP_DIR / f"cloud_{timestamp}.dump")
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -1569,7 +1637,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
              "-U", parsed["user"], "-d", parsed["db"],
              "--format=custom", "--compress=9", f"--file={fetch_file}"],
             env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
-            timeout=120,
+            timeout=op_timeout,
         )
         if rc == 0 and Path(fetch_file).is_file():
             size_mb = Path(fetch_file).stat().st_size / (1024 * 1024)
@@ -1594,7 +1662,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             [pg_restore, "-h", h, "-p", p, "-U", u, "-d", n,
              "--clean", "--if-exists", fetch_file],
             env={"PGPASSWORD": w},
-            timeout=120,
+            timeout=op_timeout,
         )
         if rc3 <= 1:
             echo(f"    {G}{ICON_OK}{NC}  Local restore complete!")
@@ -1627,12 +1695,13 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     cron_file = str(BACKUP_DIR / f"cron_{timestamp}.dump")
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    op_timeout = get_env_int(env, "GAET_TIMEOUT", DEF_TIMEOUT)
 
     out, err, rc = run_cmd(
         [pg_dump, "-h", h, "-p", p, "-U", u, "-d", n,
          "--format=custom", "--compress=9", f"--file={cron_file}"],
         env={"PGPASSWORD": w},
-        timeout=120,
+        timeout=op_timeout,
     )
     if rc == 0 and Path(cron_file).is_file():
         out2, err2, rc2 = run_cmd(
@@ -1640,7 +1709,7 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
              "-U", parsed["user"], "-d", parsed["db"],
              "--clean", "--if-exists", "--no-owner", "--no-acl", cron_file],
             env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
-            timeout=120,
+            timeout=op_timeout,
         )
         if rc2 == 0:
             size_mb = Path(cron_file).stat().st_size / (1024 * 1024)

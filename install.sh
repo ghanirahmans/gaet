@@ -7,7 +7,7 @@ set -e
 
 GAET_DIR="$HOME/.local/bin"
 GAET_CONFIG="$HOME/.gaet"
-GITHUB_RAW="https://raw.githubusercontent.com/ghanirahmans/gaet/master"
+GITHUB_RAW="https://raw.githubusercontent.com/ghanirahmans/gaet/main"
 
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║  gaet — Database Backup & Sync CLI                  ║"
@@ -43,14 +43,14 @@ mkdir -p "$GAET_CONFIG"
 
 # ── 4. Download gaet CLI ──────────────────────────────────────────────────
 echo -n "  Downloading gaet..."
-curl -sSL "$GITHUB_RAW/gaet" -o "$GAET_DIR/gaet"
+curl -fsSL "$GITHUB_RAW/gaet.py" -o "$GAET_DIR/gaet"
 chmod +x "$GAET_DIR/gaet"
 echo " OK"
 
 # ── 5. Download scripts ───────────────────────────────────────────────────
 mkdir -p "$GAET_DIR/scripts"
 for f in status.py scheduler.py service_manager.py installer.py __init__.py; do
-    curl -sSL "$GITHUB_RAW/scripts/$f" -o "$GAET_DIR/scripts/$f"
+    curl -fsSL "$GITHUB_RAW/scripts/$f" -o "$GAET_DIR/scripts/$f"
 done
 echo "  Scripts downloaded"
 

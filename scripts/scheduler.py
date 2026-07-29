@@ -245,27 +245,32 @@ def _windows_enable(prefix: str, interval: int, cli_path: str) -> bool:
     """Create a scheduled task via ``schtasks /Create``."""
     # Resolve full path for reliability — schtasks needs absolute paths
     cli = cli_path
-    if not cli_path.endswith(".py") and not cli_path.startswith(sys.executable):
+    if cli_path.endswith(".py"):
+        python_exe = sys.executable
+        tr_cmd = f'"{python_exe}" "{cli_path}" push --cron'
+    else:
         which_result = shutil.which(cli_path)
         if which_result:
             cli = which_result
+        tr_cmd = f'"{cli}" push --cron'
 
     log = _log_path(prefix)
 
     # schtasks /Create accepts:
     #   /SC HOURLY /MO {interval}
-    #   /TR "{cli} push --cron"
+    #   /TR "{tr_cmd}"
     cmd = [
         "schtasks",
         "/Create",
         "/SC", "HOURLY",
         "/MO", str(interval),
         "/TN", f"{prefix}-backup",
-        "/TR", f'"{cli}" push --cron',
+        "/TR", tr_cmd,
         "/F",  # force overwrite if exists
     ]
     _, _, rc = _run(cmd, timeout=15)
     return rc == 0
+
 
 
 def _windows_disable(prefix: str) -> bool:

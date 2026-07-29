@@ -1,24 +1,28 @@
 import { NextResponse } from "next/server";
-import { execSync } from "child_process";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 export async function GET() {
   try {
-    const out = execSync("gaet status --json 2>/dev/null", { timeout: 30000, encoding: "utf-8" });
-    const data = JSON.parse(out);
+    const { stdout } = await execAsync("gaet status --json", { timeout: 30000, encoding: "utf-8" });
+    const data = JSON.parse(stdout.trim());
     return NextResponse.json(data);
   } catch {
     // Fallback: try Python module directly
+    const pythonExe = process.platform === "win32" ? "python" : "python3";
     try {
-      const out2 = execSync(
-        `python3 -c "
+      const { stdout: out2 } = await execAsync(
+        `${pythonExe} -c "
 import sys, json, os
 sys.path.insert(0, os.path.expanduser('~/.gaet'))
 sys.path.insert(0, os.path.expanduser('~/Projects/gaet/scripts'))
 from status import get_status
 print(json.dumps(get_status()))
-" 2>/dev/null`, { timeout: 30000, encoding: "utf-8" }
+"`, { timeout: 30000, encoding: "utf-8" }
       );
-      return NextResponse.json(JSON.parse(out2));
+      return NextResponse.json(JSON.parse(out2.trim()));
     } catch {
       return NextResponse.json({
         memories: 0, synced: false, local_size: "?", remote_size: "?",
@@ -28,3 +32,4 @@ print(json.dumps(get_status()))
     }
   }
 }
+

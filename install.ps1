@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $GAET_DIR = "$env:USERPROFILE\.local\bin"
 $GAET_CONFIG = "$env:USERPROFILE\.gaet"
-$GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/master"
+$GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/main"
 
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════════════╗" -ForegroundColor Cyan
@@ -18,8 +18,10 @@ Write-Host ""
 
 # ── 1. Check Python ───────────────────────────────────────────────────────
 Write-Host "  Checking Python... " -NoNewline
+$pythonCmd = (Get-Command python -ErrorAction SilentlyContinue).Source
+if (-not $pythonCmd) { $pythonCmd = "python" }
 try {
-    $pythonVer = python --version 2>&1 | Select-String -Pattern "Python (\d+\.\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
+    $pythonVer = & $pythonCmd --version 2>&1 | Select-String -Pattern "Python (\d+\.\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
     Write-Host "OK ($pythonVer)" -ForegroundColor Green
 } catch {
     Write-Host "NOT FOUND" -ForegroundColor Red
@@ -31,10 +33,9 @@ try {
 
 # ── 2. Check PostgreSQL tools ─────────────────────────────────────────────
 Write-Host "  Checking pg_dump... " -NoNewline
-try {
-    $pgDumpPath = (Get-Command pg_dump -ErrorAction SilentlyContinue).Source
-    if (-not $pgDumpPath) {
-        # Check common Windows install paths
+$pgDumpPath = (Get-Command pg_dump -ErrorAction SilentlyContinue).Source
+if (-not $pgDumpPath) {
+    if (Test-Path "C:\Program Files\PostgreSQL") {
         $pgVersions = Get-ChildItem "C:\Program Files\PostgreSQL" -Directory -ErrorAction SilentlyContinue
         foreach ($ver in $pgVersions) {
             $pgBin = Join-Path $ver.FullName "bin\pg_dump.exe"
@@ -44,14 +45,13 @@ try {
             }
         }
     }
-    if ($pgDumpPath) {
-        Write-Host "OK" -ForegroundColor Green
-    } else {
-        throw "Not found"
-    }
-} catch {
+}
+if ($pgDumpPath) {
+    Write-Host "OK" -ForegroundColor Green
+} else {
     Write-Host "NOT FOUND" -ForegroundColor Yellow
-    Write-Host "  ⚠  PostgreSQL tools not found. Download from https://www.postgresql.org/download/windows/"
+    Write-Host "  ⚠  PostgreSQL tools not found. You can install gaet now and install PostgreSQL later:" -ForegroundColor Yellow
+    Write-Host "     winget install -e --id PostgreSQL.PostgreSQL" -ForegroundColor Cyan
 }
 
 # ── 3. Create directories ─────────────────────────────────────────────────
@@ -89,7 +89,7 @@ Write-Host "  Scripts downloaded"
 # This lets users run `gaet` directly from anywhere
 $wrapperContent = @"
 @echo off
-python "%~dp0gaet.py" %*
+"$pythonCmd" "%~dp0gaet.py" %*
 "@
 $wrapperContent | Out-File -FilePath "$GAET_DIR\gaet.cmd" -Encoding ASCII
 Write-Host "  Wrapper created: $GAET_DIR\gaet.cmd"

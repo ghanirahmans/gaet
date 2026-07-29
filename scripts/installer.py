@@ -157,14 +157,14 @@ def detect_pkg_manager() -> Optional[str]:
     """Detect available package manager."""
     if IS_LINUX:
         for mgr in ["apt-get", "apt", "dnf", "yum", "pacman", "zypper"]:
-            if _run(["which", mgr])[2] == 0:
+            if shutil.which(mgr):
                 return mgr
         return None
     elif IS_MACOS:
-        return "brew" if _run(["which", "brew"])[2] == 0 else None
+        return "brew" if shutil.which("brew") else None
     elif IS_WINDOWS:
         for mgr in ["choco", "winget", "scoop"]:
-            if _run(["where", mgr])[2] == 0:
+            if shutil.which(mgr):
                 return mgr
         return None
     return None
@@ -586,7 +586,7 @@ def run(
             if needs_shell:
                 echo(f"  {Y}Beberapa dependencies tidak terinstall.{NC}")
                 echo(f"  {Y}Kamu bisa install manual atau jalankan ulang dengan --yes{NC}")
-                if not yesno("Lanjutkan?", False):
+                if not yesno("Lanjutkan?", True):
                     return 1
 
     # ── Step 2: Setup config ────────────────────────────────────────
