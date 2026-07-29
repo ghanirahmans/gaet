@@ -1975,10 +1975,11 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     if purge:
         echo(f"  {Y}⚠  PURGE MODE: Will remove gaet AND all config/backups{NC}")
         echo("")
-        confirm = input(f"  Type 'yes' to confirm: ").strip().lower()
-        if confirm != "yes":
-            echo(f"  {G}Cancelled.{NC}")
-            return
+        if not getattr(args, "yes", False):
+            confirm = input(f"  Type 'yes' to confirm: ").strip().lower()
+            if confirm != "yes":
+                echo(f"  {G}Cancelled.{NC}")
+                return
     
     # ── 1. Stop services ──────────────────────────────────────────────
     echo(f"  {C}▸{NC} Stopping services...")
@@ -2056,22 +2057,29 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
             echo(f"    {Y}⚠  Task removal error: {e}{NC}")
     
     # ── 3. Remove CLI and scripts ────────────────────────────────────
-    echo(f"  {C}▸{NC} Removing gaet CLI...")
-    
+    echo(f"  {C}▸{NC} Removing gaet CLI binaries...")
+
     bin_dir = Path.home() / ".local" / "bin"
-    
-    # Remove gaet CLI
-    gaet_bin = bin_dir / "gaet"
-    if gaet_bin.exists():
-        gaet_bin.unlink()
-        echo(f"    {G}✓{NC} Removed: {gaet_bin}")
-    
+
+    # Remove all possible CLI binaries & wrappers
+    for f_name in ["gaet", "gaet.py", "gaet.cmd"]:
+        target = bin_dir / f_name
+        if target.exists():
+            try:
+                target.unlink()
+                echo(f"    {G}✓{NC} Removed: {target}")
+            except Exception as e:
+                echo(f"    {Y}⚠  Failed to remove {target}: {e}{NC}")
+
     # Remove scripts directory
     scripts_dir = bin_dir / "scripts"
     if scripts_dir.exists():
-        import shutil
-        shutil.rmtree(scripts_dir)
-        echo(f"    {G}✓{NC} Removed: {scripts_dir}")
+        try:
+            import shutil
+            shutil.rmtree(scripts_dir)
+            echo(f"    {G}✓{NC} Removed: {scripts_dir}")
+        except Exception as e:
+            echo(f"    {Y}⚠  Failed to remove {scripts_dir}: {e}{NC}")
     
     # ── 4. Purge mode: remove service files + config ────────────────
     if purge:
@@ -2439,6 +2447,7 @@ def main() -> None:
     # uninstall
     uninstall_parser = subparsers.add_parser("uninstall", help="Remove gaet from system")
     uninstall_parser.add_argument("--purge", action="store_true", help="Remove everything including config and backups")
+    uninstall_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
 
     args = parser.parse_args()
 
