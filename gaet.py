@@ -281,48 +281,68 @@ def get_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
     )
 
 
-def detect_local_pg(psql_path: str) -> List[Dict[str, str]]:
+def detect_local_pg(psql_path: str) -> List[Dict[str, Any]]:
     """
     Auto-detect running PostgreSQL instances on this machine.
-    Returns list of dicts with keys: host, port, user, databases.
+    Returns list of dicts with keys: host, port, user, users, databases, default_db.
     """
-    results: List[Dict[str, str]] = []
+    import getpass
+    results: List[Dict[str, Any]] = []
     if not psql_path:
         return results
 
     # Common ports to scan
     ports_to_try = ["5432", "5433", "5434", "5435", "5436"]
-    users_to_try = ["postgres", "root"]
+
+    try:
+        cur_user = getpass.getuser()
+    except Exception:
+        cur_user = ""
+
+    users_to_try = ["postgres"]
+    if cur_user and cur_user not in users_to_try:
+        users_to_try.append(cur_user)
+    users_to_try.extend(["root", "admin"])
 
     for port in ports_to_try:
         for user in users_to_try:
-            # Try connecting with no password (common for local dev)
             out, _, rc = run_cmd(
-                [psql_path, "-h", "127.0.0.1", "-p", port, "-U", user,
-                 "-d", "postgres", "-tAc",
-                 "SELECT current_database();"],
+                [psql_path, "-w", "-h", "127.0.0.1", "-p", port, "-U", user,
+                 "-d", "postgres", "-tAc", "SELECT current_database();"],
                 env={"PGPASSWORD": ""},
                 timeout=3,
             )
             if rc == 0 and out.strip():
                 db = out.strip()
-                # List all databases on this server
+                # List all non-template databases
                 dbs_out, _, _ = run_cmd(
-                    [psql_path, "-h", "127.0.0.1", "-p", port, "-U", user,
+                    [psql_path, "-w", "-h", "127.0.0.1", "-p", port, "-U", user,
                      "-d", "postgres", "-tAc",
                      "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"],
                     env={"PGPASSWORD": ""},
                     timeout=3,
                 )
                 databases = [d.strip() for d in dbs_out.strip().split("\n") if d.strip()] if dbs_out.strip() else [db]
+
+                # List non-system users from pg_user
+                users_out, _, _ = run_cmd(
+                    [psql_path, "-w", "-h", "127.0.0.1", "-p", port, "-U", user,
+                     "-d", "postgres", "-tAc",
+                     "SELECT usename FROM pg_user WHERE usename NOT LIKE 'pg_%' ORDER BY usename;"],
+                    env={"PGPASSWORD": ""},
+                    timeout=3,
+                )
+                pg_users = [u.strip() for u in users_out.strip().split("\n") if u.strip()] if users_out.strip() else [user]
+
                 results.append({
                     "host": "127.0.0.1",
                     "port": port,
                     "user": user,
+                    "users": ", ".join(pg_users),
                     "databases": ", ".join(databases),
                     "default_db": db,
                 })
-                break  # Found this port, no need to try other users
+                break  # Found this port
 
     return results
 
@@ -927,28 +947,42 @@ def cmd_init(args: argparse.Namespace) -> None:
         elif detected:
             # Auto-detected instances
             echo()
+            status_info("PostgreSQL lokal terdeteksi:")
             for i, inst in enumerate(detected):
-                echo(f"  {C}{i + 1}{NC}  {inst['user']}@{inst['host']}:{inst['port']}")
-                echo(f"      {D}Databases: {inst['databases']}{NC}")
-            echo(f"  {C}0{NC}  Masukkan URL manual / input manual")
+                echo(f"  {C}{i + 1}{NC}  {inst['host']}:{inst['port']}")
+                echo(f"      {D}User terdeteksi: {inst['users']}{NC}")
+                echo(f"      {D}Database:        {inst['databases']}{NC}")
+            echo(f"  {C}U{NC}  Paste connection URL (postgresql://...)")
+            echo(f"  {C}M{NC}  Input manual (Field-by-field)")
             echo()
 
-            choice = input(f"  Pilih [1]: ").strip() or "1"
-            try:
-                idx = int(choice) - 1
-                if 0 <= idx < len(detected):
-                    inst = detected[idx]
-                    h = inst["host"]
-                    p = inst["port"]
-                    u = inst["user"]
-                    n = inst["default_db"]
-                    w = input(f"  Password untuk user '{u}' (opsional): ").strip()
-                    echo(f"  {D}→ {u}@{h}:{p}/{n}{NC}")
-                else:
-                    # Manual mode
-                    h, p, u, n, w = _manual_db_input()
-            except (ValueError, IndexError):
+            choice = input(f"  Pilih [1]: ").strip().lower() or "1"
+            if choice == "u":
+                h, p, u, n, w = _url_input()
+            elif choice == "m":
                 h, p, u, n, w = _manual_db_input()
+            else:
+                try:
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(detected):
+                        inst = detected[idx]
+                        h = inst["host"]
+                        p = inst["port"]
+
+                        echo()
+                        box_section("Konfigurasi User & Database Lokal")
+                        u_inp = input(f"  User PostgreSQL [{inst['user']}]: ").strip()
+                        u = u_inp or inst["user"]
+
+                        n_inp = input(f"  Database PostgreSQL [{inst['default_db']}]: ").strip()
+                        n = n_inp or inst["default_db"]
+
+                        w = input(f"  Password untuk user '{u}' (opsional): ").strip()
+                        echo(f"  {D}→ Configured: {u}@{h}:{p}/{n}{NC}")
+                    else:
+                        h, p, u, n, w = _manual_db_input()
+                except (ValueError, IndexError):
+                    h, p, u, n, w = _manual_db_input()
         else:
             # No detection — offer URL or manual
             echo(f"  {D}Tidak ada PostgreSQL terdeteksi.{NC}")
