@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 # ─── Version ──────────────────────────────────────────────────────────────
-VERSION = "1.0.0"
+VERSION = "3.0.0"
 NAME = "gaet"
 
 # ─── OS Detection ─────────────────────────────────────────────────────────

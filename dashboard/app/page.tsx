@@ -368,7 +368,7 @@ export default function Page() {
 
         {/* Footer */}
         <footer style={{ textAlign: "center", padding: "20px 0", fontSize: 13, color: "var(--text-muted)" }}>
-          gaet v1.0.0 • Database Backup &amp; Sync
+          gaet v3.0.0 • Database Backup &amp; Sync
         </footer>
       </main>
 
