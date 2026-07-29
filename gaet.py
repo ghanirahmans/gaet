@@ -1229,39 +1229,49 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
         echo(f"{R}FAIL{NC}")
         all_ok = False
 
-    # Local DB
-    h, p, u, n, w = get_local_db(env)
+    unconfigured = False
 
-    echo(f"  {C}💾{NC}  Local database ({h}:{p}/{n})... ", end="")
+    # Local DB
+    has_local_cfg = bool(get_env_str(env, "GAET_LOCAL_URL"))
+    h, p, u, n, w = get_local_db(env)
     psql = tools["psql"]
-    if psql:
-        out, _, rc = run_cmd(
-            [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
-            env={"PGPASSWORD": w},
-            timeout=5,
-        )
-        if rc == 0 and out.strip() == "1":
-            echo(f"{G}OK{NC}")
-            size_out, _, _ = run_cmd(
-                [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
-                 "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
+
+    if not has_local_cfg:
+        echo(f"  {C}💾{NC}  Local database... {Y}BELUM DIKONFIGURASI{NC}")
+        status_arrow("Jalankan 'gaet init' untuk mengonfigurasi")
+        unconfigured = True
+    else:
+        echo(f"  {C}💾{NC}  Local database ({h}:{p}/{n})... ", end="")
+        if psql:
+            out, _, rc = run_cmd(
+                [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
                 env={"PGPASSWORD": w},
                 timeout=5,
             )
-            status_arrow(f"Size: {size_out}")
+            if rc == 0 and out.strip() == "1":
+                echo(f"{G}OK{NC}")
+                size_out, _, _ = run_cmd(
+                    [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
+                     "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
+                    env={"PGPASSWORD": w},
+                    timeout=5,
+                )
+                status_arrow(f"Size: {size_out}")
+            else:
+                echo(f"{R}FAIL{NC}")
+                all_ok = False
         else:
             echo(f"{R}FAIL{NC}")
             all_ok = False
-    else:
-        echo(f"{R}FAIL{NC}")
-        all_ok = False
 
     # Remote config
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
-    echo(f"  {C}☁️{NC}   Cloud config... ", end="")
     parsed = parse_remote_url(remote_url)
-    if parsed:
-        echo(f"{G}OK{NC}")
+    if not remote_url or not parsed:
+        echo(f"  {C}☁️{NC}   Cloud config... {Y}BELUM DIKONFIGURASI{NC}")
+        status_arrow("Jalankan 'gaet init' untuk mengonfigurasi (opsional)")
+    else:
+        echo(f"  {C}☁️{NC}   Cloud config... {G}OK{NC}")
         # Connection test
         echo(f"  {C}☁️{NC}   Koneksi cloud... ", end="")
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
@@ -1284,9 +1294,6 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
         else:
             echo(f"{R}FAIL{NC}")
             all_ok = False
-    else:
-        echo(f"{Y}LEWAT{NC}")
-        status_arrow("Set GAET_REMOTE_URL di ~/.gaet/.env")
 
     # Backup dir
     echo(f"  {C}📁{NC}  Direktori backup... ", end="")
@@ -1312,8 +1319,10 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
         status_arrow("Enable with: gaet push --auto")
 
     echo()
-    if all_ok:
+    if all_ok and not unconfigured:
         echo(f"  {G}{ICON_OK}{NC}  {B}All checks passed!{NC}")
+    elif unconfigured:
+        echo(f"  {C}{ICON_INFO}{NC}  {B}Database belum dikonfigurasi. Jalankan 'gaet init' untuk mulai.{NC}")
     else:
         echo(f"  {Y}{ICON_WARN}{NC}  {B}Some checks failed — fix before backup.{NC}")
     return all_ok
