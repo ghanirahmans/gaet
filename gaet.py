@@ -385,7 +385,7 @@ def discover_tables(psql: str, h: str, p: str, u: str, n: str, w: str) -> List[s
         "ORDER BY table_name"
     )
     out, _, rc = run_cmd(
-        [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", query],
+        [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", query],
         env={"PGPASSWORD": w},
         timeout=10,
     )
@@ -758,7 +758,7 @@ def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
 
     pg_env = {"PGPASSWORD": w}
     out, err, rc = run_cmd(
-        [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+        [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
         env=pg_env,
         timeout=5,
     )
@@ -1236,14 +1236,14 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
     psql = tools["psql"]
     if psql:
         out, _, rc = run_cmd(
-            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+            [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
             env={"PGPASSWORD": w},
             timeout=5,
         )
         if rc == 0 and out.strip() == "1":
             echo(f"{G}OK{NC}")
             size_out, _, _ = run_cmd(
-                [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
+                [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
                 env={"PGPASSWORD": w},
                 timeout=5,
@@ -1266,7 +1266,7 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
         echo(f"  {C}☁️{NC}   Koneksi cloud... ", end="")
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
         out, _, rc = run_cmd(
-            [psql, "-h", parsed["host"], "-p", parsed["port"],
+            [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
              "-U", parsed["user"], "-d", parsed["db"], "-tAc", "SELECT 1;"],
             env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
             timeout=10,
@@ -1274,7 +1274,7 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
         if rc == 0 and out.strip() == "1":
             echo(f"{G}OK{NC}")
             size_out, _, _ = run_cmd(
-                [psql, "-h", parsed["host"], "-p", parsed["port"],
+                [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
                  "-U", parsed["user"], "-d", parsed["db"], "-tAc",
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
                 env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
@@ -2361,25 +2361,44 @@ def cmd_serve(args: argparse.Namespace) -> None:
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════
 
+def cmd_welcome() -> None:
+    """Print clean, professional welcome screen and command list when `gaet` is run without arguments."""
+    box_title(f"{NAME} v{VERSION}")
+    echo(f"  {D}Your PostgreSQL. Backed up. Synced. Safe.{NC}")
+    echo()
+
+    env = load_env()
+    has_local = bool(get_env_str(env, "GAET_LOCAL_URL"))
+    has_remote = bool(get_env_str(env, "GAET_REMOTE_URL"))
+
+    if not ENV_FILE.is_file() or (not has_local and not has_remote):
+        status_warn("Status: Belum dikonfigurasi (Jalankan 'gaet init' untuk mulai)")
+    else:
+        h, p, u, n, _ = get_local_db(env)
+        status_ok(f"Status: Dikonfigurasi ({u}@{h}:{p}/{n})")
+
+    echo()
+    box_section("Commands")
+    echo(f"  {C}gaet init{NC}             Setup wizard interaktif")
+    echo(f"  {C}gaet status{NC}           Lihat tabel status sinkronisasi database")
+    echo(f"  {C}gaet push{NC}             Backup database lokal → cloud")
+    echo(f"  {C}gaet fetch{NC}            Restore database cloud → lokal")
+    echo(f"  {C}gaet check{NC}            Validasi koneksi & PostgreSQL tools")
+    echo(f"  {C}gaet serve{NC}            Buka Web Dashboard (http://localhost:9191)")
+    echo(f"  {C}gaet log{NC}              Lihat log aktivitas backup")
+    echo(f"  {C}gaet update{NC}           Update gaet ke versi terbaru")
+    echo(f"  {C}gaet uninstall{NC}        Hapus gaet dari sistem")
+    echo()
+    echo(f"  {D}Docs: https://github.com/ghanirahmans/gaet{NC}")
+    echo()
+
+
 def main() -> None:
+    """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         prog=NAME,
-        description=f"{NAME} — Database Backup & Sync CLI",
+        description=f"{NAME} v{VERSION} — Your PostgreSQL. Backed up. Synced. Safe.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent("""\
-            Commands:
-              init              Setup wizard (config + test)
-              push              Backup local → cloud
-              fetch             Restore cloud → local
-              status            Show sync status
-              status --json     Status dalam JSON
-              check             Validate config & connections
-              log               View backup log
-              push --auto[=N]   Aktifkan auto-backup tiap N jam
-              stop              Stop auto-backup & dashboard
-              serve             Start web dashboard (background)
-              install           Setup/install dependencies & config
-        """),
     )
     parser.add_argument(
         "--version", "-v",
@@ -2391,14 +2410,8 @@ def main() -> None:
 
     # init
     init_parser = subparsers.add_parser("init", help="Interactive setup wizard")
-    init_parser.add_argument(
-        "preset", nargs="?", default=None,
-        help="Preset database (contoh: hindsight)",
-    )
-    init_parser.add_argument(
-        "--preset", dest="preset_flag", default=None,
-        help="Preset database (contoh: --preset hindsight)",
-    )
+    init_parser.add_argument("preset", nargs="?", default=None, help="Preset database (contoh: hindsight)")
+    init_parser.add_argument("--preset", dest="preset_flag", default=None, help="Preset database (contoh: --preset hindsight)")
 
     # check
     subparsers.add_parser("check", help="Validate config & connections")
@@ -2409,10 +2422,7 @@ def main() -> None:
 
     # push
     push_parser = subparsers.add_parser("push", help="Backup local → cloud")
-    push_parser.add_argument(
-        "--auto", nargs="?", const=0, type=int,
-        help="Aktifkan auto-backup (opsional: interval jam, default 6)",
-    )
+    push_parser.add_argument("--auto", nargs="?", const=0, type=int, help="Aktifkan auto-backup (default 6 jam)")
     push_parser.add_argument("--cron", action="store_true", help="Jalankan dari scheduler (internal)")
 
     # fetch
@@ -2451,21 +2461,10 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Default command: status
+    # Default command: show clean welcome screen (no unexpected questions)
     if args.command is None:
-        if not ENV_FILE.is_file():
-            # No config yet — show friendly intro instead of failing
-            box_title(f"{NAME}")
-            echo(f"  {Y}Belum dikonfigurasi.{NC}")
-            echo()
-            echo(f"  Mulai dengan:")
-            echo(f"    {C}gaet init{NC}          Setup wizard")
-            echo()
-            echo(f"  Atau paste URL langsung:")
-            echo(f"    {C}gaet init{NC}          lalu pilih 'Paste connection URL'")
-            echo()
-            sys.exit(0)
-        args.command = "status"
+        cmd_welcome()
+        sys.exit(0)
 
     # Set defaults for attributes that may not exist on main parser
     if not hasattr(args, "json"):
@@ -2482,10 +2481,6 @@ def main() -> None:
             cmd_push_cron(env)
             return
         if args.auto is not None:
-            # auto=N, or auto=0 (default meaning 6)
-            if args.auto == 0:
-                # --auto without value: use default
-                pass
             cmd_auto_on(args)
             return
         cmd_push(args)
