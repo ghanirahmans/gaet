@@ -257,15 +257,12 @@ Local DB                Backup Process               Cloud DB
 
 Benchmarked on local PostgreSQL 18, Linux, consumer NVMe:
 
-| Operation | Time | Notes |
-|-----------|------|-------|
-| **Dump** (126 MB, 110k rows) | 0.49 s | `pg_dump --format=custom --compress=9` |
-| **Compressed size** | 1.9 MB | 98.5% smaller than source |
-| **Integrity verify** | 0.01 s | `pg_restore --list` |
-| **Restore** | 0.55 s | Full restore with `--clean --if-exists` |
-| **Pipeline total** | **1.05 s** | Dump → verify → restore |
+| Database | Size | Tables | Dump | Compressed | Verify | Restore | Pipeline |
+|----------|------|--------|------|------------|--------|---------|----------|
+| **Simple** | 126 MB | 2 | 0.46 s | 1.9 MB (98.5%) | 6 ms | 0.50 s | **0.96 s** |
+| **Complex** | 404 MB | 7 | 2.51 s | 32.5 MB (92%) | 6 ms | 5.69 s | **8.20 s** |
 
-> TL;DR: gaet backs up a 126 MB database in half a second, shrinks it to 1.9 MB, verifies it in 10 ms, and restores it in half a second. **Zero pip dependencies.**
+> Complex DB: 5,000 users, 50,000 posts, 250,000 comments, 100 tags, 100,000 audit logs, 240,000 analytics events. JSONB metadata, enum types, array columns, 20+ indexes, foreign keys, GIN indexes. **Zero pip dependencies.**
 
 ### The Fetch Pipeline
 
