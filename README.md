@@ -302,6 +302,8 @@ Local DB                Backup Process               Cloud DB
 
 > Benchmarked on PostgreSQL 18, Linux, consumer NVMe. **Zero pip dependencies.**
 
+> 📊 **Reproducible:** all benchmark datasets & methodology are in [`benchmarks/`](benchmarks/) — hardware specs, dataset SQL, and exact measurement commands included.
+
 ### The Fetch Pipeline
 
 ```
