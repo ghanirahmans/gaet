@@ -251,18 +251,39 @@ Local DB                Backup Process               Cloud DB
 6. **Cleanup** - Delete temp file, update log, release lock
 7. **Retention** - Auto-delete backups older than `GAET_RETENTION_DAYS`
 
-**Performance:** 126 MB database → dump in **0.49s**, compressed to **1.9 MB** (98.5% compression), restore in **0.55s**. Full pipeline under **1.1 seconds**.
+**Performance:** Simple DB (126 MB) → dump in **0.46s**, restore in **0.50s**. Complex DB (404 MB) → dump in **2.51s**, restore in **5.69s**. All under **10 seconds**.
 
-### Benchmarks
+### Benchmark: Simple Database
 
-Benchmarked on local PostgreSQL 18, Linux, consumer NVMe:
+**Schema:** 2 tables, 110,000 rows, integer + text only
 
-| Database | Size | Tables | Dump | Compressed | Verify | Restore | Pipeline |
-|----------|------|--------|------|------------|--------|---------|----------|
-| **Simple** | 126 MB | 2 | 0.46 s | 1.9 MB (98.5%) | 6 ms | 0.50 s | **0.96 s** |
-| **Complex** | 404 MB | 7 | 2.51 s | 32.5 MB (92%) | 6 ms | 5.69 s | **8.20 s** |
+| Metric | Value |
+|--------|-------|
+| Source DB | 126 MB |
+| Tables | 2 (users: 10,000, posts: 100,000) |
+| `pg_dump` | **0.46 s** |
+| Compressed | **1.95 MB** (98.5% smaller) |
+| `pg_restore --list` | **0.006 s** |
+| `pg_restore` | **0.50 s** |
+| **Pipeline total** | **0.96 s** |
 
-> Complex DB: 5,000 users, 50,000 posts, 250,000 comments, 100 tags, 100,000 audit logs, 240,000 analytics events. JSONB metadata, enum types, array columns, 20+ indexes, foreign keys, GIN indexes. **Zero pip dependencies.**
+### Benchmark: Complex Database
+
+**Schema:** 7 tables, 750,000 rows, JSONB, enum, INET, UUID, array, GIN indexes
+
+| Metric | Value |
+|--------|-------|
+| Source DB | 404 MB |
+| Tables | 7 (users, posts, comments, tags, post_tags, audit_logs, analytics_events) |
+| Data types | TEXT, JSONB, INET, UUID, ENUM, ARRAY, TIMESTAMPTZ |
+| Indexes | 20+ (B-tree, GIN, composite, partial) |
+| `pg_dump` | **2.51 s** |
+| Compressed | **32.5 MB** (92% smaller) |
+| `pg_restore --list` | **0.006 s** |
+| `pg_restore` | **5.69 s** |
+| **Pipeline total** | **8.20 s** |
+
+> Benchmarked on PostgreSQL 18, Linux, consumer NVMe. **Zero pip dependencies.**
 
 ### The Fetch Pipeline
 
