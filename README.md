@@ -251,7 +251,7 @@ Local DB                Backup Process               Cloud DB
 6. **Cleanup** - Delete temp file, update log, release lock
 7. **Retention** - Auto-delete backups older than `GAET_RETENTION_DAYS`
 
-**Performance:** Simple DB (126 MB) → dump in **0.46s**, restore in **0.50s**. Complex DB (404 MB) → dump in **2.51s**, restore in **5.69s**. All under **10 seconds**.
+**Performance:** Simple (126 MB) → **0.96s**. Complex (404 MB) → **8.2s**. Ultra-complex (343 MB) → **10.3s**. All under 11 seconds.
 
 ### Benchmark: Simple Database
 
@@ -282,6 +282,23 @@ Local DB                Backup Process               Cloud DB
 | `pg_restore --list` | **0.006 s** |
 | `pg_restore` | **5.69 s** |
 | **Pipeline total** | **8.20 s** |
+
+### Benchmark: Ultra-Complex Database
+
+**Schema:** 19 objects, 1M+ rows, partitions, materialized view, triggers, self-ref FKs
+
+| Metric | Value |
+|--------|-------|
+| Source DB | 343 MB |
+| Objects | 19 (16 tables + 3 partitions + 1 materialized view) |
+| Data types | JSONB, tsvector, INET, UUID, DATERANGE, INT4RANGE, NUMERIC(12,2), ENUM, ARRAY |
+| Indexes | 75+ (GIN, GiST, BRIN, B-tree, partial, composite) |
+| Features | 2 triggers (tsvector), 1 partitioned table, 1 materialized view, CHECK constraints |
+| `pg_dump` | **3.68 s** |
+| Compressed | **41.1 MB** (88% smaller) |
+| `pg_restore --list` | **0.006 s** |
+| `pg_restore` | **6.61 s** |
+| **Pipeline total** | **10.29 s** |
 
 > Benchmarked on PostgreSQL 18, Linux, consumer NVMe. **Zero pip dependencies.**
 
