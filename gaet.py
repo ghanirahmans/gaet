@@ -153,17 +153,78 @@ def cronlog(msg: str) -> None:
 
 # ─── Lock ─────────────────────────────────────────────────────────────────
 
+def _lock_is_stale() -> bool:
+    """Return True if the lock directory is stale (owner process is dead).
+
+    The lock directory contains a 'pid' file. If the pid no longer exists,
+    the lock is stale and can be safely removed.
+    """
+    pid_file = LOCK_PATH / "pid"
+    if not pid_file.is_file():
+        # No pid file: legacy lock. Treat as stale if older than 1 hour.
+        try:
+            age = time.time() - LOCK_PATH.stat().st_mtime
+            return age > 3600
+        except OSError:
+            return False
+    try:
+        pid = int(pid_file.read_text().strip())
+    except (ValueError, OSError):
+        return False
+    if pid <= 0:
+        return False
+    # Check if the process is alive (signal 0). ProcessLookupError = dead.
+    try:
+        os.kill(pid, 0)
+        return False
+    except ProcessLookupError:
+        return True
+    except PermissionError:
+        return False  # exists but owned by other user → not stale
+    except OSError:
+        return False
+
+
+def _write_lock_pid() -> None:
+    """Write the current PID into the lock directory."""
+    try:
+        (LOCK_PATH / "pid").write_text(str(os.getpid()))
+    except OSError:
+        pass
+
+
 def acquire_lock() -> None:
-    """Acquire exclusive lock via directory creation (atomic cross-platform)."""
+    """Acquire exclusive lock via directory creation (atomic cross-platform).
+
+    If the lock exists but is stale (owner crashed), remove it and retry.
+    """
     try:
         LOCK_PATH.mkdir(parents=True, exist_ok=False)
     except FileExistsError:
-        die(f"gaet sedang berjalan (lock: {LOCK_PATH})")
+        if _lock_is_stale():
+            try:
+                # Remove stale lock (dir + pid file) and retry
+                import shutil as _sh
+
+                _sh.rmtree(LOCK_PATH)
+            except OSError:
+                pass
+            try:
+                LOCK_PATH.mkdir(parents=True, exist_ok=False)
+            except FileExistsError:
+                die(f"gaet sedang berjalan (lock: {LOCK_PATH})")
+        else:
+            die(f"gaet sedang berjalan (lock: {LOCK_PATH})")
+    _write_lock_pid()
+    return
 
 
 def release_lock() -> None:
     """Release lock."""
     try:
+        pid_file = LOCK_PATH / "pid"
+        if pid_file.is_file():
+            pid_file.unlink(missing_ok=True)
         LOCK_PATH.rmdir()
     except (OSError, FileNotFoundError):
         pass
@@ -1710,14 +1771,21 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         box_title("gaet fetch")
 
         # Confirmation before overwriting local DB
-        echo(f"  {Y}⚠  PERINGATAN: Operasi ini akan OVERWRITE database lokal!{NC}")
-        echo(f"  {D}Database: {u}@{h}:{p}/{n}{NC}")
-        echo(f"  {D}Cloud:    {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}{NC}")
-        echo()
-        confirm = input(f"  Ketik 'yes' untuk melanjutkan: ").strip().lower()
-        if confirm != "yes":
-            echo(f"  {G}Dibatalkan.{NC}")
-            return
+        if getattr(args, "yes", False):
+            # Non-interactive mode (--yes flag)
+            pass
+        elif not sys.stdin.isatty():
+            # Non-interactive mode (piped, dashboard, cron) — skip prompt
+            echo(f"  {Y}⚠ Non-interactive mode — proceeding automatically{NC}")
+        else:
+            echo(f"  {Y}⚠  PERINGATAN: Operasi ini akan OVERWRITE database lokal!{NC}")
+            echo(f"  {D}Database: {u}@{h}:{p}/{n}{NC}")
+            echo(f"  {D}Cloud:    {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}{NC}")
+            echo()
+            confirm = input(f"  Ketik 'yes' untuk melanjutkan: ").strip().lower()
+            if confirm != "yes":
+                echo(f"  {G}Dibatalkan.{NC}")
+                return
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -1745,10 +1813,11 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         echo(f"  {C}💾{NC}  {B}Restoring to local database...{NC}")
         # Terminate connections first
         status_warn("Menutup koneksi aktif ke database lokal...")
+        safe_db = n.replace("'", "''")
         run_cmd(
-            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-v", f"dbname={n}", "-tAc",
+            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
              "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-             "WHERE datname = :'dbname' AND pid <> pg_backend_pid();"],
+             f"WHERE datname = '{safe_db}' AND pid <> pg_backend_pid();"],
             env={"PGPASSWORD": w},
             timeout=10,
         )
@@ -1783,61 +1852,65 @@ def cmd_fetch(args: argparse.Namespace) -> None:
 
 def cmd_push_cron(env: Dict[str, str]) -> None:
     """Cron job execution - no terminal output (logs to file only).
-    
+
     Called by scheduler with --cron flag. Output goes to ~/.gaet/backups/cron.log
     Check log with: gaet log | grep CRON
     """
-    tools = find_pg_tools(env)
-    remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
-    parsed = parse_remote_url(remote_url)
-    if not parsed:
-        cronlog("❌ GAET_REMOTE_URL tidak dikonfigurasi")
-        sys.exit(1)
-    assert parsed is not None
+    acquire_lock()
+    try:
+        tools = find_pg_tools(env)
+        remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
+        parsed = parse_remote_url(remote_url)
+        if not parsed:
+            cronlog("❌ GAET_REMOTE_URL tidak dikonfigurasi")
+            sys.exit(1)
+        assert parsed is not None
 
-    h, p, u, n, w = get_local_db(env)
-    pg_dump = tools["pg_dump"]
-    pg_restore = tools["pg_restore"]
-    ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
+        h, p, u, n, w = get_local_db(env)
+        pg_dump = tools["pg_dump"]
+        pg_restore = tools["pg_restore"]
+        ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
 
-    cronlog("📦 [cron] Mulai auto-backup...")
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    cron_file = str(BACKUP_DIR / f"cron_{timestamp}.dump")
-    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        cronlog("📦 [cron] Mulai auto-backup...")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        cron_file = str(BACKUP_DIR / f"cron_{timestamp}.dump")
+        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
-    out, err, rc = run_cmd(
-        [pg_dump, "-h", h, "-p", p, "-U", u, "-d", n,
-         "--format=custom", "--compress=9", f"--file={cron_file}"],
-        env={"PGPASSWORD": w},
-        timeout=120,
-    )
-    if rc == 0 and Path(cron_file).is_file():
-        # Integrity check
-        _, _, rc_check = run_cmd(
-            [pg_restore, "--list", cron_file],
-            timeout=30,
-        )
-        if rc_check != 0:
-            Path(cron_file).unlink(missing_ok=True)
-            cronlog("❌ [cron] Dump korup — backup dibatalkan")
-            return
-
-        out2, err2, rc2 = run_cmd(
-            [pg_restore, "-h", parsed["host"], "-p", parsed["port"],
-             "-U", parsed["user"], "-d", parsed["db"],
-             "--clean", "--if-exists", "--no-owner", "--no-acl", cron_file],
-            env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
+        out, err, rc = run_cmd(
+            [pg_dump, "-h", h, "-p", p, "-U", u, "-d", n,
+             "--format=custom", "--compress=9", f"--file={cron_file}"],
+            env={"PGPASSWORD": w},
             timeout=120,
         )
-        if rc2 == 0:
-            size_mb = Path(cron_file).stat().st_size / (1024 * 1024)
-            cronlog(f"✅ [cron] Backup success ({size_mb:.1f} MB)")
-        else:
-            cronlog("⚠️ [cron] Restore bermasalah")
-    else:
-        cronlog("❌ [cron] Local dump failed!")
+        if rc == 0 and Path(cron_file).is_file():
+            # Integrity check
+            _, _, rc_check = run_cmd(
+                [pg_restore, "--list", cron_file],
+                timeout=30,
+            )
+            if rc_check != 0:
+                Path(cron_file).unlink(missing_ok=True)
+                cronlog("❌ [cron] Dump korup — backup dibatalkan")
+                return
 
-    Path(cron_file).unlink(missing_ok=True)
+            out2, err2, rc2 = run_cmd(
+                [pg_restore, "-h", parsed["host"], "-p", parsed["port"],
+                 "-U", parsed["user"], "-d", parsed["db"],
+                 "--clean", "--if-exists", "--no-owner", "--no-acl", cron_file],
+                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
+                timeout=120,
+            )
+            if rc2 == 0:
+                size_mb = Path(cron_file).stat().st_size / (1024 * 1024)
+                cronlog(f"✅ [cron] Backup success ({size_mb:.1f} MB)")
+            else:
+                cronlog("⚠️ [cron] Restore bermasalah")
+        else:
+            cronlog("❌ [cron] Local dump failed!")
+
+        Path(cron_file).unlink(missing_ok=True)
+    finally:
+        release_lock()
 
 
 def cmd_auto_on(args: argparse.Namespace) -> None:
@@ -1974,7 +2047,7 @@ def cmd_get(args: argparse.Namespace) -> None:
             value = env[key]
             # Mask sensitive values in display
             display_value = value
-            if key.lower().endswith("password") or key.lower().endswith("url") or key == "GAET_REMOTE_URL":
+            if key.lower().endswith("password") or "pass" in key.lower() or key.lower().endswith("url") or key == "GAET_REMOTE_URL":
                 if len(value) > 20:
                     display_value = value[:10] + "***" + value[-5:]
                 else:
@@ -2070,7 +2143,7 @@ def cmd_set(args: argparse.Namespace) -> None:
     for key, value in updates.items():
         # Mask sensitive values in display
         display_value = value
-        if key.lower().endswith("password") or key.lower().endswith("url") or key == "GAET_REMOTE_URL":
+        if key.lower().endswith("password") or "pass" in key.lower() or key.lower().endswith("url") or key == "GAET_REMOTE_URL":
             if len(value) > 20:
                 display_value = value[:10] + "***" + value[-5:]
             else:
@@ -2318,9 +2391,11 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
         try:
             dashboard_dst = install_dir / "dashboard"
             dash_files = ["package.json", "next.config.ts", "tsconfig.json", "postcss.config.js",
-                          "app/layout.tsx", "app/page.tsx", "app/globals.css",
+                          "app/layout.tsx", "app/page.tsx", "app/globals.css", "app/error.tsx",
+                          "app/api/utils.ts",
                           "app/api/status/route.ts", "app/api/push/route.ts",
-                          "app/api/fetch/route.ts", "app/api/stop/route.ts"]
+                          "app/api/fetch/route.ts", "app/api/stop/route.ts",
+                          "public/gaet-logo.png"]
 
             for df in dash_files:
                 url = f"{GITHUB_API}/dashboard/{df}?ref=master"
@@ -2634,6 +2709,7 @@ def main() -> None:
     # fetch
     fetch_parser = subparsers.add_parser("fetch", help="Restore cloud → local")
     fetch_parser.add_argument("--dry-run", action="store_true", help="Simulasi tanpa mengeksekusi")
+    fetch_parser.add_argument("--yes", "-y", action="store_true", help="Skip konfirmasi (untuk non-interaktif/dashboard)")
 
     # stop
     stop_parser = subparsers.add_parser("stop", help="Stop auto-backup &/or dashboard")

@@ -661,7 +661,13 @@ def _read_existing_config() -> Dict[str, str]:
         for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line and "=" in line and not line.startswith("#"):
+                # Strip 'export ' prefix if present
+                if line.startswith("export "):
+                    line = line[7:]
                 k, v = line.split("=", 1)
+                # Strip surrounding quotes
+                k = k.strip()
+                v = v.strip().strip("'\"")
                 config[k] = v
     return config
 

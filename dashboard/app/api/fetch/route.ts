@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const gaet = findGaet();
-    execFileSync(gaet, ["fetch"], { timeout: 180000, encoding: "utf-8" });
+    execFileSync(gaet, ["fetch", "--yes"], { timeout: 180000, encoding: "utf-8" });
     return NextResponse.json({ ok: true, msg: "Fetch dari cloud selesai!" });
   } catch {
     return NextResponse.json({ ok: false, msg: "Fetch gagal" });
