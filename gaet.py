@@ -71,7 +71,7 @@ DEF_LOCAL_PASS = ""
 DEF_RETENTION_DAYS = 7
 DEF_AUTO_INTERVAL = 6
 DEF_DASHBOARD_PORT = 9191
-DEF_DASHBOARD_HOST = "0.0.0.0"
+DEF_DASHBOARD_HOST = "127.0.0.1"
 DEF_REMOTE_SSLMODE = "require"
 DEF_SERVICE_PREFIX = "gaet"
 
@@ -237,6 +237,15 @@ def parse_remote_url(url: str) -> Optional[Dict[str, str]]:
 def mask_url_password(url: str) -> str:
     """Mask password in a PostgreSQL URL for safe display."""
     return re.sub(r"(postgres(?:ql)?://[^:]+):([^@]+)@", r"\1:****@", url)
+
+
+_TABLE_NAME_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+
+
+def _validate_table_name(name: str) -> bool:
+    """Return True if name is a safe PostgreSQL identifier."""
+    return bool(_TABLE_NAME_RE.match(name))
+
 
 
 def get_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
@@ -1326,11 +1335,12 @@ def cmd_status(args: argparse.Namespace) -> None:
         synced_count = 0
 
         # Query all tables at once for efficiency
-        if len(tables_def) > 0:
+        safe_tables = [t for t in tables_def if _validate_table_name(t)]
+        if len(safe_tables) > 0:
             try:
                 union = " UNION ALL ".join(
                     f"SELECT '{t}'::text as tbl, count(*)::int as cnt FROM public.{t}"
-                    for t in tables_def
+                    for t in safe_tables
                 )
                 out, _, rc = run_cmd(
                     [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", union],
@@ -1419,11 +1429,12 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
     error = None
 
     # Check local
-    if psql and tables_def:
+    safe_tables = [t for t in tables_def if _validate_table_name(t)]
+    if psql and safe_tables:
         try:
             union = " UNION ALL ".join(
                 f"SELECT '{t}'::text as tbl, count(*)::int as cnt FROM public.{t}"
-                for t in tables_def
+                for t in safe_tables
             )
             out, _, rc = run_cmd(
                 [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", union],
@@ -1448,11 +1459,11 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
     # Check remote
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
     parsed = parse_remote_url(remote_url)
-    if parsed and psql and not error:
+    if parsed and psql and not error and safe_tables:
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
         union = " UNION ALL ".join(
             f"SELECT '{t}'::text as tbl, count(*)::int as cnt FROM public.{t}"
-            for t in tables_def
+            for t in safe_tables
         )
         out, _, rc = run_cmd(
             [psql, "-h", parsed["host"], "-p", parsed["port"],
@@ -1735,9 +1746,9 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         # Terminate connections first
         status_warn("Menutup koneksi aktif ke database lokal...")
         run_cmd(
-            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
+            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-v", f"dbname={n}", "-tAc",
              "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-             f"WHERE datname='{n}' AND pid <> pg_backend_pid();"],
+             "WHERE datname = :'dbname' AND pid <> pg_backend_pid();"],
             env={"PGPASSWORD": w},
             timeout=10,
         )
@@ -2049,6 +2060,10 @@ def cmd_set(args: argparse.Namespace) -> None:
     # Write back
     with open(str(ENV_FILE), "w", encoding="utf-8") as f:
         f.writelines(lines)
+    try:
+        os.chmod(str(ENV_FILE), 0o600)
+    except OSError:
+        pass
     
     # Display result
     box_title(f"{NAME} set")
@@ -2514,10 +2529,8 @@ def cmd_serve(args: argparse.Namespace) -> None:
     port = int(get_env_str(env, "GAET_DASHBOARD_PORT", str(DEF_DASHBOARD_PORT)))
     host = get_env_str(env, "GAET_DASHBOARD_HOST", DEF_DASHBOARD_HOST)
 
+    assert dashboard_dir is not None  # already checked above
     box_title(f"{NAME} serve")
-
-    if not dashboard_dir:
-        die("Dashboard tidak ditemukan")
 
     # Check if dashboard is built
     if not (dashboard_dir / ".next").is_dir():
@@ -2706,7 +2719,8 @@ def main() -> None:
             # auto=N, or auto=0 (default meaning 6)
             if args.auto == 0:
                 # --auto without value: use default
-                pass
+                env = load_env()
+                args.auto = get_env_int(env, "GAET_AUTO_INTERVAL", DEF_AUTO_INTERVAL)
             cmd_auto_on(args)
             return
         cmd_push(args)

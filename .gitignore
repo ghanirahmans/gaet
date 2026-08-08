@@ -35,3 +35,5 @@ UX_AUDIT_*.md
 UX_FIXES_*.md
 CONSISTENCY_*.md
 README_AUDIT.md
+.env.dev
+generate_data.sql

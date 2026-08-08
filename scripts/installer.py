@@ -396,14 +396,11 @@ def setup_config() -> Dict[str, str]:
 
     # Write .env
     env_lines = [
-        f'GAET_DB_HOST={host}',
-        f'GAET_DB_PORT={port}',
-        f'GAET_DB_NAME={db}',
-        f'GAET_DB_USER={user}',
-        f'GAET_DB_PASSWORD={passwd}',
-        f'GAET_BACKUP_INTERVAL={interval}',
+        f'GAET_LOCAL_URL=postgresql://{user}@{host}:{port}/{db}',
+        f'GAET_LOCAL_DB_PASS={passwd}',
+        f'GAET_AUTO_INTERVAL={interval}',
         f'GAET_DASHBOARD_PORT=9191',
-        f'GAET_DASHBOARD_HOST=0.0.0.0',
+        f'GAET_DASHBOARD_HOST=127.0.0.1',
     ]
     if remote_url:
         env_lines.append(f'GAET_REMOTE_URL={remote_url}')
