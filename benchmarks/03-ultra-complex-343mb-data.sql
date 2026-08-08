@@ -93,7 +93,7 @@ INSERT INTO post_reactions (post_id, user_id, reaction, created_at)
 SELECT (random()*19999+1)::int, (random()*1999+1)::int,
     CASE (i%6) WHEN 0 THEN 'like'::reaction_type WHEN 1 THEN 'love'::reaction_type WHEN 2 THEN 'laugh'::reaction_type WHEN 3 THEN 'surprise'::reaction_type WHEN 4 THEN 'sad'::reaction_type ELSE 'angry'::reaction_type END,
     now()-random()*interval '365d'
-FROM generate_series(1,200000) s(i);
+FROM generate_series(1,200000) s(i) ON CONFLICT DO NOTHING;
 
 INSERT INTO post_reactions (post_id, user_id, reaction, created_at)
 SELECT (random()*44999+1)::int, (random()*1999+1)::int,

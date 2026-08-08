@@ -53,7 +53,7 @@ CREATE TABLE users (
     updated_at    TIMESTAMPTZ DEFAULT now(),
     CONSTRAINT chk_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
 );
-CREATE INDEX idx_users_email_gin ON users USING gin(email gin_trgm_ops);
+CREATE INDEX idx_users_email_gin ON users(email);
 CREATE INDEX idx_users_metadata  ON users USING gin(metadata);
 CREATE INDEX idx_users_search    ON users USING gin(search_vector);
 CREATE INDEX idx_users_created   ON users(created_at);
