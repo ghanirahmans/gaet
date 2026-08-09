@@ -2670,6 +2670,32 @@ def cmd_log(args: argparse.Namespace) -> None:
     lines = args.lines or 30
     filter_str = getattr(args, "filter", None) or ""
     since_str = getattr(args, "since", None) or ""
+    follow = getattr(args, "follow", False)
+
+    if follow:
+        # tail -f style: poll log file and print new lines
+        echo(f"  {D}Following log (Ctrl+C to stop){NC}")
+        echo()
+        last_pos = 0
+        try:
+            while True:
+                for src in [LOG_FILE, CRON_LOG]:
+                    if src.is_file():
+                        with open(str(src), "r", encoding="utf-8", errors="replace") as f:
+                            f.seek(last_pos)
+                            new_lines = f.readlines()
+                            for line in new_lines:
+                                if filter_str and filter_str.lower() not in line.lower():
+                                    continue
+                                if since_str and not (line.startswith(f"[{since_str}") or since_str in line):
+                                    continue
+                                echo(f"  {D}│{NC} {line.rstrip()}")
+                            last_pos = f.tell()
+                time.sleep(1)
+        except KeyboardInterrupt:
+            echo(f"\n  {D}Follow stopped.{NC}")
+        return
+
     if not LOG_FILE.is_file() and not CRON_LOG.is_file():
         echo(f"  {Y}Belum ada log. Jalankan 'gaet push' dulu.{NC}")
         return
@@ -3510,9 +3536,10 @@ def main() -> None:
 
     # log
     log_parser = subparsers.add_parser("log", help="View backup log", parents=[common])
-    log_parser.add_argument("lines", nargs="?", type=int, default=30, help="Jumlah baris (default 30)")
-    log_parser.add_argument("--filter", "-f", type=str, default="", help="Filter log berdasarkan keyword")
-    log_parser.add_argument("--since", "-s", type=str, default="", help="Filter sejak tanggal (YYYY-MM-DD)")
+    log_parser.add_argument("lines", nargs="?", type=int, default=30, help="Number of lines (default 30)")
+    log_parser.add_argument("--filter", "-f", type=str, default="", help="Filter by keyword")
+    log_parser.add_argument("--since", "-s", type=str, default="", help="Filter since date (YYYY-MM-DD)")
+    log_parser.add_argument("--follow", "-F", action="store_true", help="Follow log (tail -f style)")
 
     # serve
     serve_parser = subparsers.add_parser("serve", help="Start web dashboard", parents=[common])
