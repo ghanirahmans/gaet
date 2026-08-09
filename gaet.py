@@ -515,6 +515,33 @@ def echo(msg: str = "", end: str = "\n") -> None:
     print(msg, end=end, flush=True)
 
 
+def safe_input(prompt: str, default: str = "") -> str:
+    """input() that degrades gracefully when there is no TTY (pipes, cron, SSH).
+
+    When stdin is not a terminal, we cannot prompt interactively. Instead of
+    crashing with EOFError we print the prompt + chosen default and return it,
+    so `gaet init` and friends still run in non-interactive contexts.
+    """
+    if not sys.stdin.isatty():
+        echo(f"{prompt}{default}")
+        return default
+    try:
+        return input(prompt)
+    except EOFError:
+        echo()
+        return default
+
+
+def safe_getpass(prompt: str) -> str:
+    """getpass() that degrades to safe_input when there is no TTY."""
+    if not sys.stdin.isatty():
+        return safe_input(prompt).strip()
+    try:
+        return getpass.getpass(prompt).strip()
+    except EOFError:
+        return ""
+
+
 def box_title(title: str) -> None:
     """Draw a boxed title with Unicode double-line box characters."""
     # Remove ANSI codes for visible length calculation
@@ -782,9 +809,26 @@ def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
     )
     cleanup_pg_env(env_dict)
     if rc != 0 or out.strip() != "1":
+        # Friendly, actionable guidance for new users
+        hint = ""
+        if not ENV_FILE.is_file():
+            hint = (
+                f"\n  {Y}Belum ada konfigurasi.{NC}\n"
+                f"  Jalankan: {C}gaet init{NC}  (setup wizard — panduan langkah demi langkah)\n"
+                f"  Atau set manual: {C}gaet set GAET_LOCAL_URL=postgresql://user:pw@host:5432/db{NC}"
+            )
+        else:
+            hint = (
+                f"\n  {Y}Pastikan:{NC}\n"
+                f"    1. PostgreSQL berjalan di {h}:{p}\n"
+                f"    2. user '{u}' & password benar\n"
+                f"    3. database '{n}' ada\n"
+                f"  Edit dengan: {C}gaet init{NC}  atau  {C}gaet set GAET_LOCAL_URL=...{NC}\n"
+                f"  File config: {D}{ENV_FILE}{NC}"
+            )
         die(
             f"Cannot connect to local database ({h}:{p}/{n})\n"
-            f"  Cek konfigurasi database di {ENV_FILE}"
+            f"  {Y}Periksa konfigurasi database.{NC}{hint}"
         )
     return h, p, u, n, w
 
@@ -1003,7 +1047,7 @@ def cmd_init(args: argparse.Namespace) -> None:
                 echo(f"  {C}0{NC}  Use default (127.0.0.1:5432)")
                 echo()
 
-                choice = input(f"  Select instance [{len(detected)}]: ").strip() or str(len(detected))
+                choice = safe_input(f"  Select instance [{len(detected)}]: ").strip() or str(len(detected))
                 try:
                     idx = int(choice) - 1
                     if 0 <= idx < len(detected):
@@ -1037,7 +1081,7 @@ def cmd_init(args: argparse.Namespace) -> None:
             echo(f"  {C}0{NC}  Enter connection URL manually / Manual input")
             echo()
 
-            choice = input(f"  Select [1]: ").strip() or "1"
+            choice = safe_input(f"  Select [1]: ").strip() or "1"
             try:
                 idx = int(choice) - 1
                 if 0 <= idx < len(detected):
@@ -1061,7 +1105,7 @@ def cmd_init(args: argparse.Namespace) -> None:
             echo(f"  {C}2{NC}  Manual input")
             echo()
 
-            choice = input(f"  Select [1]: ").strip() or "1"
+            choice = safe_input(f"  Select [1]: ").strip() or "1"
             if choice == "1":
                 h, p, u, n, w = _url_input()
             else:
@@ -1087,14 +1131,14 @@ def cmd_init(args: argparse.Namespace) -> None:
         echo(f"  {D}Enter the target PostgreSQL connection string.{NC}")
         echo(f"  {D}Can be from Supabase, Neon, RDS, or your own VPS.{NC}")
         echo(f"  {D}Press Enter to skip.{NC}")
-        remote_url = input(f"  GAET_REMOTE_URL [{'set' if old_remote else 'none'}]: ").strip()
+        remote_url = safe_input(f"  GAET_REMOTE_URL [{'set' if old_remote else 'none'}]: ").strip()
         if not remote_url:
             remote_url = old_remote  # keep existing on re-init
 
         echo()
         box_section("Backup")
         default_ret = env.get("GAET_RETENTION_DAYS", str(DEF_RETENTION_DAYS))
-        ret_inp = input(f"  Retention (days) [{default_ret}]: ").strip()
+        ret_inp = safe_input(f"  Retention (days) [{default_ret}]: ").strip()
         ret = ret_inp or default_ret
 
         # Tables line for preset (ACTIVE, not commented)
@@ -1144,7 +1188,7 @@ def cmd_init(args: argparse.Namespace) -> None:
 def _url_input() -> Tuple[str, str, str, str, str]:
     """Input via connection URL. Returns (host, port, user, db, passwd)."""
     echo(f"  {D}Format: postgresql://user:password@host:5432/dbname{NC}")
-    url = input("  URL: ").strip()
+    url = safe_input("  URL: ").strip()
     if url:
         parsed = parse_remote_url(url)
         if parsed:
@@ -1156,11 +1200,11 @@ def _url_input() -> Tuple[str, str, str, str, str]:
 
 def _manual_db_input() -> Tuple[str, str, str, str, str]:
     """Manual field-by-field input with smart defaults."""
-    h = input(f"  Host [127.0.0.1]: ").strip() or "127.0.0.1"
-    p = input(f"  Port [5432]: ").strip() or "5432"
-    u = input(f"  User [postgres]: ").strip() or "postgres"
-    n = input(f"  Database [postgres]: ").strip() or "postgres"
-    w = getpass.getpass(f"  Password []: ").strip()
+    h = safe_input(f"  Host [127.0.0.1]: ").strip() or "127.0.0.1"
+    p = safe_input(f"  Port [5432]: ").strip() or "5432"
+    u = safe_input(f"  User [postgres]: ").strip() or "postgres"
+    n = safe_input(f"  Database [postgres]: ").strip() or "postgres"
+    w = safe_getpass(f"  Password []: ").strip()
     return h, p, u, n, w
 
 
@@ -1413,6 +1457,8 @@ def cmd_status(args: argparse.Namespace) -> None:
             status_arrow(f"Size: {size_out}")
         else:
             echo(f"  {Y}tidak terjangkau{NC}")
+            echo(f"  {D}Cek koneksi: gaet check{NC}")
+            echo(f"  {D}Backup pertama: gaet push{NC}")
 
     # Sync status with colored table
     if tables_def and psql:
@@ -1813,7 +1859,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             echo(f"  {D}Database: {u}@{h}:{p}/{n}{NC}")
             echo(f"  {D}Cloud:    {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}{NC}")
             echo()
-            confirm = input(f"  Ketik 'yes' untuk melanjutkan: ").strip().lower()
+            confirm = safe_input(f"  Ketik 'yes' untuk melanjutkan: ").strip().lower()
             if confirm != "yes":
                 echo(f"  {G}Dibatalkan.{NC}")
                 return
@@ -2121,7 +2167,20 @@ def cmd_set(args: argparse.Namespace) -> None:
       gaet set GAET_REMOTE_URL=postgres://...
     """
     if not args.variables:
-        die("Usage: gaet set KEY=value [KEY2=value2] ...")
+        box_title(f"{NAME} set")
+        echo(f"  {B}Set environment variables{NC}")
+        echo()
+        echo(f"  {D}Contoh:{NC}")
+        echo(f"    gaet set GAET_LOCAL_URL=postgresql://user:pw@127.0.0.1:5432/db")
+        echo(f"    gaet set GAET_REMOTE_URL=postgresql://user:pw@db.xxx.supabase.co:5432/postgres")
+        echo(f"    gaet set GAET_RETENTION_DAYS=14")
+        echo(f"    gaet set GAET_TABLES=users,posts,comments")
+        echo()
+        echo(f"  {D}Bisa beberapa sekaligus:{NC}")
+        echo(f"    gaet set KEY1=v1 KEY2=v2")
+        echo()
+        echo(f"  {D}Lihat semua: gaet get   |   Edit interaktif: gaet init{NC}")
+        return
     
     # Ensure .env directory exists
     GAET_DIR.mkdir(parents=True, exist_ok=True)
@@ -2237,7 +2296,7 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     if purge:
         echo(f"  {Y}⚠  PURGE MODE: Akan menghapus gaet DAN semua config/backup{NC}")
         echo("")
-        confirm = input(f"  Ketik 'yes' untuk konfirmasi: ").strip().lower()
+        confirm = safe_input(f"  Ketik 'yes' untuk konfirmasi: ").strip().lower()
         if confirm != "yes":
             echo(f"  {G}Dibatalkan.{NC}")
             return
@@ -2782,8 +2841,8 @@ def main() -> None:
     # set
     set_parser = subparsers.add_parser("set", help="Set environment variables")
     set_parser.add_argument(
-        "variables", nargs="+",
-        help="Variables to set (format: KEY=value)"
+        "variables", nargs="*", default=[],
+        help="Variables to set (format: KEY=value). Empty → show examples."
     )
 
     # install
@@ -2809,15 +2868,19 @@ def main() -> None:
     # Default command: status
     if args.command is None:
         if not ENV_FILE.is_file():
-            # No config yet — show friendly intro instead of failing
+            # No config yet — show friendly intro + step-by-step onboarding
             box_title(f"{NAME}")
             echo(f"  {Y}Belum dikonfigurasi.{NC}")
             echo()
-            echo(f"  Mulai dengan:")
-            echo(f"    {C}gaet init{NC}          Setup wizard")
+            echo(f"  {B}Mulai dalam 3 langkah:{NC}")
+            echo(f"    {C}1.{NC} gaet init          Setup wizard (local + cloud DB)")
+            echo(f"    {C}2.{NC} gaet push          Backup lokal → cloud")
+            echo(f"    {C}3.{NC} gaet status        Lihat ringkasan sinkronisasi")
             echo()
-            echo(f"  Atau paste URL langsung:")
-            echo(f"    {C}gaet init{NC}          lalu pilih 'Paste connection URL'")
+            echo(f"  {D}Butuh bantuan?{NC}")
+            echo(f"    gaet check         Validasi config & koneksi")
+            echo(f"    gaet status        Cek seberapa sinkron DB kamu")
+            echo(f"    gaet --help        Daftar semua perintah")
             echo()
             sys.exit(0)
         args.command = "status"
