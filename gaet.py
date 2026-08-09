@@ -120,6 +120,25 @@ else:
     ICON_STAR = "*"
 
 
+# ─── Global output-mode flags (set from argparse in main) ──────────────────
+# QUIET: suppress non-essential human output (scripts/CI). Errors still go stderr.
+# PLAIN: drop box-drawing / color so output is safe to pipe to grep/awk/jq.
+QUIET = False
+PLAIN = False
+
+
+def set_output_modes(quiet: bool, plain: bool) -> None:
+    """Configure global QUIET/PLAIN from parsed args."""
+    global QUIET, PLAIN
+    QUIET = bool(quiet)
+    PLAIN = bool(plain)
+
+
+def is_plain() -> bool:
+    """True when --plain is active OR stdout is not a TTY (pipe/file)."""
+    return PLAIN or not sys.stdout.isatty()
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # UTILITY FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -511,7 +530,14 @@ def find_pg_tools(env: Dict[str, str]) -> Dict[str, str]:
 # ─── Terminal UI ─────────────────────────────────────────────────────────
 
 def echo(msg: str = "", end: str = "\n") -> None:
-    """Print with our formatting conventions."""
+    """Print with our formatting conventions.
+
+    Respects --quiet: when QUIET is set, non-essential output is suppressed
+    (stdout stays silent for humans, but data/JSON should be printed directly
+    with print()/json.dumps, not via echo()).
+    """
+    if QUIET:
+        return
     print(msg, end=end, flush=True)
 
 
@@ -543,16 +569,23 @@ def safe_getpass(prompt: str) -> str:
 
 
 def box_title(title: str) -> None:
-    """Draw a boxed title with Unicode double-line box characters."""
+    """Draw a boxed title with Unicode double-line box characters.
+
+    In --plain mode (or when piped), print a simple heading instead so the
+    output stays grep/awk/jq-safe.
+    """
+    if is_plain():
+        echo(f"== {title} ==")
+        return
     # Remove ANSI codes for visible length calculation
     clean_title = re.sub(r'\033\[[0-9;]*m', '', title)
-    
+
     # Double-line box - professional look
     width = 50
     visible_len = len(clean_title)
     pad = max(0, (width - visible_len) // 2)
     rpad = width - visible_len - pad
-    
+
     echo()
     echo(f"  {C}╔{'═' * (width + 2)}╗{NC}")
     echo(f"  {C}║{NC} {' ' * pad}{B}{clean_title}{NC} {' ' * rpad}{C}║{NC}")
@@ -562,6 +595,9 @@ def box_title(title: str) -> None:
 
 def box_section(title: str) -> None:
     """Section heading."""
+    if is_plain():
+        echo(f"-- {title} --")
+        return
     echo(f"  {C}─{NC} {B}{title}{NC}")
 
 
@@ -590,9 +626,21 @@ def draw_table(headers: str, rows: List[str]) -> None:
     Draw a table similar to Bash version.
     headers: colon-separated header names (e.g., "Tabel:Lokal:Cloud:Status")
     rows: list of pipe-separated values (e.g., ["memory_units|150|150|✓"])
+
+    In --plain mode (or piped), emit TSV instead of a boxed table.
     """
     h_list = headers.split(":")
     ncols = len(h_list)
+
+    if is_plain():
+        clean_cells = lambda v: re.sub(r'\033\[[0-9;]*m', '', v)
+        echo("\t".join(h_list))
+        for row in rows:
+            vals = row.split("|")
+            vals = vals + [""] * (ncols - len(vals))
+            echo("\t".join(clean_cells(v) for v in vals))
+        return
+
     widths = [len(h) for h in h_list]
 
     data: List[List[str]] = []
@@ -643,9 +691,23 @@ def draw_colored_table(headers: str, rows: List[str], colors: Optional[List[str]
     headers: colon-separated header names
     rows: pipe-separated values
     colors: optional list of ANSI color codes per row
+
+    In --plain mode (or piped), emit TSV (tab-separated, one record per line,
+    no color/box) so the output composes with grep/awk/jq.
     """
     h_list = headers.split(":")
     ncols = len(h_list)
+
+    if is_plain():
+        # Strip any embedded ANSI from cells, then emit TSV
+        clean_cells = lambda v: re.sub(r'\033\[[0-9;]*m', '', v)
+        echo("\t".join(h_list))
+        for row in rows:
+            vals = row.split("|")
+            vals = vals + [""] * (ncols - len(vals))
+            echo("\t".join(clean_cells(v) for v in vals))
+        return
+
     widths = [len(h) for h in h_list]
 
     data: List[List[str]] = []
@@ -1243,20 +1305,31 @@ def _print_summary(env: Dict[str, str], tools: Dict[str, str]) -> None:
     echo()
 
 
-def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
-    """Inner check — reused by init and check command."""
-    all_ok = True
+def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, Any]:
+    """Inner check — reused by init and check command.
+
+    Returns a structured result dict. Human rendering still goes to stdout;
+    when --json is requested the caller emits this dict as JSON instead.
+    """
+    result: Dict[str, Any] = {"ok": True, "checks": {}}
 
     # Tools
     echo(f"  {C}🔧{NC}  PostgreSQL tools... ", end="")
-    if tools["pg_dump"] and tools["pg_restore"] and tools["psql"]:
+    tools_ok = bool(tools["pg_dump"] and tools["pg_restore"] and tools["psql"])
+    if tools_ok:
         echo(f"{G}OK{NC}")
         status_arrow(f"pg_dump    {D}\"{tools['pg_dump']}\"{NC}")
         status_arrow(f"pg_restore {D}\"{tools['pg_restore']}\"{NC}")
         status_arrow(f"psql       {D}\"{tools['psql']}\"{NC}")
     else:
         echo(f"{R}FAIL{NC}")
-        all_ok = False
+        result["ok"] = False
+    result["checks"]["tools"] = {
+        "ok": tools_ok,
+        "pg_dump": tools.get("pg_dump") or None,
+        "pg_restore": tools.get("pg_restore") or None,
+        "psql": tools.get("psql") or None,
+    }
 
     # Local DB
     h, p, u, n, w = get_local_db(env)
@@ -1280,10 +1353,10 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
             status_arrow(f"Size: {size_out}")
         else:
             echo(f"{R}FAIL{NC}")
-            all_ok = False
+            result["ok"] = False
     else:
         echo(f"{R}FAIL{NC}")
-        all_ok = False
+        result["ok"] = False
 
     # Remote config
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
@@ -1291,6 +1364,10 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
     parsed = parse_remote_url(remote_url)
     if parsed:
         echo(f"{G}OK{NC}")
+        result["checks"]["remote_db"] = {
+            "configured": True, "host": parsed["host"], "port": parsed["port"],
+            "user": parsed["user"], "db": parsed["db"], "reachable": False,
+        }
         # Connection test
         echo(f"  {C}☁️{NC}   Koneksi cloud... ", end="")
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
@@ -1312,10 +1389,11 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
             status_arrow(f"Size: {size_out}")
         else:
             echo(f"{R}FAIL{NC}")
-            all_ok = False
+            result["ok"] = False
     else:
         echo(f"{Y}LEWAT{NC}")
         status_arrow("Set GAET_REMOTE_URL di ~/.gaet/.env")
+        result["checks"]["remote_db"] = {"configured": False, "reachable": False}
 
     # Backup dir
     echo(f"  {C}📁{NC}  Direktori backup... ", end="")
@@ -1329,31 +1407,39 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> bool:
         status_arrow(f"Backups stored: {count}")
     else:
         echo(f"{R}FAIL{NC}")
-        all_ok = False
+        result["ok"] = False
 
     # Auto-backup
     prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
     echo(f"  {C}⏰{NC}  Auto-backup timer... ", end="")
-    if scheduler_is_active(prefix):
+    auto_active = scheduler_is_active(prefix)
+    if auto_active:
         echo(f"{G}AKTIF{NC}")
     else:
         echo(f"{Y}tidak aktif{NC}")
         status_arrow("Enable with: gaet push --auto")
+    result["checks"]["auto_backup"] = {"active": auto_active}
 
     echo()
-    if all_ok:
+    if result["ok"]:
         echo(f"  {G}{ICON_OK}{NC}  {B}All checks passed!{NC}")
     else:
         echo(f"  {Y}{ICON_WARN}{NC}  {B}Some checks failed — fix before backup.{NC}")
-    return all_ok
+    return result
 
 
 def cmd_check(args: argparse.Namespace) -> None:
     """Validate config & connections."""
-    box_title(f"{NAME} check")
     env = load_env()
     tools = find_pg_tools(env)
-    cmd_check_inner(env, tools)
+    if getattr(args, "json", False):
+        # Machine-readable mode: suppress human rendering, emit JSON only
+        set_output_modes(quiet=True, plain=True)
+    result = cmd_check_inner(env, tools)
+    if getattr(args, "json", False):
+        # Machine-readable: emit JSON to stdout, exit non-zero if not ok
+        print(json.dumps(result, indent=2))
+        sys.exit(0 if result["ok"] else 1)
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -1691,6 +1777,10 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
 def cmd_push(args: argparse.Namespace) -> None:
     """Backup local → cloud."""
     dry_run = getattr(args, "dry_run", False)
+    want_json = getattr(args, "json", False)
+    if want_json:
+        set_output_modes(quiet=True, plain=True)
+    result: Dict[str, Any] = {"command": "push", "ok": False}
 
     if dry_run:
         env = load_env()
@@ -1699,8 +1789,19 @@ def cmd_push(args: argparse.Namespace) -> None:
         remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
         parsed = parse_remote_url(remote_url)
         tables = get_tables(env, tools)
+        if want_json:
+            result.update({
+                "dry_run": True,
+                "source": {"host": h, "port": p, "user": u, "db": n},
+                "target": ({"host": parsed["host"], "port": parsed["port"],
+                             "user": parsed["user"], "db": parsed["db"]} if parsed else None),
+                "tables": len(tables),
+                "ok": True,
+            })
+            print(json.dumps(result, indent=2))
+            return
         box_title("gaet push --dry-run")
-        
+
         box_section("Simulation Details")
         status_arrow(f"Source:  {u}@{h}:{p}/{n}")
         if parsed:
@@ -1711,7 +1812,7 @@ def cmd_push(args: argparse.Namespace) -> None:
         status_arrow(f"Backup:  ~/.gaet/backups/gaet_*.dump")
         retention = get_env_int(env, "GAET_RETENTION_DAYS", DEF_RETENTION_DAYS)
         status_arrow(f"Retention: {retention} days")
-        
+
         echo()
         status_info("Dry-run mode: No changes will be made")
         echo()
@@ -1755,6 +1856,7 @@ def cmd_push(args: argparse.Namespace) -> None:
         if rc == 0 and Path(backup_file).is_file():
             size_mb = Path(backup_file).stat().st_size / (1024 * 1024)
             echo(f"    {G}{ICON_OK}{NC}  Dump tersimpan {D}({size_mb:.1f} MB){NC}")
+            result["dump"] = {"file": backup_file, "size_mb": round(size_mb, 1)}
             # Integrity check
             out2, err2, rc2 = run_cmd(
                 [pg_restore, "--list", backup_file],
@@ -1780,8 +1882,10 @@ def cmd_push(args: argparse.Namespace) -> None:
         )
         if rc3 == 0:
             echo(f"    {G}{ICON_OK}{NC}  Sinkronisasi selesai!")
+            result["sync"] = {"ok": True}
         else:
             echo(f"    {Y}{ICON_WARN}{NC}  Sinkronisasi selesai (dengan peringatan)")
+            result["sync"] = {"ok": True, "warning": True}
 
         # Step 3: Retention
         retention = get_env_int(env, "GAET_RETENTION_DAYS", DEF_RETENTION_DAYS)
@@ -1798,6 +1902,11 @@ def cmd_push(args: argparse.Namespace) -> None:
         # Summary
         size_mb = Path(backup_file).stat().st_size / (1024 * 1024) if Path(backup_file).is_file() else 0
         tables_synced = len(get_tables(env, tools)) if tools.get("psql") else 0
+        result["ok"] = True
+        result["tables_synced"] = tables_synced
+        if want_json:
+            print(json.dumps(result, indent=2))
+            return
         print_push_summary(backup_file, size_mb, tables_synced)
         log("✅ Push complete")
     finally:
@@ -1807,6 +1916,10 @@ def cmd_push(args: argparse.Namespace) -> None:
 def cmd_fetch(args: argparse.Namespace) -> None:
     """Restore cloud → local."""
     dry_run = getattr(args, "dry_run", False)
+    want_json = getattr(args, "json", False)
+    if want_json:
+        set_output_modes(quiet=True, plain=True)
+    result: Dict[str, Any] = {"command": "fetch", "ok": False}
 
     if dry_run:
         env = load_env()
@@ -1814,6 +1927,16 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         h, p, u, n, w = get_local_db(env)
         remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
         parsed = parse_remote_url(remote_url)
+        if want_json:
+            result.update({
+                "dry_run": True,
+                "source": ({"host": parsed["host"], "port": parsed["port"],
+                             "user": parsed["user"], "db": parsed["db"]} if parsed else None),
+                "target": {"host": h, "port": p, "user": u, "db": n},
+                "ok": True,
+            })
+            print(json.dumps(result, indent=2))
+            return
         box_title("gaet fetch --dry-run")
         echo(f"  {C}☁️{NC}   {B}Simulasi fetch cloud → local{NC}")
         echo()
@@ -1882,6 +2005,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         if rc == 0 and Path(fetch_file).is_file():
             size_mb = Path(fetch_file).stat().st_size / (1024 * 1024)
             echo(f"    {G}{ICON_OK}{NC}  Dump cloud tersimpan {D}({size_mb:.1f} MB){NC}")
+            result["dump"] = {"file": fetch_file, "size_mb": round(size_mb, 1)}
         else:
             Path(fetch_file).unlink(missing_ok=True)
             die("Dump cloud gagal")
@@ -1907,12 +2031,19 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         )
         if rc3 <= 1:
             echo(f"    {G}{ICON_OK}{NC}  Local restore complete!")
+            result["restore"] = {"ok": True}
         else:
             echo(f"    {Y}{ICON_WARN}{NC}  Restore selesai (dengan peringatan)")
+            result["restore"] = {"ok": True, "warning": True}
 
         Path(fetch_file).unlink(missing_ok=True)
         echo()
-        
+
+        result["ok"] = True
+        if want_json:
+            print(json.dumps(result, indent=2))
+            return
+
         box_section("Summary")
         status_ok("Fetch complete - local database updated")
         status_arrow(f"Source: {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}")
@@ -2780,11 +2911,35 @@ def main() -> None:
         action="version",
         version=f"{NAME} v{VERSION}",
     )
+    # Global output-control flags (industry standard: -q quiet, --plain scripting)
+    parser.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Suppress non-essential output (for scripts/CI)",
+    )
+    parser.add_argument(
+        "--plain",
+        action="store_true",
+        help="Plain, decoration-free output (no box-drawing chars) — pipe-safe for grep/awk/jq",
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
+    # Common flags shared by all subcommands (so `gaet status --quiet` works too)
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Suppress non-essential output (for scripts/CI)",
+    )
+    common.add_argument(
+        "--plain",
+        action="store_true",
+        help="Plain, decoration-free output (pipe-safe for grep/awk/jq)",
+    )
+
     # init
-    init_parser = subparsers.add_parser("init", help="Interactive setup wizard")
+    init_parser = subparsers.add_parser("init", help="Interactive setup wizard", parents=[common])
     init_parser.add_argument(
         "preset", nargs="*", default=None,
         help="Preset database (contoh: hindsight, hindsight hermes)",
@@ -2795,58 +2950,61 @@ def main() -> None:
     )
 
     # check
-    subparsers.add_parser("check", help="Validate config & connections")
+    check_parser = subparsers.add_parser("check", help="Validate config & connections", parents=[common])
+    check_parser.add_argument("--json", action="store_true", help="Output JSON (machine-readable)")
 
     # status
-    status_parser = subparsers.add_parser("status", help="Show sync status")
+    status_parser = subparsers.add_parser("status", help="Show sync status", parents=[common])
     status_parser.add_argument("--json", action="store_true", help="Output JSON")
 
     # push
-    push_parser = subparsers.add_parser("push", help="Backup local → cloud")
+    push_parser = subparsers.add_parser("push", help="Backup local → cloud", parents=[common])
     push_parser.add_argument(
         "--auto", nargs="?", const=0, type=int,
         help="Aktifkan auto-backup (opsional: interval jam, default 6)",
     )
     push_parser.add_argument("--cron", action="store_true", help="Jalankan dari scheduler (internal)")
     push_parser.add_argument("--dry-run", action="store_true", help="Simulasi tanpa mengeksekusi")
+    push_parser.add_argument("--json", action="store_true", help="Output JSON result")
 
     # fetch
-    fetch_parser = subparsers.add_parser("fetch", help="Restore cloud → local")
+    fetch_parser = subparsers.add_parser("fetch", help="Restore cloud → local", parents=[common])
     fetch_parser.add_argument("--dry-run", action="store_true", help="Simulasi tanpa mengeksekusi")
     fetch_parser.add_argument("--yes", "-y", action="store_true", help="Skip konfirmasi (untuk non-interaktif/dashboard)")
+    fetch_parser.add_argument("--json", action="store_true", help="Output JSON result")
 
     # stop
-    stop_parser = subparsers.add_parser("stop", help="Stop auto-backup &/or dashboard")
+    stop_parser = subparsers.add_parser("stop", help="Stop auto-backup &/or dashboard", parents=[common])
     stop_parser.add_argument("--scheduler", action="store_true", help="Stop auto-backup saja")
     stop_parser.add_argument("--dashboard", action="store_true", help="Hentikan dashboard saja")
 
     # log
-    log_parser = subparsers.add_parser("log", help="View backup log")
+    log_parser = subparsers.add_parser("log", help="View backup log", parents=[common])
     log_parser.add_argument("lines", nargs="?", type=int, default=30, help="Jumlah baris (default 30)")
     log_parser.add_argument("--filter", "-f", type=str, default="", help="Filter log berdasarkan keyword")
     log_parser.add_argument("--since", "-s", type=str, default="", help="Filter sejak tanggal (YYYY-MM-DD)")
 
     # serve
-    serve_parser = subparsers.add_parser("serve", help="Start web dashboard")
+    serve_parser = subparsers.add_parser("serve", help="Start web dashboard", parents=[common])
     serve_parser.add_argument("--port", type=int, default=0, help="Custom port (default: 9191 or GAET_DASHBOARD_PORT)")
     serve_parser.add_argument("--no-browser", action="store_true", help="Don't auto-open browser")
 
     # get
-    get_parser = subparsers.add_parser("get", help="Get environment variables")
+    get_parser = subparsers.add_parser("get", help="Get environment variables", parents=[common])
     get_parser.add_argument(
         "keys", nargs="*", default=[],
         help="Keys to retrieve (if empty, shows all)"
     )
 
     # set
-    set_parser = subparsers.add_parser("set", help="Set environment variables")
+    set_parser = subparsers.add_parser("set", help="Set environment variables", parents=[common])
     set_parser.add_argument(
         "variables", nargs="*", default=[],
         help="Variables to set (format: KEY=value). Empty → show examples."
     )
 
     # install
-    install_parser = subparsers.add_parser("install", help="Setup/install dependencies & config")
+    install_parser = subparsers.add_parser("install", help="Setup/install dependencies & config", parents=[common])
     install_parser.add_argument("--yes", "-y", action="store_true", help="Auto-approve")
     install_parser.add_argument("--skip-deps", action="store_true", help="Skip cek dependencies")
     install_parser.add_argument("--skip-build", action="store_true", help="Skip build dashboard")
@@ -2855,15 +3013,18 @@ def main() -> None:
     install_parser.add_argument("--interval", type=int, default=0, help="Interval auto-backup (jam)")
 
     # update
-    update_parser = subparsers.add_parser("update", help="Update to latest version")
+    update_parser = subparsers.add_parser("update", help="Update to latest version", parents=[common])
     update_parser.add_argument("--force", action="store_true", help="Force update (skip local changes check)")
     update_parser.add_argument("--skip-build", action="store_true", help="Skip build dashboard")
 
     # uninstall
-    uninstall_parser = subparsers.add_parser("uninstall", help="Remove gaet from system")
+    uninstall_parser = subparsers.add_parser("uninstall", help="Remove gaet from system", parents=[common])
     uninstall_parser.add_argument("--purge", action="store_true", help="Remove everything including config and backups")
 
     args = parser.parse_args()
+
+    # Configure global output modes (--quiet / --plain) before any echo()
+    set_output_modes(getattr(args, "quiet", False), getattr(args, "plain", False))
 
     # Default command: status
     if args.command is None:
