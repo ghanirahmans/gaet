@@ -1218,9 +1218,97 @@ def _svc_status():
     return {"running": False, "platform": "unknown", "pid": None}
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
 # COMMANDS
 # ═══════════════════════════════════════════════════════════════════════════
+
+def _local_db_menu(detected, cur_host, cur_port, cur_user, cur_db, cur_pass):
+    """Interactive menu for local DB setup with full user control."""
+    while True:
+        echo()
+        box_section("Local Database Setup")
+        echo(f"  {B}Detected PostgreSQL instances:{NC}")
+        
+        for i, inst in enumerate(detected):
+            host_display = inst['host']
+            if inst['host'].startswith('/'):
+                host_display = f"socket:{inst['host']}"
+            echo(f"  {C}{i + 1}{NC}  {inst['user']}@{host_display}:{inst['port']}")
+            echo(f"      {D}Databases: {inst['databases']}{NC}")
+        
+        echo()
+        echo(f"  {C}A{NC}  Use detected instance (pick number)")
+        echo(f"  {C}B{NC}  Manual input (full control over host/port/user/db/pass)")
+        echo(f"  {C}C{NC}  Paste connection URL")
+        echo(f"  {C}D{NC}  Use defaults (127.0.0.1:5432, postgres/postgres)")
+        echo(f"  {C}Q{NC}  Quit init")
+        echo()
+        
+        choice = safe_input(f"  Choose [A/B/C/D/Q]: ").strip().upper()
+        
+        if choice == "Q":
+            echo(f"  {Y}Init dibatalkan.{NC}")
+            sys.exit(0)
+        
+        elif choice == "A":
+            # Pick detected instance
+            echo()
+            for i, inst in enumerate(detected):
+                host_display = inst['host']
+                if inst['host'].startswith('/'):
+                    host_display = f"socket:{inst['host']}"
+                echo(f"  {C}{i + 1}{NC}  {inst['user']}@{host_display}:{inst['port']} (DB: {inst['default_db']})")
+            echo(f"  {C}0{NC}  Back to menu")
+            echo()
+            
+            pick = safe_input(f"  Pilih instance [1-{len(detected)}]: ").strip()
+            if pick == "0":
+                continue
+            try:
+                idx = int(pick) - 1
+                if 0 <= idx < len(detected):
+                    inst = detected[idx]
+                    h = inst["host"]
+                    p = inst["port"]
+                    u = inst["user"]
+                    n = inst["default_db"]
+                    w = ""
+                    host_display = inst['host']
+                    if inst['host'].startswith('/'):
+                        host_display = f"socket:{inst['host']}"
+                    echo(f"  {D}→ {u}@{host_display}:{p}/{n}{NC}")
+                    return h, p, u, n, w
+                else:
+                    echo(f"  {R}Pilihan tidak valid.{NC}")
+                    continue
+            except (ValueError, IndexError):
+                echo(f"  {R}Pilihan tidak valid.{NC}")
+                continue
+        
+        elif choice == "B":
+            # Manual input - full control
+            echo()
+            return _manual_db_input()
+        
+        elif choice == "C":
+            # Connection URL
+            echo()
+            return _url_input()
+        
+        elif choice == "D":
+            # Defaults
+            h = "127.0.0.1"
+            p = "5432"
+            u = cur_user or "postgres"
+            n = cur_db or "postgres"
+            w = cur_pass
+            echo(f"  {D}→ {u}@{h}:{p}/{n} (default){NC}")
+            return h, p, u, n, w
+        
+        else:
+            echo(f"  {R}Pilihan tidak valid. Gunakan A/B/C/D/Q.{NC}")
+            continue
+
 
 def cmd_init(args: argparse.Namespace) -> None:
     """Interactive setup wizard."""
@@ -1323,30 +1411,9 @@ def cmd_init(args: argparse.Namespace) -> None:
                 echo(f"  {D}→ {u}@{h}:{p}/{n} (default){NC}")
 
         elif detected:
-            # Auto-detected instances (non-preset mode)
-            echo()
-            for i, inst in enumerate(detected):
-                echo(f"  {C}{i + 1}{NC}  {inst['user']}@{inst['host']}:{inst['port']}")
-                echo(f"      {D}Databases: {inst['databases']}{NC}")
-            echo(f"  {C}0{NC}  Enter connection URL manually / Manual input")
-            echo()
+            # Auto-detected instances (non-preset mode) - FULL MENU
+            h, p, u, n, w = _local_db_menu(detected, cur_host, cur_port, cur_user, cur_db, cur_pass)
 
-            choice = safe_input(f"  Select [1]: ").strip() or "1"
-            try:
-                idx = int(choice) - 1
-                if 0 <= idx < len(detected):
-                    inst = detected[idx]
-                    h = inst["host"]
-                    p = inst["port"]
-                    u = inst["user"]
-                    n = inst["default_db"]
-                    w = ""
-                    echo(f"  {D}→ {u}@{h}:{p}/{n}{NC}")
-                else:
-                    # Manual mode
-                    h, p, u, n, w = _manual_db_input()
-            except (ValueError, IndexError):
-                h, p, u, n, w = _manual_db_input()
         else:
             # No detection — offer URL or manual
             echo(f"  {D}No PostgreSQL detected.{NC}")
