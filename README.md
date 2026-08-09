@@ -337,7 +337,10 @@ Measured on PostgreSQL 18, Linux (i5-12450H, NVMe). Raw data in [`benchmarks/`](
 | Simple (2 tables, 110k rows) | 126 MB | 0.46s | 0.50s | 0.96s |
 | Complex (7 tables, 750k rows) | 404 MB | 2.51s | 5.69s | 8.20s |
 | Ultra-complex (19 objects, 1M+ rows) | 343 MB | 3.68s | 6.61s | 10.29s |
-| Production-like SaaS (38 tables, 10.7M rows) | 1944 MB | 50.09s | — | **91.06s** (push) / **80.49s** (fetch) |
+| Production-like SaaS (38 tables, 10.7M rows) | 1944 MB | 50.09s | 58.24s† | 108.33s‡ |
+
+† `pg_restore` raw melaporkan error FK pada data benchmark (subset referensial tidak lengkap); pipeline gaet memakai `--no-owner --no-acl` dan sukses penuh.
+‡ Total = dump + restore. Pipeline gaet utuh (`gaet push`): **91.06s**, `gaet fetch`: **80.49s** — 38 tabel tersinkron, row count local = cloud.
 
 Compression: 1,944 MB → **359.6 MB** dump (82% reduction) with `--format=custom --compress=9`.
 
