@@ -1251,7 +1251,7 @@ def cmd_completion(args: argparse.Namespace) -> None:
             return
 
         if comp_file.is_file():
-            shell_name = comp_file.stem.split('.')[1]
+            shell_name = comp_file.suffix.lstrip(".")
             echo(f"  {C}Shell completions for {shell_name}:{NC}")
             echo()
             echo(f"  Install with:")
