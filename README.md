@@ -21,7 +21,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
   <img src="https://img.shields.io/badge/python-3.8+-green" alt="Python 3.8+">
-  <img src="https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey" alt="Linux | macOS | Windows">
+  <img src="https://img.shields.io/badge/platform-linux%20only-orange" alt="Linux (primary)">
+  <img src="https://img.shields.io/badge/macOS%20%7C%20Windows-in%20development-lightgrey" alt="macOS | Windows in development">
   <img src="https://img.shields.io/badge/deps-0%20pip%20packages-blueviolet" alt="Zero pip dependencies">
 </p>
 
@@ -103,11 +104,13 @@ That's it. Your data is now safe. ✨
 
 ### 🛠️ Platform Support
 
-| Platform | CLI | Auto-Backup | Dashboard Service |
-|----------|-----|-------------|-------------------|
-| 🐧 **Linux** | ✅ Full support | systemd user timer | systemd user service |
-| 🍎 **macOS** | ✅ Full support | launchd user agent | launchd user agent |
-| 🪟 **Windows** | ✅ Full support | Task Scheduler | Background service |
+| Platform | CLI | Auto-Backup | Dashboard Service | Status |
+|----------|-----|-------------|-------------------|--------|
+| 🐧 **Linux** | ✅ Full support | systemd user timer | systemd user service | ✅ Supported |
+| 🍎 **macOS** | 🚧 Partial | launchd (experimental) | launchd (experimental) | ⏳ In development |
+| 🪟 **Windows** | 🚧 Partial | Task Scheduler (experimental) | Background service (experimental) | ⏳ In development |
+
+> ⚠️ **Cross-platform is still in development.** gaet is built and tested primarily on **Linux**. The macOS/Windows paths exist but are not yet fully validated — use at your own risk and report issues via GitHub. The Linux experience is the reference implementation.
 
 **Zero dependencies.** Only requires PostgreSQL client tools (`pg_dump`, `pg_restore`).
 
@@ -122,7 +125,7 @@ That's it. Your data is now safe. ✨
 curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 ```
 
-**Windows (PowerShell):**
+**Windows (PowerShell):** ⚠️ *Experimental — cross-platform support is still in development. The Windows installer exists but is not yet fully validated. Prefer Linux for production use.*
 ```powershell
 irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
 ```
@@ -534,20 +537,18 @@ gaet log | grep -E "ERROR|WARN"
 
 ```
 gaet/
-├── gaet.py                    # Main CLI (single Python file, ~2500 lines)
-├── dashboard/                 # Web UI
-│   ├── app.py                # Flask/Fastapi server
-│   ├── public/                # HTML/CSS/JS
-│   └── templates/
+├── gaet.py                    # Main CLI (single Python file, ~3300 lines)
+├── dashboard/                 # Next.js web UI
+│   ├── app/                   # App Router (page.tsx, api/ routes)
+│   ├── public/                # Static assets (logo, etc.)
+│   └── package.json           # Next.js deps (separate from CLI)
 ├── scripts/
-│   ├── installer.py           # Cross-platform installer
+│   ├── installer.py           # Cross-platform installer logic
 │   └── scheduler.py           # systemd/launchd/Task Scheduler integration
 ├── tests/
-│   ├── test_backup.py         # Backup pipeline tests
-│   ├── test_restore.py        # Restore pipeline tests
-│   └── test_security.py       # Security tests
+│   └── test_gaet.py           # CLI + pipeline tests (unittest)
+├── benchmarks/                # Reproducible benchmark datasets + methodology
 ├── README.md                  # This file
-├── SECURITY.md                # Security policy
 ├── CHANGELOG.md               # Version history
 └── install.sh / install.ps1   # Installation scripts
 ```
@@ -556,16 +557,9 @@ gaet/
 
 ## Performance Benchmarks
 
-Tested on typical developer machine (MBP M1, 25Mbps upload):
+Real, reproducible numbers are in the [Benchmarks](benchmarks/) section above (Simple 126 MB → 0.96s, Complex 404 MB → 8.2s, Ultra-complex 343 MB → 10.3s), measured on PostgreSQL 18 / Linux / consumer NVMe.
 
-| Database Size | Dump Time | Upload | Restore | Total |
-|---------------|-----------|--------|---------|-------|
-| 100MB | 2s | 3s | 2s | 7s |
-| 1GB | 8s | 15s | 8s | 31s |
-| 5GB | 35s | 60s | 40s | 135s |
-| 10GB | 70s | 120s+ | 80s | 270s+ |
-
-**Pro tip:** Enable auto-backup during off-peak hours or run manually during maintenance windows.
+For very large databases (10 GB+), gaet uses a 120s per-operation timeout. If a single operation exceeds it, either raise the timeout or run during a maintenance window. Auto-backup is scheduled off-peak by default.
 
 ---
 
@@ -696,8 +690,8 @@ A: Yes! Set one as local, another as cloud. Works in both directions.
 git clone https://github.com/ghanirahmans/gaet.git
 cd gaet
 
-# Run tests
-python -m pytest tests/
+# Run tests (unittest)
+python -m unittest discover -s tests
 
 # Start CLI
 python gaet.py --help
@@ -738,11 +732,12 @@ MIT License — see [LICENSE](LICENSE) file for details.
 
 ## Support & Links
 
-- 📖 [Full Documentation](https://github.com/ghanirahmans/gaet/wiki)
-- 🐛 [Report Issues](https://github.com/ghanirahmans/gaet/issues)
-- 💬 [Discussions](https://github.com/ghanirahmans/gaet/discussions)
-- 📧 [Email Support](mailto:support@gaet.dev)
-- 🐦 [Twitter](https://twitter.com/gaet_dev)
+- 🐛 [Report Issues](https://github.com/ghanirahmans/gaet/issues) — bugs, crashes, unexpected behavior
+- 💡 [Feature Requests](https://github.com/ghanirahmans/gaet/issues) — same tracker, label as enhancement
+- 📦 [Source & Releases](https://github.com/ghanirahmans/gaet) — code, changelog, tags
+- 📖 [Benchmarks](benchmarks/) — reproducible datasets & methodology
+
+> Questions? Open a [GitHub Issue](https://github.com/ghanirahmans/gaet/issues) — gaet is maintained by a single developer, so issues are the fastest way to get help.
 
 ---
 
