@@ -618,13 +618,15 @@ def echo(msg: str = "", end: str = "\n") -> None:
 def safe_input(prompt: str, default: str = "") -> str:
     """input() that degrades gracefully when there is no TTY (pipes, cron, SSH).
 
-    When stdin is not a terminal, we cannot prompt interactively. Instead of
-    crashing with EOFError we print the prompt + chosen default and return it,
-    so `gaet init` and friends still run in non-interactive contexts.
+    When stdin is not a terminal, we still try to read it (piped input works
+    with input()). Only fallback to default when stdin is exhausted (EOF).
     """
     if not sys.stdin.isatty():
-        echo(f"{prompt}{default}")
-        return default
+        try:
+            return input(prompt)
+        except EOFError:
+            echo(f"{prompt}{default}")
+            return default
     try:
         return input(prompt)
     except EOFError:
@@ -1268,121 +1270,182 @@ def cmd_completion(args: argparse.Namespace) -> None:
 
 def cmd_doctor(args: argparse.Namespace) -> None:
     """Check gaet health: config, DB connections, tools, recent backups."""
-    box_title(f"{NAME} doctor")
+    want_json = getattr(args, "json", False)
     issues = 0
+    result = {"checks": {}, "ok": True}
+
+    env = load_env()
 
     # 1. Config
-    box_section("Config")
-    env = load_env()
-    if ENV_FILE.is_file():
-        status_ok(f"Config file: {ENV_FILE}")
-    else:
-        echo(f"    {R}{ICON_FAIL}{NC} Config file not found")
-        echo(f"    {D}Run: gaet init{NC}")
+    config_ok = ENV_FILE.is_file()
+    result["checks"]["config"] = {"ok": config_ok, "path": str(ENV_FILE)}
+    if not config_ok:
         issues += 1
 
     # 2. PostgreSQL tools
-    box_section("PostgreSQL Tools")
     tools = find_pg_tools(env)
-    all_tools = True
-    for name in ("pg_dump", "pg_restore", "psql"):
-        if tools.get(name):
-            status_ok(f"{name} found")
-        else:
-            echo(f"    {R}{ICON_FAIL}{NC} {name} not found")
-            all_tools = False
-            issues += 1
-    if not all_tools:
-        echo(f"    {D}Install PostgreSQL client tools: apt install postgresql-client{NC}")
+    tools_ok = all(tools.get(t) for t in ("pg_dump", "pg_restore", "psql"))
+    result["checks"]["tools"] = {
+        "ok": tools_ok,
+        "pg_dump": tools.get("pg_dump", ""),
+        "pg_restore": tools.get("pg_restore", ""),
+        "psql": tools.get("psql", ""),
+    }
+    if not tools_ok:
+        issues += 1
 
     # 3. Local DB connection
-    box_section("Local Database")
     h, p, u, n, w = get_local_db(env)
     psql = tools.get("psql", "")
+    local_ok = False
+    local_size = ""
     if psql and h:
-        echo(f"    {C}Testing {u}@{h}:{p}/{n}...{NC} ", end="")
         out, _, rc = run_cmd(
             [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
             env={"PGPASSWORD": w}, timeout=5,
         )
         if rc == 0 and out.strip() == "1":
-            echo(f"{G}OK{NC}")
+            local_ok = True
             size_out, _, _ = run_cmd(
                 [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1)||' MB';"],
                 env={"PGPASSWORD": w}, timeout=5,
             )
-            if size_out.strip():
-                status_arrow(f"Size: {size_out.strip()}")
-        else:
-            echo(f"{R}FAIL{NC}")
-            echo(f"    {D}Check PostgreSQL is running and credentials are correct{NC}")
-            issues += 1
-    else:
-        echo(f"    {R}{ICON_FAIL}{NC} Cannot test (psql not found or no host)")
+            local_size = size_out.strip()
+    result["checks"]["local_db"] = {
+        "ok": local_ok,
+        "host": h, "port": p, "user": u, "database": n,
+        "size": local_size,
+    }
+    if not local_ok:
         issues += 1
 
     # 4. Cloud DB connection
-    box_section("Cloud Database")
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
     parsed = parse_remote_url(remote_url)
+    cloud_ok = False
+    cloud_size = ""
+    cloud_configured = bool(parsed)
     if parsed:
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
-        echo(f"    {C}Testing cloud connection...{NC} ", end="")
         out, _, rc = run_cmd(
             [psql, "-h", parsed["host"], "-p", parsed["port"],
              "-U", parsed["user"], "-d", parsed["db"], "-tAc", "SELECT 1;"],
             env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=10,
         )
         if rc == 0 and out.strip() == "1":
-            echo(f"{G}OK{NC}")
+            cloud_ok = True
             size_out, _, _ = run_cmd(
                 [psql, "-h", parsed["host"], "-p", parsed["port"],
                  "-U", parsed["user"], "-d", parsed["db"], "-tAc",
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1)||' MB';"],
                 env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=10,
             )
-            if size_out.strip():
-                status_arrow(f"Size: {size_out.strip()}")
+            cloud_size = size_out.strip()
+    result["checks"]["cloud_db"] = {
+        "ok": cloud_ok,
+        "configured": cloud_configured,
+        "size": cloud_size,
+    }
+    if not cloud_ok:
+        issues += 1
+
+    # 5. Recent backups
+    backup_count = 0
+    backup_newest = ""
+    backup_total_mb = 0.0
+    backup_age_days = 0
+    try:
+        backups = sorted(BACKUP_DIR.glob("gaet_*.dump"), reverse=True)
+        backup_count = len(backups)
+        if backups:
+            newest = backups[0]
+            backup_age_days = (time.time() - newest.stat().st_mtime) / 86400
+            backup_total_mb = sum(f.stat().st_size for f in backups) / (1024 * 1024)
+            backup_newest = newest.name
+            if backup_age_days > 7:
+                issues += 1
         else:
-            echo(f"{R}FAIL{NC}")
-            echo(f"    {D}Check GAET_REMOTE_URL and cloud database status{NC}")
             issues += 1
+    except OSError:
+        issues += 1
+    result["checks"]["backups"] = {
+        "ok": backup_count > 0,
+        "count": backup_count,
+        "newest": backup_newest,
+        "age_days": round(backup_age_days, 1),
+        "total_mb": round(backup_total_mb, 1),
+    }
+
+    # 6. Auto-backup
+    prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
+    auto_active = scheduler_is_active(prefix)
+    result["checks"]["auto_backup"] = {"ok": auto_active, "active": auto_active}
+    if not auto_active:
+        issues += 1
+
+    result["ok"] = issues == 0
+    result["issues"] = issues
+
+    if want_json:
+        print(json.dumps(result, indent=2))
+        return
+
+    # Human-readable output
+    box_title(f"{NAME} doctor")
+
+    box_section("Config")
+    if config_ok:
+        status_ok(f"Config file: {ENV_FILE}")
+    else:
+        echo(f"    {R}{ICON_FAIL}{NC} Config file not found")
+        echo(f"    {D}Run: gaet init{NC}")
+
+    box_section("PostgreSQL Tools")
+    for name in ("pg_dump", "pg_restore", "psql"):
+        if tools.get(name):
+            status_ok(f"{name} found")
+        else:
+            echo(f"    {R}{ICON_FAIL}{NC} {name} not found")
+    if not tools_ok:
+        echo(f"    {D}Install PostgreSQL client tools: apt install postgresql-client{NC}")
+
+    box_section("Local Database")
+    if local_ok:
+        echo(f"    {G}Testing {u}@{h}:{p}/{n}...{NC} {G}OK{NC}")
+        if local_size:
+            status_arrow(f"Size: {local_size}")
+    else:
+        echo(f"    {R}Cannot connect{NC}")
+        echo(f"    {D}Check PostgreSQL is running and credentials are correct{NC}")
+
+    box_section("Cloud Database")
+    if cloud_ok:
+        echo(f"    {G}Testing cloud connection...{NC} {G}OK{NC}")
+        if cloud_size:
+            status_arrow(f"Size: {cloud_size}")
+    elif cloud_configured:
+        echo(f"    {R}FAIL{NC}")
+        echo(f"    {D}Check GAET_REMOTE_URL and cloud database status{NC}")
     else:
         echo(f"    {Y}Not configured{NC}")
         status_arrow("Set GAET_REMOTE_URL to enable cloud backup")
 
-    # 5. Recent backups
     box_section("Backups")
-    try:
-        backups = sorted(BACKUP_DIR.glob("gaet_*.dump"), reverse=True)
-        if backups:
-            newest = backups[0]
-            age_days = (time.time() - newest.stat().st_mtime) / 86400
-            total_size = sum(f.stat().st_size for f in backups) / (1024 * 1024)
-            echo(f"    {G}Found {len(backups)} backup(s){NC}")
-            status_arrow(f"Newest: {newest.name} ({age_days:.0f} days ago)")
-            status_arrow(f"Total: {total_size:.1f} MB")
-            if age_days > 7:
-                echo(f"    {Y}Newest backup is {age_days:.0f} days old — consider running 'gaet push'{NC}")
-                issues += 1
-        else:
-            echo(f"    {Y}No backups found{NC}")
-            status_arrow("Run 'gaet push' to create your first backup")
-            issues += 1
-    except OSError:
-        echo(f"    {Y}Cannot read backup directory{NC}")
-        issues += 1
+    if backup_count:
+        echo(f"    {G}Found {backup_count} backup(s){NC}")
+        status_arrow(f"Newest: {backup_newest} ({backup_age_days:.0f} days ago)")
+        status_arrow(f"Total: {backup_total_mb:.1f} MB")
+    else:
+        echo(f"    {Y}No backups found{NC}")
+        status_arrow("Run 'gaet push' to create your first backup")
 
-    # 6. Auto-backup
     box_section("Auto-backup")
-    prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
-    if scheduler_is_active(prefix):
+    if auto_active:
         status_ok("Auto-backup is active")
     else:
         echo(f"    {D}Auto-backup not active (run 'gaet push --auto' to enable){NC}")
 
-    # Summary
     echo()
     if issues == 0:
         echo(f"  {G}{ICON_OK}{NC}  All checks passed!")
@@ -1392,6 +1455,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 
 def cmd_diff(args: argparse.Namespace) -> None:
     """Compare local vs cloud database tables and row counts."""
+    want_json = getattr(args, "json", False)
     env = load_env()
     tools = find_pg_tools(env)
     psql = tools.get("psql", "")
@@ -1404,8 +1468,7 @@ def cmd_diff(args: argparse.Namespace) -> None:
     if not parsed:
         die("GAET_REMOTE_URL not configured. Run: gaet init", EXIT_CONFIG)
 
-    box_title(f"{NAME} diff")
-
+    # Collect local counts
     local_counts = {}
     tables = get_tables(env, tools)
     if tables and psql:
@@ -1427,6 +1490,7 @@ def cmd_diff(args: argparse.Namespace) -> None:
                         except ValueError:
                             pass
 
+    # Collect remote counts
     remote_counts = {}
     ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
     if tables and psql:
@@ -1450,6 +1514,38 @@ def cmd_diff(args: argparse.Namespace) -> None:
                             pass
 
     all_tables = sorted(set(list(local_counts.keys()) + list(remote_counts.keys())))
+
+    # Build result
+    tables_result = []
+    synced = 0
+    for t in all_tables:
+        lo = local_counts.get(t, 0)
+        re = remote_counts.get(t, 0)
+        diff = lo - re
+        if diff == 0:
+            synced += 1
+        tables_result.append({
+            "table": t,
+            "local": lo,
+            "remote": re,
+            "diff": diff,
+            "in_sync": diff == 0,
+        })
+
+    result = {
+        "tables": tables_result,
+        "total": len(all_tables),
+        "synced": synced,
+        "unsynced": len(all_tables) - synced,
+    }
+
+    if want_json:
+        print(json.dumps(result, indent=2))
+        return
+
+    # Human-readable
+    box_title(f"{NAME} diff")
+
     if not all_tables:
         echo(f"  {Y}No tables found.{NC}")
         return
@@ -1474,9 +1570,7 @@ def cmd_diff(args: argparse.Namespace) -> None:
         echo(f"  {parts[0]:14} {parts[1]:>6}  {parts[2]:>6}  {parts[3]}")
 
     echo()
-    synced = sum(1 for t in all_tables if local_counts.get(t, 0) == remote_counts.get(t, 0))
-    total = len(all_tables)
-    echo(f"  {D}{synced}/{total} tables in sync{NC}")
+    echo(f"  {D}{synced}/{len(all_tables)} tables in sync{NC}")
 
 
 def cmd_export(args: argparse.Namespace) -> None:
@@ -3708,10 +3802,12 @@ def main() -> None:
     completion_parser.add_argument("--shell", "-s", choices=["bash", "zsh", "fish"], default=None, help="Shell (auto-detect if omitted)")
 
     # doctor
-    subparsers.add_parser("doctor", help="Check gaet health and connections", parents=[common])
+    doctor_parser = subparsers.add_parser("doctor", help="Check gaet health and connections", parents=[common])
+    doctor_parser.add_argument("--json", action="store_true", help="JSON output")
 
     # diff
-    subparsers.add_parser("diff", help="Compare local vs cloud tables", parents=[common])
+    diff_parser = subparsers.add_parser("diff", help="Compare local vs cloud tables", parents=[common])
+    diff_parser.add_argument("--json", action="store_true", help="JSON output")
 
     # export
     subparsers.add_parser("export", help="Export config as shell env vars", parents=[common])
