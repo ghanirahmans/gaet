@@ -131,6 +131,21 @@ else:
 QUIET = False
 PLAIN = False
 
+# ─── Semantic exit codes (cli-output-spec: 80-89 reserved for app errors) ──
+# 0  = success
+# 1  = generic failure
+# 2  = usage / argparse error (handled by argparse)
+# 80 = configuration error (missing/invalid .env)
+# 81 = local database unreachable
+# 82 = cloud/remote database unreachable
+# 83 = lock held (another operation in progress)
+# 84 = missing PostgreSQL tools (pg_dump/psql/...)
+EXIT_CONFIG = 80
+EXIT_LOCAL_DOWN = 81
+EXIT_CLOUD_DOWN = 82
+EXIT_LOCKED = 83
+EXIT_TOOLS = 84
+
 
 def set_output_modes(quiet: bool, plain: bool) -> None:
     """Configure global QUIET/PLAIN from parsed args."""
@@ -236,9 +251,9 @@ def acquire_lock() -> None:
             try:
                 LOCK_PATH.mkdir(parents=True, exist_ok=False)
             except FileExistsError:
-                die(f"gaet sedang berjalan (lock: {LOCK_PATH})")
+                die(f"gaet sedang berjalan (lock: {LOCK_PATH})", EXIT_LOCKED)
         else:
-            die(f"gaet sedang berjalan (lock: {LOCK_PATH})")
+            die(f"gaet sedang berjalan (lock: {LOCK_PATH})", EXIT_LOCKED)
     _write_lock_pid()
     return
 
@@ -631,6 +646,61 @@ class Spinner:
             sys.stdout.flush()
 
 
+def emit_help_json(topic: Optional[str]) -> None:
+    """Output the CLI command schema as JSON (agent-friendly introspection).
+
+    `gaet help --json` lists every command; `gaet help <cmd> --json` lists
+    that command's flags. Mirrors the cli-output-spec `help-json` convention.
+    """
+    if topic and topic in subparsers.choices:
+        sub = subparsers.choices[topic]
+        # Resolve help text from the parent _SubParsersAction choice actions
+        topic_help = ""
+        for ca in subparsers._choices_actions:
+            if ca.dest == topic:
+                topic_help = ca.help or ""
+                break
+        flags = []
+        for a in sub._actions:
+            if not a.option_strings:
+                if a.dest != "help":
+                    flags.append({"name": a.dest, "positional": True,
+                                  "help": a.help or ""})
+                continue
+            if a.dest == "help":
+                continue
+            flags.append({
+                "names": a.option_strings,
+                "help": a.help or "",
+                "type": "flag" if isinstance(a, argparse._StoreTrueAction) else (a.type.__name__ if a.type else "value"),
+                "default": a.default if a.default is not argparse.SUPPRESS else None,
+            })
+        schema = {
+            "command": topic,
+            "help": topic_help,
+            "flags": flags,
+        }
+    else:
+        commands = []
+        for action in subparsers._choices_actions:
+            name = action.dest
+            if name == "help":
+                continue
+            commands.append({"name": name, "help": action.help or ""})
+        commands.sort(key=lambda c: c["name"])
+        schema = {
+            "program": NAME,
+            "version": VERSION,
+            "commands": commands,
+            "global_flags": [
+                {"names": ["-q", "--quiet"], "help": "Suppress non-essential output"},
+                {"names": ["--plain"], "help": "Decoration-free, pipe-safe output"},
+                {"names": ["--json"], "help": "Structured JSON output (check/push/fetch/help)"},
+            ],
+        }
+    print(json.dumps(schema, indent=2))
+
+
 def box_title(title: str) -> None:
     """Draw a boxed title with Unicode double-line box characters.
 
@@ -924,7 +994,7 @@ def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
     tools = find_pg_tools(env)
     psql = tools["psql"]
     if not psql:
-        die("psql tidak ditemukan")
+        die("psql tidak ditemukan", EXIT_TOOLS)
 
     env_dict = pg_env(u, w)
     out, _, rc = run_cmd(
@@ -953,7 +1023,8 @@ def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
             )
         die(
             f"Cannot connect to local database ({h}:{p}/{n})\n"
-            f"  {Y}Periksa konfigurasi database.{NC}{hint}"
+            f"  {Y}Periksa konfigurasi database.{NC}{hint}",
+            EXIT_LOCAL_DOWN,
         )
     return h, p, u, n, w
 
@@ -1929,7 +2000,8 @@ def cmd_push(args: argparse.Namespace) -> None:
             die(
                 "GAET_REMOTE_URL belum dikonfigurasi.\n"
                 f"  Jalankan: {C}gaet init{NC} lalu set remote URL\n"
-                f"  Atau edit langsung: {D}{ENV_FILE}{NC}"
+                f"  Atau edit langsung: {D}{ENV_FILE}{NC}",
+                EXIT_CONFIG,
             )
 
         log("🚀 Push: local → cloud")
@@ -2063,7 +2135,8 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             die(
                 "GAET_REMOTE_URL belum dikonfigurasi.\n"
                 f"  Jalankan: {C}gaet init{NC} lalu set remote URL\n"
-                f"  Atau edit langsung: {D}{ENV_FILE}{NC}"
+                f"  Atau edit langsung: {D}{ENV_FILE}{NC}",
+                EXIT_CONFIG,
             )
 
         tools = find_pg_tools(env)
@@ -2116,7 +2189,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             result["dump"] = {"file": fetch_file, "size_mb": round(size_mb, 1)}
         else:
             Path(fetch_file).unlink(missing_ok=True)
-            die("Dump cloud gagal")
+            die("Dump cloud gagal", EXIT_CLOUD_DOWN)
 
         # Step 2: Restore to local
         echo(f"  {C}💾{NC}  {B}Restoring to local database...{NC}")
@@ -3069,6 +3142,7 @@ def main() -> None:
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
+    globals()["subparsers"] = subparsers  # expose for emit_help_json()
 
     # Common flags shared by all subcommands (so `gaet status --quiet` works too)
     common = argparse.ArgumentParser(add_help=False)
@@ -3169,6 +3243,7 @@ def main() -> None:
     # help <command> (git-style)
     help_parser = subparsers.add_parser("help", help="Show help for a command (e.g. gaet help push)", parents=[common])
     help_parser.add_argument("topic", nargs="?", default=None, help="Command name to show help for")
+    help_parser.add_argument("--json", action="store_true", help="Machine-readable command schema (agent-friendly)")
 
     args = parser.parse_args()
 
@@ -3178,6 +3253,9 @@ def main() -> None:
     # git-style: `gaet help <command>`
     if args.command == "help":
         topic = getattr(args, "topic", None)
+        if getattr(args, "json", False):
+            emit_help_json(topic)
+            return
         if topic and topic in subparsers.choices:
             # Re-parse to print that subcommand's help
             parser.parse_args([topic, "--help"])
