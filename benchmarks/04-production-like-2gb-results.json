@@ -1,0 +1,29 @@
+{
+  "benchmark": "04-production-like-2gb",
+  "date": "2026-08-10",
+  "hardware": "i5-12450H, NVMe, 8GB RAM",
+  "postgres": "18.4",
+  "db_size": "1944 MB",
+  "tables": 38,
+  "rows": "~10.7M",
+  "compression": {
+    "method": "--format=custom --compress=9",
+    "dump_mb": 359.6,
+    "reduction_pct": 81.5
+  },
+  "gaet_version": "2.0.0 LTS",
+  "results": {
+    "pg_dump raw": 50.09,
+    "gaet push (pipeline)": 91.06,
+    "gaet fetch (pipeline)": 80.49,
+    "gaet status": 1.36,
+    "gaet status --json": 0.59,
+    "gaet diff": 0.93,
+    "gaet check": 0.23
+  },
+  "notes": [
+    "push/fetch measured clean (fresh empty target, GAET_PG_TIMEOUT=600)",
+    "pg_restore raw rc=1 due FK violations in subset-copied data (methodology artifact, not a gaet bug)",
+    "gaet pipeline succeeded with all 38 tables synced and identical row counts local vs cloud"
+  ]
+}

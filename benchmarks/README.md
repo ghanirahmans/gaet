@@ -9,6 +9,7 @@
 | **01 — Simple** | 126 MB | 2 tables | 0.46 s | 1.9 MB (98.5%) | 6 ms | 0.50 s | **0.96 s** |
 | **02 — Complex** | 404 MB | 7 tables | 2.51 s | 32.5 MB (92%) | 6 ms | 5.69 s | **8.20 s** |
 | **03 — Ultra-Complex** | 343 MB | 19 objects | 3.68 s | 41.1 MB (88%) | 6 ms | 6.61 s | **10.29 s** |
+| **04 — Production-like SaaS** | 1944 MB | 38 tables | 50.09 s | 359.6 MB (81.5%) | — | — | **91.06s** push / **80.49s** fetch |
 
 > Every number is a **real measurement** on the hardware described below — not a theoretical estimate. Full reproduction steps included.
 

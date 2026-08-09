@@ -337,6 +337,11 @@ Measured on PostgreSQL 18, Linux (i5-12450H, NVMe). Raw data in [`benchmarks/`](
 | Simple (2 tables, 110k rows) | 126 MB | 0.46s | 0.50s | 0.96s |
 | Complex (7 tables, 750k rows) | 404 MB | 2.51s | 5.69s | 8.20s |
 | Ultra-complex (19 objects, 1M+ rows) | 343 MB | 3.68s | 6.61s | 10.29s |
+| Production-like SaaS (38 tables, 10.7M rows) | 1944 MB | 50.09s | — | **91.06s** (push) / **80.49s** (fetch) |
+
+Compression: 1,944 MB → **359.6 MB** dump (82% reduction) with `--format=custom --compress=9`.
+
+> Note: on databases >1 GB, set `GAET_PG_TIMEOUT` higher than the 120s default (e.g. `gaet set GAET_PG_TIMEOUT=600`) so `pg_restore` has time to finish.
 
 ### Fetch pipeline
 
@@ -395,7 +400,11 @@ GAET_REMOTE_URL=postgresql://user:***@host:5432/dbname
 GAET_RETENTION_DAYS=7
 
 # Cloud connection security
-GAET_REMOTE_SSLMODE=require
+GAET_REMOTE_SSLMODE=prefer
+
+# Per-operation timeout for pg_dump/pg_restore (seconds)
+# Increase for databases >1 GB
+GAET_PG_TIMEOUT=120
 
 # Dashboard
 GAET_DASHBOARD_PORT=9191

@@ -73,7 +73,8 @@ DEF_RETENTION_DAYS = 7
 DEF_AUTO_INTERVAL = 6
 DEF_DASHBOARD_PORT = 9191
 DEF_DASHBOARD_HOST = "127.0.0.1"
-DEF_REMOTE_SSLMODE = "require"
+DEF_REMOTE_SSLMODE = "prefer"  # Try SSL, fall back to plain (works with any server)
+DEF_PG_TIMEOUT = 120  # Per-operation timeout for pg_dump/pg_restore; override with GAET_PG_TIMEOUT
 DEF_SERVICE_PREFIX = "gaet"
 
 # ─── Presets ──────────────────────────────────────────────────────────────
@@ -1024,6 +1025,49 @@ def cleanup_pg_env(env: Dict[str, str]) -> None:
             os.unlink(pgpass)
         except OSError:
             pass
+
+
+def _reset_target_objects(
+    psql: str, host: str, port: str, user: str, db: str, passwd: str,
+    ssl_mode: Optional[str] = None,
+) -> Tuple[bool, str]:
+    """Drop all user objects (tables, views, sequences) in the target DB.
+
+    Uses DROP ... CASCADE so partitioned tables and inherited constraints
+    are removed cleanly — unlike pg_restore --clean --if-exists, which
+    fails on partitioned tables ("cannot drop inherited constraint").
+
+    Returns (ok, error_message).
+    """
+    sql = (
+        "DO $$ DECLARE r record; BEGIN "
+        "FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname='public') "
+        "LOOP EXECUTE format('DROP TABLE IF EXISTS public.%I CASCADE', r.tablename); END LOOP; "
+        "FOR r IN (SELECT viewname FROM pg_views WHERE schemaname='public') "
+        "LOOP EXECUTE format('DROP VIEW IF EXISTS public.%I CASCADE', r.viewname); END LOOP; "
+        "FOR r IN (SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema='public') "
+        "LOOP EXECUTE format('DROP SEQUENCE IF EXISTS public.%I CASCADE', r.sequence_name); END LOOP; "
+        "FOR r IN (SELECT typname FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace "
+        "WHERE n.nspname='public' AND t.typtype IN ('e','c','d','r') "
+        "AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid=t.oid AND d.deptype='e')) "
+        "LOOP EXECUTE format('DROP TYPE IF EXISTS public.%I CASCADE', r.typname); END LOOP; "
+        "FOR r IN (SELECT p.oid::regprocedure AS sig FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace "
+        "WHERE n.nspname='public' AND p.prokind IN ('f','p')) "
+        "LOOP EXECUTE format('DROP FUNCTION IF EXISTS %s CASCADE', r.sig); END LOOP; "
+        "END $$;"
+    )
+    env = pg_env(user, passwd, ssl_mode)
+    try:
+        out, err, rc = run_cmd(
+            [psql, "-h", host, "-p", port, "-U", user, "-d", db, "-v", "ON_ERROR_STOP=1", "-c", sql],
+            env=env,
+            timeout=30,
+        )
+        if rc != 0:
+            return False, err or out
+        return True, ""
+    finally:
+        cleanup_pg_env(env)
 
 
 def check_tools(env: Dict[str, str]) -> None:
@@ -2477,6 +2521,7 @@ def cmd_push(args: argparse.Namespace) -> None:
         env = load_env()
         tools = find_pg_tools(env)
         check_tools(env)
+        psql = tools["psql"]
 
         h, p, u, n, w = check_local_db(env)
         remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
@@ -2506,7 +2551,7 @@ def cmd_push(args: argparse.Namespace) -> None:
                 [pg_dump, "-h", h, "-p", p, "-U", u, "-d", n,
                  "--format=custom", "--compress=9", f"--file={backup_file}"],
                 env={"PGPASSWORD": w},
-                timeout=120,
+                timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
             )
         finally:
             spinner.stop()
@@ -2529,24 +2574,49 @@ def cmd_push(args: argparse.Namespace) -> None:
         # Step 2: Restore to cloud with timeout
         echo(f"  {C}☁️{NC}   {B}Mensinkronkan ke cloud...{NC}")
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
+        # Drop existing objects first (handles partitioned tables; --clean can't)
+        ok_reset, reset_err = _reset_target_objects(
+            psql, parsed["host"], parsed["port"], parsed["user"],
+            parsed["db"], parsed["pass"], ssl,
+        )
+        if not ok_reset:
+            echo(f"    {R}{ICON_FAIL}{NC}  Gagal membersihkan cloud database")
+            if reset_err:
+                echo(f"    {D}{reset_err[:200]}{NC}")
+            result["sync"] = {"ok": False, "error": "reset"}
+            die("Sinkronisasi cloud gagal (reset target)", EXIT_CLOUD_DOWN)
         spinner = Spinner("Syncing to cloud").start()
         try:
             out3, err3, rc3 = run_cmd(
                 [pg_restore, "-h", parsed["host"], "-p", parsed["port"],
                  "-U", parsed["user"], "-d", parsed["db"],
-                 "--clean", "--if-exists", "--no-owner", "--no-acl",
+                 "--no-owner", "--no-acl",
                  backup_file],
-                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
-                timeout=120,
+                env=pg_env(parsed["user"], parsed["pass"], ssl),
+                timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
             )
         finally:
             spinner.stop()
         if rc3 == 0:
             echo(f"    {G}{ICON_OK}{NC}  Sinkronisasi selesai!")
             result["sync"] = {"ok": True}
+        elif rc3 == 2 or "connection" in (err3 or "").lower() or "ssl" in (err3 or "").lower():
+            # Connection-level failure (server unreachable, SSL mismatch)
+            echo(f"    {R}{ICON_FAIL}{NC}  Gagal terhubung ke cloud database")
+            if err3:
+                first_err = err3.strip().splitlines()[-1] if err3.strip() else ""
+                echo(f"    {D}{first_err}{NC}")
+            echo(f"    {D}Periksa GAET_REMOTE_URL dan coba 'gaet check'{NC}")
+            result["sync"] = {"ok": False, "error": "connection"}
+            die("Sinkronisasi cloud gagal (koneksi)", EXIT_CLOUD_DOWN)
         else:
-            echo(f"    {Y}{ICON_WARN}{NC}  Sinkronisasi selesai (dengan peringatan)")
-            result["sync"] = {"ok": True, "warning": True}
+            # Restore ran but reported errors (e.g. missing objects)
+            echo(f"    {R}{ICON_FAIL}{NC}  Sinkronisasi gagal ({rc3})")
+            if err3:
+                for line in err3.strip().splitlines()[-3:]:
+                    echo(f"    {D}{line}{NC}")
+            result["sync"] = {"ok": False, "error": "restore"}
+            die("Sinkronisasi cloud gagal (restore error)", EXIT_CLOUD_DOWN)
 
         # Step 3: Retention
         retention = get_env_int(env, "GAET_RETENTION_DAYS", DEF_RETENTION_DAYS)
@@ -2682,7 +2752,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
                  "-U", parsed["user"], "-d", parsed["db"],
                  "--format=custom", "--compress=9", f"--file={fetch_file}"],
                 env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
-                timeout=120,
+                timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
             )
         finally:
             spinner.stop()
@@ -2707,22 +2777,45 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             timeout=10,
         )
 
+        # Drop existing objects first (handles partitioned tables; --clean can't)
+        ok_reset, reset_err = _reset_target_objects(psql, h, p, u, n, w)
+        if not ok_reset:
+            echo(f"    {R}{ICON_FAIL}{NC}  Gagal membersihkan database lokal")
+            if reset_err:
+                echo(f"    {D}{reset_err[:200]}{NC}")
+            result["restore"] = {"ok": False, "error": "reset"}
+            die("Restore lokal gagal (reset target)")
+
         spinner = Spinner("Restoring to local database").start()
         try:
             out3, err3, rc3 = run_cmd(
                 [pg_restore, "-h", h, "-p", p, "-U", u, "-d", n,
-                 "--clean", "--if-exists", fetch_file],
+                 fetch_file],
                 env={"PGPASSWORD": w},
-                timeout=120,
+                timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
             )
         finally:
             spinner.stop()
-        if rc3 <= 1:
+        if rc3 == 0:
             echo(f"    {G}{ICON_OK}{NC}  Local restore complete!")
             result["restore"] = {"ok": True}
+        elif rc3 == 2 or "connection" in (err3 or "").lower() or "ssl" in (err3 or "").lower():
+            # Connection-level failure
+            echo(f"    {R}{ICON_FAIL}{NC}  Gagal terhubung ke database lokal")
+            if err3:
+                first_err = err3.strip().splitlines()[-1] if err3.strip() else ""
+                echo(f"    {D}{first_err}{NC}")
+            echo(f"    {D}Periksa GAET_LOCAL_DB_* dan coba 'gaet check'{NC}")
+            result["restore"] = {"ok": False, "error": "connection"}
+            die("Restore lokal gagal (koneksi)", EXIT_LOCAL_DOWN)
         else:
-            echo(f"    {Y}{ICON_WARN}{NC}  Restore selesai (dengan peringatan)")
-            result["restore"] = {"ok": True, "warning": True}
+            # Restore ran but reported errors
+            echo(f"    {R}{ICON_FAIL}{NC}  Restore gagal ({rc3})")
+            if err3:
+                for line in err3.strip().splitlines()[-3:]:
+                    echo(f"    {D}{line}{NC}")
+            result["restore"] = {"ok": False, "error": "restore"}
+            die("Restore lokal gagal (restore error)")
 
         Path(fetch_file).unlink(missing_ok=True)
         echo()
@@ -2776,7 +2869,7 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
             [pg_dump, "-h", h, "-p", p, "-U", u, "-d", n,
              "--format=custom", "--compress=9", f"--file={cron_file}"],
             env={"PGPASSWORD": w},
-            timeout=120,
+            timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
         )
         if rc == 0 and Path(cron_file).is_file():
             # Integrity check
@@ -2794,7 +2887,7 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
                  "-U", parsed["user"], "-d", parsed["db"],
                  "--clean", "--if-exists", "--no-owner", "--no-acl", cron_file],
                 env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
-                timeout=120,
+                timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
             )
             if rc2 == 0:
                 size_mb = Path(cron_file).stat().st_size / (1024 * 1024)

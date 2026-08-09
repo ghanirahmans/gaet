@@ -42,6 +42,10 @@ Long-Term Support release for Linux. Supported until at least 2027.
 - `GAET_LOCAL_URL` priority: individual vars now override URL
 - `detect_local_pg` now detects Unix sockets (`/run/postgresql`)
 - `gaet completion` shell detection (suffix not stem)
+- **120s hardcoded timeout** now overridable via `GAET_PG_TIMEOUT` (databases >1 GB would fail restore)
+- Default `GAET_REMOTE_SSLMODE` changed `require` → `prefer` (works with servers without SSL)
+- Restore now detects connection failures (exit 82) instead of reporting false "success with warnings"
+- `_reset_target_objects` drops tables/views/sequences/types/functions with CASCADE (fixes restore failures on partitioned tables, enums, custom types)
 
 ### Documentation
 - Removed AI slop from README and CHANGELOG
