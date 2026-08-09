@@ -30,107 +30,103 @@
 
 ## TL;DR
 
-Lost data? Not anymore. **gaet** backs up your PostgreSQL database to any cloud PostgreSQL in seconds. One command. No YAML. No complexity.
+**gaet** backs up your PostgreSQL database to any cloud PostgreSQL. One command, no YAML, no config files.
 
 ```bash
-# Install (2 seconds)
+# Install
 curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 
-# Configure (interactive, 30 seconds)
+# Configure (interactive wizard)
 gaet init
 
-# Backup (1 second)
+# Backup
 gaet push
 
-# Monitor (dashboard)
-gaet serve
+# Check status
+gaet status
 ```
-
-That's it. Your data is now safe. ✨
 
 ---
 
 ## Why gaet?
 
-**The problem:** Developers forget backups. Backup scripts break silently. Restores fail when you need them most. Production databases go down with zero recovery plan.
+**gaet** is a PostgreSQL backup tool that syncs your local database to a cloud PostgreSQL instance (Supabase, Neon, RDS, or any VPS). It's designed for developers who want a simple, scriptable backup solution without running their own infrastructure.
 
-**The solution:** gaet makes backups so easy you'll actually do them.
+### What it does
 
-### Real-World Problems gaet Solves
+- `gaet push` — dump local DB → restore to cloud
+- `gaet fetch` — dump cloud DB → restore to local
+- `gaet status` — show per-table sync state
+- `gaet serve` — web dashboard for monitoring
+- `gaet push --auto` — schedule periodic backups via OS scheduler
 
-| Problem | gaet Solution | Result |
-|---------|---------------|--------|
-| "I forgot to backup and lost months of data" | Auto-backup every N hours (cron-based) | Sleep at night knowing data is safe |
-| "My backup broke and I didn't notice" | Automatic integrity verification before every upload | No corrupt backups ever ship |
-| "Is my latest backup actually in the cloud?" | Real-time dashboard with per-table sync status | Know exactly what's synced, when, and to where |
-| "Setting up backups is too complex" | One command that auto-detects everything | 30-second setup, not 30 minutes |
-| "I need this for production but can't risk downtime" | Concurrency locks, 120s timeouts, atomic operations | Production-ready out of the box |
-| "My backup files are eating all my disk space" | Automatic retention policies (compress + cleanup) | Configurable storage footprint |
-| "I lost data on my local machine and need to recover" | Fetch feature to restore from cloud → local | One command to recover everything |
-| "My team doesn't know backup status" | Shared web dashboard with role-based insights | Everyone sees sync status in real-time |
+### How it works
+
+gaet runs `pg_dump` locally, checks the dump with `pg_restore --list`, then restores it to the remote database. File-based locks prevent overlapping runs. Old backups are cleaned up after `GAET_RETENTION_DAYS`.
+
+### What it doesn't do
+
+- gaet does not manage your database (no schema migrations, no user management)
+- gaet does not stream replication (it's a point-in-time backup tool)
+- gaet does not support cross-platform fully yet (Linux is the reference implementation)
 
 ---
 
 ## Features
 
-### 🚀 Core Capabilities
+### Core
 
-| Feature | What It Does | Why It Matters |
-|---------|--------------|----------------|
-| **🔒 Concurrency Lock** | Prevents overlapping backup jobs | Your data stays consistent (no partial backups) |
-| **⏱️ 120s Timeout** | Cloud connections never hang indefinitely | No frozen terminals or runaway processes |
-| **✅ Integrity Verification** | Validates every dump with `pg_restore --list` before upload | Catches corrupt backups before they destroy your recovery plan |
-| **📦 Compressed Custom Format** | Binary format with max compression (level 9) | 70% smaller files = faster transfers + lower storage |
-| **🧹 Auto-Retention** | Old backups auto-deleted after N days | No disk space waste, automatic cleanup |
-| **🔄 Auto-Backup Scheduler** | Runs via OS scheduler (systemd, launchd, Task Scheduler) | Set it and forget it — truly hands-off |
-| **🌍 Multi-Cloud** | Works with Supabase, Neon, AWS RDS, Azure, or your own VPS | No vendor lock-in |
-| **📋 Table Auto-Discovery** | Automatically detects all public tables | Zero manual configuration needed |
-| **📊 Per-Table Sync Status** | Real-time dashboard showing which tables are synced | Know exactly what's replicated |
-| **🖥️ Web Dashboard** | Beautiful UI with one-click actions | See everything at a glance, take action instantly |
-| **🌓 Dark/Light Mode** | Dashboard respects system theme preference | Comfortable for everyone, all day |
-| **🧪 Dry-Run Mode** | Simulate operations without touching data | Test before you commit |
+| Feature | What it does |
+|---------|-------------|
+| Concurrency lock | Prevents overlapping backup jobs |
+| 120s timeout | Cloud connections don't hang indefinitely |
+| Integrity check | `pg_restore --list` validates every dump before upload |
+| Compression | `pg_dump --compress=9` — typical 70-90% size reduction |
+| Auto-retention | Backups older than `GAET_RETENTION_DAYS` are deleted |
+| Auto-backup | Runs via systemd, launchd, or Task Scheduler |
+| Multi-cloud | Supabase, Neon, AWS RDS, Azure, or any PostgreSQL URL |
+| Table discovery | Auto-detects all public tables from `information_schema` |
+| Web dashboard | Per-table sync status, backup history, push/fetch buttons |
+| Dry-run | `gaet push --dry-run` simulates without touching data |
 
-### 🔐 Security by Default
+### Security
 
-| Feature | Technical Details |
-|---------|------------------|
-| **Password Encryption** | Passwords stored in `.env` separately from URLs, masked in logs |
-| **PGPASSFILE** | Temp password files instead of env vars to prevent `/proc` leaks |
-| **Credential Cleanup** | Auto-delete temp files after use (no traces left) |
-| **No Shell Injection** | All commands use process arrays, not shell strings |
-| **CORS Validation** | Dashboard API validates `Origin` headers strictly |
-| **Secure .env** | Created with `0o600` permissions (owner read/write only) |
-| **No External Dependencies** | Pure Python, no third-party packages = zero supply chain risk |
+| Feature | Detail |
+|---------|--------|
+| Password handling | Stored in `.env`, masked in logs, never in command-line args |
+| `.env` permissions | Created with `0o600` (owner read/write only) |
+| No shell injection | All subprocess calls use argument arrays |
+| CORS | Dashboard API validates `Origin` headers |
 
-### 🛠️ Platform Support
+### Platform
 
-| Platform | CLI | Auto-Backup | Dashboard Service | Status |
-|----------|-----|-------------|-------------------|--------|
-| 🐧 **Linux** | ✅ Full support | systemd user timer | systemd user service | ✅ Supported |
-| 🍎 **macOS** | 🚧 Partial | launchd (experimental) | launchd (experimental) | ⏳ In development |
-| 🪟 **Windows** | 🚧 Partial | Task Scheduler (experimental) | Background service (experimental) | ⏳ In development |
+| Platform | CLI | Auto-Backup | Dashboard |
+|----------|-----|-------------|-----------|
+| Linux | ✅ | systemd timer | systemd service |
+| macOS | 🚧 | launchd (experimental) | launchd (experimental) |
+| Windows | 🚧 | Task Scheduler (experimental) | Background service (experimental) |
 
-> ⚠️ **Cross-platform is still in development.** gaet is built and tested primarily on **Linux**. The macOS/Windows paths exist but are not yet fully validated — use at your own risk and report issues via GitHub. The Linux experience is the reference implementation.
+> Cross-platform is still in development. gaet is built and tested primarily on Linux.
 
-**Zero dependencies.** Only requires PostgreSQL client tools (`pg_dump`, `pg_restore`).
+**Dependencies:** Only PostgreSQL client tools (`pg_dump`, `pg_restore`, `psql`). No pip packages.
 
 ---
 
 ## Quick Start
 
-### 1️⃣ Install (Choose Your Method)
+### 1. Install
 
-**Linux/macOS (fastest):**
+**Linux/macOS:**
 ```bash
 curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 ```
 
-**Windows (PowerShell):** ⚠️ *Experimental — cross-platform support is still in development. The Windows installer exists but is not yet fully validated. Prefer Linux for production use.*
+**Windows (PowerShell):** ⚠️ Experimental — cross-platform support is still in development. Prefer Linux for production use.
 ```powershell
 irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
 ```
 
-**From Source:**
+**From source:**
 ```bash
 git clone https://github.com/ghanirahmans/gaet.git
 cd gaet
@@ -138,29 +134,28 @@ pip install -e .
 python gaet.py --help
 ```
 
-### 2️⃣ Configure (30 seconds)
+### 2. Configure
 
 ```bash
 gaet init
 ```
 
 The interactive wizard will:
-- 🔍 Auto-detect your local PostgreSQL instance
-- ✅ Test the connection immediately
-- 🌍 Guide you through cloud database setup (Supabase, Neon, RDS, etc.)
-- 💾 Save secure config to `~/.gaet/.env` with restricted permissions
-- 📋 Optionally enable auto-backup scheduling
+- Auto-detect your local PostgreSQL instance
+- Test the connection
+- Guide you through cloud database setup (Supabase, Neon, RDS, etc.)
+- Save config to `~/.gaet/.env` with restricted permissions
 
-### 3️⃣ First Backup (Take a test drive)
+### 3. First backup
 
 ```bash
-# Verify everything is configured correctly
+# Verify configuration
 gaet check
 
 # Dry-run (simulate without executing)
 gaet push --dry-run
 
-# Backup local → cloud (the real thing)
+# Backup local → cloud
 gaet push
 
 # Check sync status
@@ -174,7 +169,7 @@ gaet serve
 
 ## Commands Reference
 
-### 🔧 Configuration Commands
+### Configuration
 
 ```bash
 gaet init                        # Interactive setup wizard
@@ -187,7 +182,7 @@ gaet get [VARIABLE]              # Get environment variable(s)
 gaet set KEY=VALUE [KEY2=VALUE2] # Set environment variables
 ```
 
-### 💾 Backup & Restore Commands
+### Backup & Restore
 
 ```bash
 gaet push                        # Backup local PostgreSQL → cloud
@@ -200,7 +195,7 @@ gaet fetch --dry-run             # Simulate fetch without overwriting
 gaet stop                        # Stop auto-backup & dashboard
 ```
 
-### 📊 Monitoring Commands
+### Monitoring
 
 ```bash
 gaet log                         # View last 30 lines of backup log
@@ -213,7 +208,7 @@ gaet serve --port 8080           # Custom port
 gaet serve --no-browser          # Don't auto-open browser
 ```
 
-### 🔄 Maintenance Commands
+### Maintenance
 
 ```bash
 gaet update                      # Update to latest version from GitHub
@@ -229,108 +224,62 @@ gaet --help                      # Show full help
 
 ---
 
-## How It Works Under the Hood
+## How It Works
 
-### The Push Pipeline
+### Push pipeline
 
 ```
-Local DB                Backup Process               Cloud DB
-  │                           │                         │
-  ├─→ pg_dump ──────→ Integrity Check ──→ pg_restore ──┤
-  │   (custom fmt)     (pg_restore --list)  (clean mode) │
-  │   (gzip -9)        ↓ VERIFY                          │
-  │                    (no corrupt uploads)              │
+Local DB          Backup Process          Cloud DB
+  │                     │                     │
+  ├─→ pg_dump ────→ Integrity Check ──→ pg_restore ──┤
+  │   (custom fmt)    (pg_restore --list)  (clean mode) │
+  │   (compress=9)       ↓ VERIFY                         │
+  │                   (skip if corrupt)                    │
   │                                                      │
-  └─ File Lock (concurrent job protection) ────────────┘
+  └─ File Lock (prevent overlap) ────────────────────┘
 ```
 
-**Detailed Steps:**
+**Steps:**
 
-1. **Acquire Lock** - Prevents overlapping backups (file-based lock)
-2. **Dump** - `pg_dump --format=custom --compress=9` to temp file
-3. **Verify** - `pg_restore --list` on dump file (catches corruption early)
-4. **Upload** - Stream custom-format dump to cloud database
-5. **Restore** - `pg_restore --clean --if-exists --no-owner --no-acl`
-6. **Cleanup** - Delete temp file, update log, release lock
-7. **Retention** - Auto-delete backups older than `GAET_RETENTION_DAYS`
+1. Acquire file lock (prevents overlapping backups)
+2. `pg_dump --format=custom --compress=9` to temp file
+3. `pg_restore --list` on dump file (validates integrity)
+4. Restore to cloud with `pg_restore --clean --if-exists --no-owner --no-acl`
+5. Delete temp file, update log, release lock
+6. Delete backups older than `GAET_RETENTION_DAYS`
 
-**Performance:** Simple (126 MB) → **0.96s**. Complex (404 MB) → **8.2s**. Ultra-complex (343 MB) → **10.3s**. All under 11 seconds.
+### Benchmarks
 
-### Benchmark: Simple Database
+Measured on PostgreSQL 18, Linux (i5-12450H, NVMe). Raw data in [`benchmarks/`](benchmarks/).
 
-**Schema:** 2 tables, 110,000 rows, integer + text only
+| Database | Size | pg_dump | pg_restore | Total |
+|----------|------|---------|------------|-------|
+| Simple (2 tables, 110k rows) | 126 MB | 0.46s | 0.50s | 0.96s |
+| Complex (7 tables, 750k rows) | 404 MB | 2.51s | 5.69s | 8.20s |
+| Ultra-complex (19 objects, 1M+ rows) | 343 MB | 3.68s | 6.61s | 10.29s |
 
-| Metric | Value |
-|--------|-------|
-| Source DB | 126 MB |
-| Tables | 2 (users: 10,000, posts: 100,000) |
-| `pg_dump` | **0.46 s** |
-| Compressed | **1.95 MB** (98.5% smaller) |
-| `pg_restore --list` | **0.006 s** |
-| `pg_restore` | **0.50 s** |
-| **Pipeline total** | **0.96 s** |
-
-### Benchmark: Complex Database
-
-**Schema:** 7 tables, 750,000 rows, JSONB, enum, INET, UUID, array, GIN indexes
-
-| Metric | Value |
-|--------|-------|
-| Source DB | 404 MB |
-| Tables | 7 (users, posts, comments, tags, post_tags, audit_logs, analytics_events) |
-| Data types | TEXT, JSONB, INET, UUID, ENUM, ARRAY, TIMESTAMPTZ |
-| Indexes | 20+ (B-tree, GIN, composite, partial) |
-| `pg_dump` | **2.51 s** |
-| Compressed | **32.5 MB** (92% smaller) |
-| `pg_restore --list` | **0.006 s** |
-| `pg_restore` | **5.69 s** |
-| **Pipeline total** | **8.20 s** |
-
-### Benchmark: Ultra-Complex Database
-
-**Schema:** 19 objects, 1M+ rows, partitions, materialized view, triggers, self-ref FKs
-
-| Metric | Value |
-|--------|-------|
-| Source DB | 343 MB |
-| Objects | 19 (16 tables + 3 partitions + 1 materialized view) |
-| Data types | JSONB, tsvector, INET, UUID, DATERANGE, INT4RANGE, NUMERIC(12,2), ENUM, ARRAY |
-| Indexes | 75+ (GIN, GiST, BRIN, B-tree, partial, composite) |
-| Features | 2 triggers (tsvector), 1 partitioned table, 1 materialized view, CHECK constraints |
-| `pg_dump` | **3.68 s** |
-| Compressed | **41.1 MB** (88% smaller) |
-| `pg_restore --list` | **0.006 s** |
-| `pg_restore` | **6.61 s** |
-| **Pipeline total** | **10.29 s** |
-
-> Benchmarked on PostgreSQL 18, Linux, consumer NVMe. **Zero pip dependencies.**
-
-> 📊 **Reproducible:** all benchmark datasets & methodology are in [`benchmarks/`](benchmarks/) — hardware specs, dataset SQL, and exact measurement commands included.
-
-### The Fetch Pipeline
+### Fetch pipeline
 
 ```
-Cloud DB                Fetch Process                Local DB
-  │                           │                         │
-  ├─→ pg_dump ──────→ Verify ──→ Kill Active ──→ Restore ──→ Local DB
-      (custom fmt)     (safe) Connections   (overwrite)
-      (gzip -9)                              (clean mode)
+Cloud DB          Fetch Process          Local DB
+  │                     │                     │
+  ├─→ pg_dump ────→ Verify ──→ Kill Active ──→ Restore ──→ Local DB
+      (custom fmt)    (safe)   Connections   (overwrite)
 ```
 
-**Important:** Fetch overwrites your local database. Use `--dry-run` first.
+**Note:** Fetch overwrites your local database. Use `--dry-run` first.
 
-### Auto-Backup (Scheduler Integration)
+### Auto-backup
 
 ```
 OS Scheduler (systemd/launchd/Task Scheduler)
   │
   └─→ Runs gaet push --auto every N hours
       ├─ Logs to ~/.gaet/backups/cron.log
-      ├─ Skips if lock file exists (prevents overlap)
+      ├─ Skips if lock file exists
       └─ Respects GAET_RETENTION_DAYS
 ```
 
-**Viewing auto-backup logs:**
 ```bash
 gaet log --filter CRON      # Show only cron entries
 gaet log | tail -20         # Show latest backups
@@ -340,154 +289,112 @@ gaet log | tail -20         # Show latest backups
 
 ## Configuration
 
-All config is stored in `~/.gaet/.env` (secure, `0o600` permissions).
+Config is stored in `~/.gaet/.env` (permissions `0o600`).
 
-### Essential Variables
+### Variables
 
 ```bash
 # Local PostgreSQL
-GAET_LOCAL_HOST=localhost           # Host (default: localhost)
-GAET_LOCAL_PORT=5432                # Port (default: 5432)
-GAET_LOCAL_DB=mydb                  # Database name (required)
-GAET_LOCAL_USER=postgres             # Username (default: postgres)
-GAET_LOCAL_PASSWORD=secret           # Password (default: read from prompt)
+GAET_LOCAL_HOST=localhost
+GAET_LOCAL_PORT=5432
+GAET_LOCAL_DB=mydb
+GAET_LOCAL_USER=postgres
+GAET_LOCAL_PASSWORD=secret
 
 # Cloud PostgreSQL (connection URL)
-GAET_REMOTE_URL=postgresql://user:pass@host:5432/dbname
-# OR use Supabase connection string:
-GAET_SUPABASE_URL=postgresql://user:pass@db.supabase.co:5432/postgres
+GAET_REMOTE_URL=postgresql://user:***@host:5432/dbname
 
 # Backup retention (days)
-GAET_RETENTION_DAYS=7               # Auto-delete backups older than 7 days
+GAET_RETENTION_DAYS=7
 
 # Cloud connection security
-GAET_REMOTE_SSLMODE=require          # SSL mode (disable/allow/prefer/require)
+GAET_REMOTE_SSLMODE=require
 
 # Dashboard
-GAET_DASHBOARD_PORT=9191             # Default port for web dashboard
-GAET_DASHBOARD_HOST=127.0.0.1        # Default to localhost only
-
-# Paths
-GAET_BACKUP_DIR=~/.gaet/backups      # Where to store backup files
+GAET_DASHBOARD_PORT=9191
+GAET_DASHBOARD_HOST=127.0.0.1
 ```
 
-### Get/Set Variables Easily
+### Get/set variables
 
 ```bash
-# View all config
-gaet get
-
-# View specific variable
-gaet get GAET_LOCAL_DB
-
-# Set variables (values are masked in display for security)
-gaet set GAET_LOCAL_DB=newdb
-gaet set GAET_RETENTION_DAYS=14 GAET_REMOTE_SSLMODE=require
-
-# Check current config
-gaet check
+gaet get                           # View all config
+gaet get GAET_LOCAL_DB             # View specific variable
+gaet set GAET_LOCAL_DB=newdb       # Set a variable
+gaet set KEY=                      # Delete a variable (empty value)
+gaet set K1=v1 K2=v2              # Set multiple variables
 ```
 
 ---
 
-## Dry-Run Mode (Test Before You Execute)
+## Dry-Run Mode
 
-Always test before you backup or restore. Dry-run shows you exactly what would happen without touching any data.
+Test before you backup or restore. Dry-run shows what would happen without touching data.
 
 ```bash
-# Test a backup
-gaet push --dry-run
-# Output shows:
-#   ✓ Local connection OK
-#   ✓ Cloud connection OK
-#   ✓ 12 tables detected
-#   ✓ Would create dump: mydb_20240115_143022.dump
-#   ⓘ No changes made (dry-run mode)
-
-# Test a restore
-gaet fetch --dry-run
-# Output shows:
-#   ✓ Cloud connection OK
-#   ✓ Local connection OK (will be overwritten!)
-#   ✓ Would dump: clouddb → restore to: mydb
-#   ⚠️  This will overwrite your local database
-#   ⓘ No changes made (dry-run mode)
+gaet push --dry-run               # Test backup
+gaet fetch --dry-run              # Test restore
 ```
 
 ---
 
 ## Dashboard Web UI
 
-Access real-time backup status and take actions from your browser:
-
 ```bash
-gaet serve
-# Starts dashboard at http://localhost:9191
+gaet serve                        # Starts at http://localhost:9191
+gaet serve --port 8080            # Custom port
+gaet serve --no-browser           # Don't auto-open browser
 ```
 
-### Dashboard Features
+### Features
 
-- 📊 **Sync Status Matrix** - See exactly which tables are synced to cloud
-- 📈 **Backup History** - Timeline of all backups with timestamps
-- 🔄 **One-Click Actions** - Push/Fetch directly from UI
-- ⚙️ **Configuration View** - See current settings
-- 🌓 **Dark/Light Mode** - Automatic theme detection
-- 📱 **Responsive Design** - Works on mobile too
-- 🔌 **REST API** - Programmatic access to all functions
+- Sync status matrix (per-table)
+- Backup history
+- Push/Fetch buttons
+- Configuration view
+- Dark/light mode (follows system preference)
+- Responsive (works on mobile)
 
-### Dashboard API Routes
+### API routes
 
 ```bash
-# Get status
-curl http://localhost:9191/api/status
-
-# Get sync details
-curl http://localhost:9191/api/sync
-
-# Get backup history
-curl http://localhost:9191/api/history
-
-# Trigger backup (POST)
-curl -X POST http://localhost:9191/api/push
-
-# Trigger restore (POST)
-curl -X POST http://localhost:9191/api/fetch
+curl http://localhost:9191/api/status       # Get status
+curl http://localhost:9191/api/sync         # Get sync details
+curl http://localhost:9191/api/history      # Get backup history
+curl -X POST http://localhost:9191/api/push  # Trigger backup
+curl -X POST http://localhost:9191/api/fetch # Trigger restore
 ```
 
 ---
 
-## Architecture & Design Decisions
+## Architecture
 
-### Why Zero Dependencies?
+### Why no dependencies?
 
-Most backup tools require 10+ Python packages. Every dependency is a potential security risk.
+gaet is a single Python file with no pip packages. The only requirements are PostgreSQL client tools (`pg_dump`, `pg_restore`, `psql`).
 
-**gaet = Pure Python + OS tools only**
+Rationale: fewer dependencies = fewer things to update, fewer supply-chain risks, easier to audit.
 
-- No pip packages to update
-- No supply chain vulnerabilities
-- No version conflicts
-- Faster to install, easier to audit
+### Why custom format + compression?
 
-### Why Custom Format + Compression?
+PostgreSQL dump formats: plain SQL, custom, directory, tar. gaet uses custom (`--format=custom --compress=9`) because:
 
-PostgreSQL offers several dump formats. gaet uses custom format because:
+- `pg_restore --list` can validate without restoring (integrity check)
+- Built-in compression (no gzip dependency)
+- Can restore individual tables if needed
 
-1. **Selective Restore** - Restore individual tables if needed
-2. **Compression** - Built-in gzip (level 9) saves 70% space
-3. **Smaller Files** - Faster uploads to cloud
-4. **Integrity Check** - `pg_restore --list` validates without restoring
+### Why file locks?
 
-### Why File-Based Locks?
+gaet uses file-based locks (`~/.gaet/backups/.gaet.lock`) instead of database locks because:
 
-Some solutions use database locks. gaet uses file locks because:
+- No schema changes required (no lock tables, no advisory locks)
+- Works with any PostgreSQL setup (local, cloud, managed)
+- Easy to debug (`ls ~/.gaet/backups/*.lock`)
+- Stale locks auto-detected via PID check
 
-1. **No Schema Pollution** - Doesn't create tables or functions
-2. **Works Everywhere** - systemd, launchd, Task Scheduler all respect files
-3. **Atomic Operations** - File system guarantees atomicity
-4. **Easy to Debug** - Check lock status: `ls ~/.gaet/backups/*.lock`
+### Why 120s timeout?
 
-### Why 120s Timeout?
+Each `pg_dump` and `pg_restore` call has a 120-second timeout. This prevents hanging on slow cloud connections. For very large databases, increase the timeout or run during maintenance windows.
 
 Cloud connections can be slow. 120 seconds is the sweet spot:
 
@@ -498,38 +405,22 @@ Cloud connections can be slow. 120 seconds is the sweet spot:
 
 ---
 
-## Security Deep Dive
+## Security
 
-### Password Handling
+### Password handling
 
-**Never** in logs, environment variables, or shell history.
-
-```python
-# How gaet stores passwords
-.env file (0o600):
-  GAET_LOCAL_PASSWORD=secret
-  GAET_REMOTE_URL=postgresql://user:PASS@host/db
-
-# PGPASSFILE approach (safer)
-Creates temp ~/.pgpass with mode 0o600
-Deletes after use
-Prevents /proc leaks
-```
-
-### What gaet NEVER Does
-
-- ❌ Never logs passwords or connection strings
-- ❌ Never passes credentials via command-line arguments
-- ❌ Never stores credentials in shell history
-- ❌ Never exposes `.env` in public directories
-- ❌ Never uses unencrypted connections (defaults to SSL)
-
-### Audit Trail
+Passwords are stored in `~/.gaet/.env` (permissions `0o600`). They are masked in `gaet get` output and never appear in command-line arguments (which would be visible in `ps` / `/proc`).
 
 ```bash
-gaet log | grep -E "ERROR|WARN"
-# See all backup events with timestamps
+gaet get                           # Shows GAET_LOCAL_DB_PASS = ***
+gaet get GAET_LOCAL_DB_PASS        # Shows "not found" (masked)
 ```
+
+gaet does not:
+- Log passwords or connection strings
+- Pass credentials via command-line arguments
+- Store credentials in shell history
+- Use unencrypted connections (defaults to `sslmode=require`)
 
 ---
 
@@ -537,47 +428,35 @@ gaet log | grep -E "ERROR|WARN"
 
 ```
 gaet/
-├── gaet.py                    # Main CLI (single Python file, ~3300 lines)
+├── gaet.py                    # CLI (~3300 lines)
 ├── dashboard/                 # Next.js web UI
-│   ├── app/                   # App Router (page.tsx, api/ routes)
-│   ├── public/                # Static assets (logo, etc.)
-│   └── package.json           # Next.js deps (separate from CLI)
+│   ├── app/                   # App Router
+│   ├── public/                # Static assets
+│   └── package.json
 ├── scripts/
-│   ├── installer.py           # Cross-platform installer logic
-│   └── scheduler.py           # systemd/launchd/Task Scheduler integration
+│   ├── installer.py           # Cross-platform installer
+│   └── scheduler.py           # systemd/launchd/Task Scheduler
 ├── tests/
-│   └── test_gaet.py           # CLI + pipeline tests (unittest)
-├── benchmarks/                # Reproducible benchmark datasets + methodology
-├── README.md                  # This file
-├── CHANGELOG.md               # Version history
-└── install.sh / install.ps1   # Installation scripts
+│   └── test_gaet.py           # unittest
+├── benchmarks/                # Benchmark datasets + methodology
+├── README.md
+├── CHANGELOG.md
+└── install.sh / install.ps1
 ```
-
----
-
-## Performance Benchmarks
-
-Real, reproducible numbers are in the [Benchmarks](benchmarks/) section above (Simple 126 MB → 0.96s, Complex 404 MB → 8.2s, Ultra-complex 343 MB → 10.3s), measured on PostgreSQL 18 / Linux / consumer NVMe.
-
-For very large databases (10 GB+), gaet uses a 120s per-operation timeout. If a single operation exceeds it, either raise the timeout or run during a maintenance window. Auto-backup is scheduled off-peak by default.
 
 ---
 
 ## Presets
 
-For popular platforms, gaet auto-configures everything:
+gaet has built-in presets for popular platforms:
 
-| Preset | What It Does | Command |
-|--------|-------------|---------|
-| **Hindsight** | Configure for Hindsight AI memory database | `gaet init hindsight` |
-| **Hermes** | Setup with Hermes Agent (Nous Research) | `gaet init hindsight hermes` |
-| **Custom** | Manual configuration | `gaet init` |
+| Preset | Command |
+|--------|---------|
+| Hindsight | `gaet init hindsight` |
+| Hermes Agent | `gaet init hindsight hermes` |
+| Custom | `gaet init` |
 
-Each preset:
-- Auto-detects local PostgreSQL
-- Sets optimal retention policies
-- Configures cloud database URL
-- Tests connections immediately
+Presets pre-fill `GAET_TABLES` and default user/db names. You still need to set the cloud URL.
 
 ---
 
@@ -586,147 +465,134 @@ Each preset:
 ### `gaet check` fails
 
 ```bash
-gaet check
-# Error: Could not connect to local PostgreSQL
-```
+# Is PostgreSQL running?
+pg_lsclusters                        # Linux
+brew services list | grep postgres   # macOS
 
-**Solutions:**
-1. Is PostgreSQL running? `pg_lsclusters` (Linux) or `brew services list | grep postgres` (macOS)
-2. Wrong port? `gaet set GAET_LOCAL_PORT=5433`
-3. Wrong credentials? `gaet set GAET_LOCAL_USER=postgres`
-4. Connection string issue? `gaet init` to reconfigure
+# Wrong port?
+gaet set GAET_LOCAL_PORT=5433
+
+# Wrong credentials?
+gaet set GAET_LOCAL_USER=postgres
+
+# Reconfigure
+gaet init
+```
 
 ### Dashboard won't start
 
 ```bash
-gaet serve
-# Address already in use
+gaet serve --port 8080               # Different port
+gaet stop && gaet serve              # Restart
+gaet log | grep -i error             # Check logs
 ```
-
-**Solutions:**
-1. Change port: `gaet serve --port 8080`
-2. Kill existing process: `gaet stop` then `gaet serve`
-3. Check logs: `gaet log | grep -i error`
 
 ### Auto-backup not running
 
 ```bash
-# Check if scheduled
-systemctl --user list-timers                    # Linux
-launchctl list | grep gaet                      # macOS
-Get-ScheduledTask -TaskName *gaet*              # Windows
-
-# View cron logs
-gaet log --filter CRON
+systemctl --user list-timers         # Linux
+launchctl list | grep gaet           # macOS
+Get-ScheduledTask -TaskName *gaet*   # Windows
+gaet log --filter CRON               # View cron logs
 ```
-
-**Common issues:**
-- User permission: `sudo systemctl daemon-reload --user`
-- Service disabled: `gaet push --auto=6` to re-enable
-- Time wrong on system: Check system clock
 
 ### `gaet update` won't work
 
 ```bash
-gaet update
-# Error: Local changes prevent update
+gaet update --force                  # Overwrite local changes
+# OR
+git stash && gaet update && git stash pop
 ```
-
-**Solutions:**
-1. Keep your changes: `gaet update --force` (overwrites your edits)
-2. Stash changes first: `git stash` in gaet directory
 
 ---
 
 ## FAQ
 
 **Q: Is gaet production-ready?**
-A: Yes. Used in production with auto-backup, retention policies, integrity checks, and comprehensive logging.
-
-**Q: What if my backup fails?**
-A: gaet logs everything. Check `gaet log` to see what went wrong. Dry-run mode lets you test first.
+A: gaet is used in production environments. It has auto-backup, retention policies, integrity checks, and logging. It handles databases up to several GB. For very large databases (10GB+), test with your specific workload.
 
 **Q: Can I backup multiple databases?**
-A: Currently, gaet handles one local → one cloud database per installation. Run separate instances for multiple DBs.
+A: One local → one cloud per installation. Run separate instances for multiple databases.
 
 **Q: How often should I backup?**
-A: Default is 6 hours. For mission-critical data, every 1-2 hours. For development, daily is fine.
+A: Default is 6 hours. For critical data, every 1-2 hours. For development, daily.
 
 **Q: Will a large backup timeout?**
-A: gaet has a 120s timeout per operation. For 10GB+ databases, either increase timeout or run during maintenance window.
+A: Each `pg_dump`/`pg_restore` has a 120s timeout. For 10GB+ databases, increase the timeout or run during maintenance windows.
 
-**Q: Can I restore without overwriting local database?**
-A: Use `gaet fetch` to restore to existing DB (overwrites). To test a restore safely, use `--dry-run` first, or create a test database.
+**Q: Can I restore without overwriting?**
+A: `gaet fetch` overwrites the local database. Use `--dry-run` first to preview, or restore to a separate test database.
 
 **Q: What if my cloud database goes down?**
-A: Local backups are stored in `~/.gaet/backups/`. Create a new cloud database and restore the latest backup.
+A: Local backups are in `~/.gaet/backups/`. Create a new cloud database and restore the latest backup.
 
-**Q: How do I know if my backup is working?**
-A: Check three things:
-  1. `gaet status` - Shows sync status
-  2. `gaet log` - Shows backup events
-  3. `gaet serve` - Dashboard shows timeline
+**Q: How do I know if backups are working?**
+A: `gaet status` shows sync state, `gaet log` shows backup events, `gaet serve` shows a timeline.
 
 **Q: Can I schedule backups differently on weekends?**
-A: Yes, modify the systemd timer/launchd plist/Task Scheduler directly, or use cron expressions.
+A: Modify the systemd timer / launchd plist / Task Scheduler directly.
 
 **Q: Is my password safe?**
-A: Passwords are stored in `~/.gaet/.env` with `0o600` permissions (read-only by you). Never logged or exposed.
+A: Passwords are in `~/.gaet/.env` with `0o600` permissions. They are not logged or passed via command line.
 
 **Q: Does gaet work with Heroku Postgres?**
 A: Yes. Use the Heroku connection string as `GAET_REMOTE_URL`.
 
-**Q: Can I use this to sync databases between servers?**
-A: Yes! Set one as local, another as cloud. Works in both directions.
+**Q: Can I sync databases between servers?**
+A: Yes. Set one as local, another as cloud. Works in both directions.
 
 ---
 
 ## Development
 
-### Running Locally
-
 ```bash
-# From source
 git clone https://github.com/ghanirahmans/gaet.git
 cd gaet
-
-# Run tests (unittest)
-python -m unittest discover -s tests
-
-# Start CLI
-python gaet.py --help
-
-# Start dashboard (dev mode)
-cd dashboard && npm run dev
+python -m unittest discover -s tests    # Run tests
+python gaet.py --help                    # CLI
+cd dashboard && npm run dev             # Dashboard dev mode
 ```
 
-### Architecture Philosophy
+### Design principles
 
-1. **Minimal dependencies** - Pure Python, no bloat
-2. **Single responsibility** - Each command does one thing well
-3. **Fail loudly** - Better to abort than silently corrupt data
-4. **Log everything** - Debugging should be easy
-5. **Test coverage** - Especially for backup/restore pipelines
+1. **No dependencies** — single Python file, only PostgreSQL client tools
+2. **Fail loudly** — abort on error rather than silently corrupt
+3. **Log everything** — timestamps on all operations
+4. **Test the pipeline** — backup/restore are the critical paths
 
 ---
 
 ## Contributing
 
-We welcome contributions! Please:
-
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to your branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch
+3. Commit your changes
+4. Push to your branch
 5. Open a Pull Request
 
-All contributions must include tests and documentation.
+Include tests for new features or bug fixes.
 
 ---
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
+
+---
+
+## Support & Links
+
+- [Report Issues](https://github.com/ghanirahmans/gaet/issues) — bugs, crashes, unexpected behavior
+- [Source & Releases](https://github.com/ghanirahmans/gaet) — code, changelog, tags
+- [Benchmarks](benchmarks/) — reproducible datasets & methodology
+
+Questions? Open a [GitHub Issue](https://github.com/ghanirahmans/gaet/issues).
+
+---
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes and version history.
 
 ---
 
