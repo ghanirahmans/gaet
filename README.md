@@ -5,7 +5,7 @@
 <h1 align="center">gaet</h1>
 
 <p align="center">
-  <strong>Zero-Config PostgreSQL Backup & Sync for Developers</strong>
+  <strong>PostgreSQL Backup & Sync for Developers</strong>
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
   <img src="https://img.shields.io/badge/python-3.8+-green" alt="Python 3.8+">
   <img src="https://img.shields.io/badge/platform-linux%20only-orange" alt="Linux (primary)">
   <img src="https://img.shields.io/badge/macOS%20%7C%20Windows-in%20development-lightgrey" alt="macOS | Windows in development">
-  <img src="https://img.shields.io/badge/deps-0%20pip%20packages-blueviolet" alt="Zero pip dependencies">
+  <img src="https://img.shields.io/badge/version-2.0.0LTS-blue" alt="v2.0.0 LTS">
 </p>
 
 ---
@@ -57,6 +57,8 @@ gaet status
 - `gaet push` — dump local DB → restore to cloud
 - `gaet fetch` — dump cloud DB → restore to local
 - `gaet status` — show per-table sync state
+- `gaet diff` — compare local vs cloud tables
+- `gaet doctor` — comprehensive health check
 - `gaet serve` — web dashboard for monitoring
 - `gaet push --auto` — schedule periodic backups via OS scheduler
 
@@ -112,6 +114,47 @@ gaet runs `pg_dump` locally, checks the dump with `pg_restore --list`, then rest
 
 ---
 
+## What's New in 2.0.0 LTS
+
+This is a **Long-Term Support (LTS)** release for Linux. Supported until at least 2027.
+
+### New Commands
+
+| Command | Description |
+|---------|-------------|
+| `gaet doctor` | Comprehensive health check (config, tools, DB, backups, scheduler) |
+| `gaet diff` | Compare local vs cloud tables side-by-side |
+| `gaet export` | Print config as shell `export` statements |
+| `gaet completion` | Generate shell completions (bash/zsh/fish) |
+| `gaet help <cmd>` | Git-style command help |
+
+### New Flags
+
+| Flag | Works on | Description |
+|------|----------|-------------|
+| `--json` | check, push, fetch, status, doctor, diff, help | Machine-readable JSON output |
+| `--plain` | all commands | Pipe-safe TSV output (no box-drawing) |
+| `--quiet` | all commands | Suppress non-essential output |
+| `--follow` / `-F` | log | Real-time log tailing (tail -f style) |
+| `--notify` | push | Webhook URL to notify after push completes |
+| `--tables` | push | Override table list for selective backup |
+| `--watch` | status | Auto-refresh status every 2 seconds |
+
+### Other Changes
+
+- Semantic exit codes (80-89) for CI/CD scripting
+- `NO_COLOR` / `CLICOLOR_FORCE` env var support
+- Unix socket auto-detection in `gaet init`
+- Config priority: individual vars (`GAET_LOCAL_DB_*`) override `GAET_LOCAL_URL`
+- `gaet set KEY=` (empty value) deletes the key
+- Typo suggestions ("Did you mean: gaet push?")
+- Man page (`gaet.1`)
+- Mermaid pipeline diagrams in README
+
+See [CHANGELOG.md](CHANGELOG.md) for the full list.
+
+---
+
 ## Quick Start
 
 ### 1. Install
@@ -141,7 +184,7 @@ gaet init
 ```
 
 The interactive wizard will:
-- Auto-detect your local PostgreSQL instance
+- Auto-detect your local PostgreSQL instance (including Unix sockets)
 - Test the connection
 - Guide you through cloud database setup (Supabase, Neon, RDS, etc.)
 - Save config to `~/.gaet/.env` with restricted permissions
@@ -176,10 +219,15 @@ gaet init                        # Interactive setup wizard
 gaet init hindsight              # Preset for Hindsight AI database
 gaet init hindsight hermes       # Preset for Hermes Agent (Nous Research)
 gaet check                       # Validate all connections
+gaet check --json                # Machine-readable health check (CI)
 gaet status                      # Show sync status with colored table
 gaet status --json               # Status as JSON (for scripting/APIs)
+gaet doctor                      # Comprehensive health check
+gaet doctor --json               # Doctor results as JSON
 gaet get [VARIABLE]              # Get environment variable(s)
 gaet set KEY=VALUE [KEY2=VALUE2] # Set environment variables
+gaet set KEY=                    # Delete a variable (empty value)
+gaet export                      # Print config as shell export statements
 ```
 
 ### Backup & Restore
@@ -189,10 +237,19 @@ gaet push                        # Backup local PostgreSQL → cloud
 gaet push --dry-run              # Simulate without executing
 gaet push --auto=6               # Enable auto-backup every 6 hours (default)
 gaet push --auto=24              # Or every 24 hours (max)
+gaet push --tables=users,posts   # Backup specific tables only
+gaet push --notify=https://...   # Webhook notification after push
 
 gaet fetch                       # Restore cloud PostgreSQL → local (overwrites!)
 gaet fetch --dry-run             # Simulate fetch without overwriting
 gaet stop                        # Stop auto-backup & dashboard
+```
+
+### Diff & Compare
+
+```bash
+gaet diff                        # Compare local vs cloud tables
+gaet diff --json                 # Diff as JSON
 ```
 
 ### Monitoring
@@ -200,12 +257,24 @@ gaet stop                        # Stop auto-backup & dashboard
 ```bash
 gaet log                         # View last 30 lines of backup log
 gaet log 100                     # View last 100 lines
+gaet log --follow                # Real-time log tailing (Ctrl+C to stop)
 gaet log --filter ERROR          # Show only ERROR lines (case-insensitive)
 gaet log --since 2024-01-15      # Show logs since a date
+gaet log --filter CRON           # Show only auto-backup entries
 
 gaet serve                       # Start web dashboard (http://localhost:9191)
 gaet serve --port 8080           # Custom port
 gaet serve --no-browser          # Don't auto-open browser
+gaet status --watch              # Auto-refresh status every 2 seconds
+```
+
+### Shell Completions
+
+```bash
+gaet completion                  # Auto-detect shell and show install instructions
+gaet completion --shell bash     # Print bash completions
+gaet completion --shell zsh      # Print zsh completions
+gaet completion --shell fish     # Print fish completions
 ```
 
 ### Maintenance
@@ -217,6 +286,9 @@ gaet update --skip-build         # Update CLI only (skip dashboard rebuild)
 
 gaet uninstall                   # Remove gaet (keeps config & backups)
 gaet uninstall --purge           # Complete removal (deletes everything)
+
+gaet help <command>              # Git-style help for a command
+gaet help --json                 # Machine-readable command schema
 
 gaet --version                   # Show version
 gaet --help                      # Show full help
@@ -307,11 +379,11 @@ Config is stored in `~/.gaet/.env` (permissions `0o600`).
 
 ```bash
 # Local PostgreSQL
-GAET_LOCAL_HOST=localhost
-GAET_LOCAL_PORT=5432
-GAET_LOCAL_DB=mydb
-GAET_LOCAL_USER=postgres
-GAET_LOCAL_PASSWORD=secret
+GAET_LOCAL_DB_HOST=localhost
+GAET_LOCAL_DB_PORT=5432
+GAET_LOCAL_DB_NAME=mydb
+GAET_LOCAL_DB_USER=postgres
+GAET_LOCAL_DB_PASS=secret
 
 # Cloud PostgreSQL (connection URL)
 GAET_REMOTE_URL=postgresql://user:***@host:5432/dbname
@@ -335,6 +407,7 @@ gaet get GAET_LOCAL_DB             # View specific variable
 gaet set GAET_LOCAL_DB=newdb       # Set a variable
 gaet set KEY=                      # Delete a variable (empty value)
 gaet set K1=v1 K2=v2              # Set multiple variables
+gaet export                        # Print as shell export statements
 ```
 
 ---
@@ -440,17 +513,22 @@ gaet does not:
 
 ```
 gaet/
-├── gaet.py                    # CLI (~3300 lines)
+├── gaet.py                    # CLI (~3800 lines)
 ├── dashboard/                 # Next.js web UI
 │   ├── app/                   # App Router
 │   ├── public/                # Static assets
 │   └── package.json
+├── completions/               # Shell completions
+│   ├── gaet.bash
+│   ├── gaet.zsh
+│   └── gaet.fish
 ├── scripts/
 │   ├── installer.py           # Cross-platform installer
 │   └── scheduler.py           # systemd/launchd/Task Scheduler
 ├── tests/
 │   └── test_gaet.py           # unittest
 ├── benchmarks/                # Benchmark datasets + methodology
+├── gaet.1                     # Man page
 ├── README.md
 ├── CHANGELOG.md
 └── install.sh / install.ps1
@@ -539,7 +617,7 @@ A: `gaet fetch` overwrites the local database. Use `--dry-run` first to preview,
 A: Local backups are in `~/.gaet/backups/`. Create a new cloud database and restore the latest backup.
 
 **Q: How do I know if backups are working?**
-A: `gaet status` shows sync state, `gaet log` shows backup events, `gaet serve` shows a timeline.
+A: `gaet status` shows sync state, `gaet log` shows backup events, `gaet serve` shows a timeline, `gaet doctor` checks everything.
 
 **Q: Can I schedule backups differently on weekends?**
 A: Modify the systemd timer / launchd plist / Task Scheduler directly.
@@ -594,22 +672,6 @@ MIT — see [LICENSE](LICENSE).
 
 ## Support & Links
 
-- [Report Issues](https://github.com/ghanirahmans/gaet/issues) — bugs, crashes, unexpected behavior
-- [Source & Releases](https://github.com/ghanirahmans/gaet) — code, changelog, tags
-- [Benchmarks](benchmarks/) — reproducible datasets & methodology
-
-Questions? Open a [GitHub Issue](https://github.com/ghanirahmans/gaet/issues).
-
----
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for release notes and version history.
-
----
-
-## Support & Links
-
 - 🐛 [Report Issues](https://github.com/ghanirahmans/gaet/issues) — bugs, crashes, unexpected behavior
 - 💡 [Feature Requests](https://github.com/ghanirahmans/gaet/issues) — same tracker, label as enhancement
 - 📦 [Source & Releases](https://github.com/ghanirahmans/gaet) — code, changelog, tags
@@ -622,9 +684,3 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes and version history.
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes and version history.
-
----
-
-<p align="center">
-  <strong>Made with ❤️ for developers who care about their data</strong>
-</p>

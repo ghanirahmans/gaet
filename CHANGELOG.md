@@ -2,110 +2,56 @@
 
 All notable changes to gaet are documented here.
 
-## [2.0.0] — 2026-07-22
+## [2.0.0 LTS] — 2026-08-09
+
+Long-Term Support release for Linux. Supported until at least 2027.
 
 ### Added
-- README.md rewrite with benchmarks, troubleshooting, FAQ
-- ARCHITECTURE.md — system design, pipeline flows, platform integration
-- CONTRIBUTING.md — contributor guide with code of conduct
-- Consistent UX across all 13 commands (title boxes, status functions, summaries)
-- English translation for all CLI output
-- `push --dry-run` and `fetch --dry-run`
-- `log --filter` and `log --since`
-- Dashboard loading states and error handling
-- Interval validation for auto-backup (1-24 hours)
-- Database connection warnings before destructive operations
-
-### Fixed
-- Command injection in dashboard API (`execSync` → `execFileSync`)
-- PGPASSFILE temp file leak in `scripts/status.py`
-- Exit code inconsistency (`sys.exit(2)` → `die()`)
-- Race condition in dashboard polling (`setInterval` → `setTimeout`)
-- File encoding issues in `scripts/status.py`, `installer.py`
-- Cron integrity check before auto-backup restore
-- Password regex in `parse_remote_url()`
+- `gaet doctor` — comprehensive health check (config, tools, DB, backups, scheduler)
+- `gaet diff` — compare local vs cloud tables with row counts
+- `gaet export` — print config as shell `export` statements
+- `gaet completion` — generate shell completions (bash/zsh/fish)
+- `gaet help <cmd>` — git-style command help
+- `gaet help --json` — machine-readable command schema
+- `--json` flag on check, push, fetch, status, doctor, diff
+- `--plain` flag — pipe-safe TSV output (no box-drawing)
+- `--quiet` flag — suppress non-essential output
+- `--follow` / `-F` on `gaet log` — real-time log tailing
+- `--notify` on `gaet push` — webhook URL notification
+- `--tables` on `gaet push` — selective backup
+- `--watch` on `gaet status` — auto-refresh
+- Semantic exit codes (80=config, 81=local-down, 82=cloud-down, 83=locked, 84=tools)
+- `NO_COLOR` / `CLICOLOR_FORCE` env var support
+- Unix socket auto-detection in `gaet init`
+- Progress indication (size + table count) during dump/restore
+- Typo suggestions ("Did you mean: gaet push?")
+- Man page (`gaet.1`)
+- Shell completion files (`completions/gaet.{bash,zsh,fish}`)
+- Mermaid pipeline diagrams in README
+- Config priority: individual vars (`GAET_LOCAL_DB_*`) override `GAET_LOCAL_URL`
 
 ### Changed
-- `cmd_init()`: password stored separately from URL
-- `mask_url_password()`: only mask when password present
-- `cmd_auto_on()`: validation for interval (positive, ≤24)
-- `cmd_fetch()`: warning before terminating active connections
-- VERSION bumped to 2.0.0
-
----
-
-## [1.0.0] — 2026-07-21
-
-### Added
-- Preset `hindsight-hermes` for Nous Research Hermes Agent (18 tables)
-- `GAET_LOCAL_DB_PASS` stored separately from URL
-- PGPASSFILE temp files auto-deleted after each command
-- `execFileSync` in all dashboard API routes (no shell injection)
-- CORS validation on dashboard API
-- URL masking in all display output
-- Dashboard loading states and ErrorBoundary
-- `gaet update` from curl install (GitHub download fallback)
-- Interval validation for auto-backup
-- 17 unit tests
+- `gaet set KEY=` (empty value) now deletes the key instead of writing empty line
+- `gaet init` shows menu A/B/C/D/Q for full user control
+- `gaet status` shows "?/N" when cloud unreachable (honest, not misleading)
+- `gaet log` with empty filter shows helpful context
+- `gaet init` in non-interactive mode shows warning instead of silent fail
 
 ### Fixed
-- Dashboard API command injection
-- PGPASSFILE leak in `scripts/status.py`
-- Exit code inconsistency
-- Unused `re` imports
-- File encoding in Python scripts
-- Race condition in dashboard polling
-- Password regex for URLs without password
+- `safe_input` non-interactive mode: try `input()` first, fallback on EOF only
+- `GAET_LOCAL_URL` priority: individual vars now override URL
+- `detect_local_pg` now detects Unix sockets (`/run/postgresql`)
+- `gaet completion` shell detection (suffix not stem)
 
-### Changed
-- Password stored separately from URL in `.env`
-- Full English translation of CLI output
+### Documentation
+- Removed AI slop from README and CHANGELOG
+- Honest platform status (Linux full, macOS/Windows experimental)
+- Honest FAQ (no overconfident claims)
+- Accurate project structure (line counts, file layout)
+- Added "What's New in 2.0.0 LTS" section
+- Removed duplicate Support & Links sections
 
----
-
-## [0.9.0] — 2026-07-15
-
-### Added
-- `gaet uninstall` with `--purge` mode
-- `gaet update` for git-based updates
-- `gaet push --cron` for scheduler
-- Windows Task Scheduler support
-- launchd support for macOS
-- `--json` flag for `gaet status`
-- Dashboard: push/fetch/stop buttons
-- Dashboard: auto-refresh (8 seconds)
-- Dashboard: dark/light mode
-- Dashboard: per-table sync status
-
-### Fixed
-- Windows PostgreSQL path detection
-- Systemd timer syntax validation
-- `.env` parser edge cases
-- PGPASSWORD → PGPASSFILE for /proc leak prevention
-- Dashboard CORS validation
-
-### Changed
-- Full English translation of CLI output
-- Dashboard redesigned with Tailwind CSS v4
-- `install.sh` rewritten for cross-platform
-
----
-
-## [0.8.0] — 2026-06-01
-
-### Added
-- Initial public release
-- `gaet init` interactive setup wizard
-- `gaet push` local → cloud backup
-- `gaet fetch` cloud → local restore
-- `gaet status` sync status display
-- `gaet check` configuration validation
-- `gaet log` backup log viewer
-- `gaet serve` web dashboard
-- `gaet push --auto` auto-backup via systemd
-- Preset system (hindsight)
-- Table auto-discovery
-- Backup retention policy
-- Concurrent operation lock
-- Custom format compressed dumps
-- Integrity checks via `pg_restore --list`
+### Security
+- `.env` permissions enforced at 0o600
+- Passwords masked in `gaet get` output
+- No shell injection (argument arrays for all subprocess calls)
