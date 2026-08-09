@@ -1238,6 +1238,7 @@ def cmd_init(args: argparse.Namespace) -> None:
 
         # Test connection immediately
         echo()
+        conn_ok = False
         if psql and h:
             echo(f"  {C}💾{NC}  Testing connection {u}@{h}:{p}/{n}... ", end="")
             out, _, rc = run_cmd(
@@ -1247,9 +1248,27 @@ def cmd_init(args: argparse.Namespace) -> None:
             )
             if rc == 0 and out.strip() == "1":
                 echo(f"{G}OK{NC}")
+                conn_ok = True
             else:
-                echo(f"{Y}WARN{NC} — connection failed, but config is still saved")
-                echo(f"  {D}Make sure PostgreSQL is running and password is correct{NC}")
+                echo(f"{R}GAGAL{NC}")
+                echo(f"  {D}Pastikan PostgreSQL berjalan & password benar.{NC}")
+                if sys.stdin.isatty():
+                    retry = safe_input(f"  Ulangi input lokal? [Y/n]: ").strip().lower()
+                    if retry in ("", "y", "yes"):
+                        h, p, u, n, w = _manual_db_input()
+                        # re-test quickly
+                        echo(f"  {C}💾{NC}  Testing {u}@{h}:{p}/{n}... ", end="")
+                        out2, _, rc2 = run_cmd(
+                            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+                            env={"PGPASSWORD": w}, timeout=5,
+                        )
+                        if rc2 == 0 and out2.strip() == "1":
+                            echo(f"{G}OK{NC}")
+                            conn_ok = True
+                        else:
+                            echo(f"{R}GAGAL{NC}")
+                if not conn_ok:
+                    echo(f"  {Y}Peringatan: config disimpan meski koneksi gagal — bisa di-fix via 'gaet set' atau 'gaet init'.{NC}")
 
         echo()
         box_section("Cloud / Remote Database (optional)")
@@ -1524,6 +1543,7 @@ def cmd_status(args: argparse.Namespace) -> None:
 
     # Terminal table output
     h, p, u, n, w = get_local_db(env)
+    remote_reachable = False
 
     box_title(f"{NAME} status")
 
@@ -1592,6 +1612,7 @@ def cmd_status(args: argparse.Namespace) -> None:
             env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=10,
         )
         if rc == 0 and out:
+            remote_reachable = True
             try:
                 remote_rows = int(out.strip())
             except ValueError:
@@ -1662,10 +1683,15 @@ def cmd_status(args: argparse.Namespace) -> None:
                 for t in tables_def:
                     lo = local_counts.get(t, 0)
                     re = remote_counts.get(t, 0)
-                    synced = lo == re
-                    if synced:
-                        synced_count += 1
-                    status_icon = f"{G}✓{NC}" if synced else f"{R}✗{NC}"
+                    if parsed and remote_reachable:
+                        synced = lo == re
+                        if synced:
+                            synced_count += 1
+                        status_icon = f"{G}✓{NC}" if synced else f"{R}✗{NC}"
+                    else:
+                        # Cloud not reachable/configured — sync state unknown
+                        synced = False
+                        status_icon = f"{D}?{NC}"
                     rows.append(f"{t}|{lo}|{re}|{status_icon}")
                     colors.append(G if synced else R)
 
@@ -1685,7 +1711,9 @@ def cmd_status(args: argparse.Namespace) -> None:
         total_tables = len(tables_def)
         sync_pct = (synced_count / total_tables * 100) if total_tables > 0 else 0
         echo()
-        if sync_pct == 100:
+        if not parsed or not remote_reachable:
+            status_warn(f"Tersinkron: ?/{total_tables} tabel — cloud tidak terjangkau")
+        elif sync_pct == 100:
             status_ok(f"Tersinkron: {synced_count}/{total_tables} tabel ({sync_pct:.0f}%)")
         else:
             status_warn(f"Tersinkron: {synced_count}/{total_tables} tabel ({sync_pct:.0f}%)")
@@ -1744,6 +1772,7 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
     # Check remote
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
     parsed = parse_remote_url(remote_url)
+    remote_reachable = False
     if parsed and psql and not error and safe_tables:
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
         union = " UNION ALL ".join(
@@ -1757,6 +1786,7 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
             timeout=30,
         )
         if rc == 0:
+            remote_reachable = True
             for line in out.strip().split("\n"):
                 if "|" in line:
                     parts = line.split("|")
@@ -1771,7 +1801,10 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
     for t in tables_def:
         lo = local_counts.get(t, 0)
         re = remote_counts.get(t, 0)
-        synced = lo == re
+        if parsed and remote_reachable:
+            synced = lo == re
+        else:
+            synced = False  # unknown when cloud down
         tables.append({"table": t, "local": lo, "supabase": re, "ok": synced})
         if not synced:
             all_ok = False
@@ -2307,6 +2340,15 @@ def cmd_log(args: argparse.Namespace) -> None:
         echo(f" ({total_filtered} filtered)", end="")
     echo(f" (showing {min(lines, total_filtered)}){NC}")
     echo()
+    if not filtered and (filter_str or since_str):
+        # Helpful context when a filter yields nothing
+        if filter_str.upper() == "CRON" and not CRON_LOG.is_file():
+            echo(f"  {Y}Filter '{filter_str}' → 0 baris.{NC}")
+            echo(f"  {D}Cron log belum ada — auto-backup mungkin belum pernah berjalan.{NC}")
+            echo(f"  {D}Aktifkan dengan: gaet push --auto{NC}")
+        else:
+            echo(f"  {Y}Tidak ada baris yang cocok dengan filter '{filter_str or since_str}'.{NC}")
+        return
     for line in filtered[start:]:
         echo(f"  {D}│{NC} {line.rstrip()}")
 
