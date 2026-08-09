@@ -370,33 +370,88 @@ def _validate_table_name(name: str) -> bool:
 
 
 def get_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
-    """Parse GAET_LOCAL_URL or individual vars. Returns (host, port, user, db, passwd)."""
+    """Parse local DB connection.
+
+    Priority: individual vars (GAET_LOCAL_DB_*) > GAET_LOCAL_URL > defaults.
+    This lets users override via `gaet set GAET_LOCAL_DB_HOST=...` without
+    needing to clear GAET_LOCAL_URL first.
+    """
+    # Check individual vars first (highest priority)
+    host = get_env_str(env, "GAET_LOCAL_DB_HOST")
+    port = get_env_str(env, "GAET_LOCAL_DB_PORT")
+    user = get_env_str(env, "GAET_LOCAL_DB_USER")
+    db = get_env_str(env, "GAET_LOCAL_DB_NAME")
+    passwd = get_env_str(env, "GAET_LOCAL_DB_PASS")
+
+    # If any individual var is set, use them (with defaults for missing)
+    if any(v for v in (host, port, user, db, passwd) if v):
+        return (
+            host or DEF_LOCAL_HOST,
+            port or DEF_LOCAL_PORT,
+            user or DEF_LOCAL_USER,
+            db or DEF_LOCAL_DB,
+            passwd or DEF_LOCAL_PASS,
+        )
+
+    # Fallback: GAET_LOCAL_URL
     url = get_env_str(env, "GAET_LOCAL_URL")
     if url:
         p = parse_remote_url(url)
         if p:
             passwd = p["pass"] or get_env_str(env, "GAET_LOCAL_DB_PASS", DEF_LOCAL_PASS)
             return p["host"], p["port"], p["user"], p["db"], passwd
-    # Fallback: individual vars (backward compat)
-    return (
-        get_env_str(env, "GAET_LOCAL_DB_HOST", DEF_LOCAL_HOST),
-        get_env_str(env, "GAET_LOCAL_DB_PORT", DEF_LOCAL_PORT),
-        get_env_str(env, "GAET_LOCAL_DB_USER", DEF_LOCAL_USER),
-        get_env_str(env, "GAET_LOCAL_DB_NAME", DEF_LOCAL_DB),
-        get_env_str(env, "GAET_LOCAL_DB_PASS", DEF_LOCAL_PASS),
-    )
+
+    # Defaults
+    return DEF_LOCAL_HOST, DEF_LOCAL_PORT, DEF_LOCAL_USER, DEF_LOCAL_DB, DEF_LOCAL_PASS
 
 
 def detect_local_pg(psql_path: str) -> List[Dict[str, str]]:
     """
     Auto-detect running PostgreSQL instances on this machine.
     Returns list of dicts with keys: host, port, user, databases.
+    Detects both TCP (127.0.0.1:port) and Unix socket connections.
     """
     results: List[Dict[str, str]] = []
     if not psql_path:
         return results
 
-    # Common ports to scan
+    # --- 1. Try Unix socket first (common on Linux) ---
+    socket_paths = [
+        "/run/postgresql/.s.PGSQL.5432",
+        "/var/run/postgresql/.s.PGSQL.5432",
+        "/tmp/.s.PGSQL.5432",
+    ]
+    for sock in socket_paths:
+        if os.path.exists(sock):
+            # Try common users
+            for user in ["postgres", "root", os.getlogin()]:
+                out, _, rc = run_cmd(
+                    [psql_path, "-h", os.path.dirname(sock), "-p", "5432", "-U", user,
+                     "-d", "postgres", "-tAc", "SELECT current_database();"],
+                    env={"PGPASSWORD": ""}, timeout=3,
+                )
+                if rc == 0 and out.strip():
+                    db = out.strip()
+                    # List all databases on this server
+                    dbs_out, _, _ = run_cmd(
+                        [psql_path, "-h", os.path.dirname(sock), "-p", "5432", "-U", user,
+                         "-d", "postgres", "-tAc",
+                         "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"],
+                        env={"PGPASSWORD": ""}, timeout=3,
+                    )
+                    databases = [d.strip() for d in dbs_out.strip().split("\n") if d.strip()] if dbs_out.strip() else [db]
+                    results.append({
+                        "host": os.path.dirname(sock),  # socket directory
+                        "port": "5432",
+                        "user": user,
+                        "databases": ", ".join(databases),
+                        "default_db": db,
+                    })
+                    break  # Found on this socket
+            if results:
+                break  # Found at least one socket
+
+    # --- 2. Try TCP ports (fallback) ---
     ports_to_try = ["5432", "5433", "5434", "5435", "5436"]
     users_to_try = ["postgres", "root"]
 
@@ -417,8 +472,7 @@ def detect_local_pg(psql_path: str) -> List[Dict[str, str]]:
                     [psql_path, "-h", "127.0.0.1", "-p", port, "-U", user,
                      "-d", "postgres", "-tAc",
                      "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"],
-                    env={"PGPASSWORD": ""},
-                    timeout=3,
+                    env={"PGPASSWORD": ""}, timeout=3,
                 )
                 databases = [d.strip() for d in dbs_out.strip().split("\n") if d.strip()] if dbs_out.strip() else [db]
                 results.append({
@@ -2485,36 +2539,41 @@ def cmd_get(args: argparse.Namespace) -> None:
 
 def cmd_set(args: argparse.Namespace) -> None:
     """Set environment variables in .env file.
-    
+
     Usage:
       gaet set KEY=value
       gaet set KEY1=value1 KEY2=value2
       gaet set GAET_REMOTE_URL=postgres://...
+      gaet set KEY=           # empty value = delete key
     """
     if not args.variables:
         box_title(f"{NAME} set")
         echo(f"  {B}Set environment variables{NC}")
         echo()
         echo(f"  {D}Contoh:{NC}")
-        echo(f"    gaet set GAET_LOCAL_URL=postgresql://user:pw@127.0.0.1:5432/db")
-        echo(f"    gaet set GAET_REMOTE_URL=postgresql://user:pw@db.xxx.supabase.co:5432/postgres")
+        echo(f"    gaet set GAET_LOCAL_URL=postgresql://user:***@127.0.0.1:5432/db")
+        echo(f"    gaet set GAET_REMOTE_URL=postgresql://user:***@db.xxx.supabase.co:5432/postgres")
         echo(f"    gaet set GAET_RETENTION_DAYS=14")
         echo(f"    gaet set GAET_TABLES=users,posts,comments")
         echo()
         echo(f"  {D}Bisa beberapa sekaligus:{NC}")
         echo(f"    gaet set KEY1=v1 KEY2=v2")
         echo()
+        echo(f"  {D}Hapus key:{NC}")
+        echo(f"    gaet set KEY=")
+        echo()
         echo(f"  {D}Lihat semua: gaet get   |   Edit interaktif: gaet init{NC}")
         return
-    
+
     # Ensure .env directory exists
     GAET_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     # Load existing env
     env = load_env()
-    
+
     # Parse and update variables
     updates = {}
+    deletions = set()
     for var in args.variables:
         if "=" not in var:
             die(f"Invalid format: {var}. Use KEY=value")
@@ -2523,13 +2582,23 @@ def cmd_set(args: argparse.Namespace) -> None:
         value = value.strip()
         if not key:
             die("Key cannot be empty")
-        updates[key] = value
-        env[key] = value
-    
+        if value == "":
+            # Empty value = delete
+            deletions.add(key)
+        else:
+            updates[key] = value
+            env[key] = value
+
+    # If setting individual local DB vars, clear GAET_LOCAL_URL to avoid priority confusion
+    local_db_keys = {"GAET_LOCAL_DB_HOST", "GAET_LOCAL_DB_PORT", "GAET_LOCAL_DB_USER",
+                     "GAET_LOCAL_DB_NAME", "GAET_LOCAL_DB_PASS"}
+    if updates.keys() & local_db_keys:
+        deletions.add("GAET_LOCAL_URL")
+
     # Save back to .env file
     lines = []
     existing_keys = set()
-    
+
     # First pass: update existing lines
     if ENV_FILE.is_file():
         with open(str(ENV_FILE), "r", encoding="utf-8", errors="replace") as f:
@@ -2540,6 +2609,9 @@ def cmd_set(args: argparse.Namespace) -> None:
                 if m:
                     key = m.group(1).strip()
                     existing_keys.add(key)
+                    if key in deletions:
+                        # Skip this line (delete the key)
+                        continue
                     if key in updates:
                         lines.append(f"export {key}={updates[key]}\n")
                     else:
@@ -2547,12 +2619,12 @@ def cmd_set(args: argparse.Namespace) -> None:
                 else:
                     # Keep comments and empty lines
                     lines.append(original_line + "\n")
-    
+
     # Second pass: add new keys
     for key, value in updates.items():
-        if key not in existing_keys:
+        if key not in existing_keys and key not in deletions:
             lines.append(f"export {key}={value}\n")
-    
+
     # Write back
     with open(str(ENV_FILE), "w", encoding="utf-8") as f:
         f.writelines(lines)
@@ -2560,7 +2632,7 @@ def cmd_set(args: argparse.Namespace) -> None:
         os.chmod(str(ENV_FILE), 0o600)
     except OSError:
         pass
-    
+
     # Display result
     box_title(f"{NAME} set")
     for key, value in updates.items():
@@ -2572,6 +2644,10 @@ def cmd_set(args: argparse.Namespace) -> None:
             else:
                 display_value = "***"
         status_ok(f"{C}{key}{NC}  =  {display_value}")
+    for key in deletions:
+        if key in updates:
+            continue  # already shown above
+        status_ok(f"{C}{key}{NC}  =  {Y}(deleted){NC}")
     echo()
     status_info(f"Config saved: {ENV_FILE}")
     echo()
