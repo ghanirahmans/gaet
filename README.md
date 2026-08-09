@@ -228,15 +228,20 @@ gaet --help                      # Show full help
 
 ### Push pipeline
 
-```
-Local DB          Backup Process          Cloud DB
-  │                     │                     │
-  ├─→ pg_dump ────→ Integrity Check ──→ pg_restore ──┤
-  │   (custom fmt)    (pg_restore --list)  (clean mode) │
-  │   (compress=9)       ↓ VERIFY                         │
-  │                   (skip if corrupt)                    │
-  │                                                      │
-  └─ File Lock (prevent overlap) ────────────────────┘
+```mermaid
+flowchart LR
+    A[Local DB] --> B[pg_dump]
+    B -->|compress=9| C[Integrity Check]
+    C -->|pg_restore --list| D{Valid?}
+    D -->|yes| E[pg_restore]
+    D -->|no| F[Abort]
+    E -->|clean mode| G[Cloud DB]
+    E --> H[Release lock]
+    H --> I[Delete old backups]
+
+    style A fill:#4CAF50,color:#fff
+    style G fill:#2196F3,color:#fff
+    style F fill:#f44336,color:#fff
 ```
 
 **Steps:**
@@ -260,24 +265,31 @@ Measured on PostgreSQL 18, Linux (i5-12450H, NVMe). Raw data in [`benchmarks/`](
 
 ### Fetch pipeline
 
-```
-Cloud DB          Fetch Process          Local DB
-  │                     │                     │
-  ├─→ pg_dump ────→ Verify ──→ Kill Active ──→ Restore ──→ Local DB
-      (custom fmt)    (safe)   Connections   (overwrite)
+```mermaid
+flowchart RL
+    A[Cloud DB] --> B[pg_dump]
+    B --> C[Verify]
+    C --> D[Kill Active Connections]
+    D --> E[pg_restore]
+    E -->|overwrite| F[Local DB]
+
+    style A fill:#2196F3,color:#fff
+    style F fill:#4CAF50,color:#fff
+    style D fill:#FF9800,color:#fff
 ```
 
 **Note:** Fetch overwrites your local database. Use `--dry-run` first.
 
 ### Auto-backup
 
-```
-OS Scheduler (systemd/launchd/Task Scheduler)
-  │
-  └─→ Runs gaet push --auto every N hours
-      ├─ Logs to ~/.gaet/backups/cron.log
-      ├─ Skips if lock file exists
-      └─ Respects GAET_RETENTION_DAYS
+```mermaid
+flowchart TD
+    A[OS Scheduler] -->|every N hours| B[gaet push --auto]
+    B --> C{Lock held?}
+    C -->|yes| D[Skip — backup in progress]
+    C -->|no| E[Run push]
+    E --> F[Log to cron.log]
+    E --> G[Apply retention]
 ```
 
 ```bash
