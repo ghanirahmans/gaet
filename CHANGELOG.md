@@ -4,173 +4,85 @@ All notable changes to gaet are documented here.
 
 ## [2.0.0] — 2026-07-22
 
-### Major Changes
-
-#### 📚 **Comprehensive Documentation Suite**
-- **README.md** (706 lines) — Complete overhaul with compelling story-driven content
-  - TL;DR section for quick understanding
-  - Real-world problem statements
-  - Feature matrix with technical depth
-  - 13 commands fully documented with examples
-  - Architecture diagrams and pipeline flows
-  - Security deep dive with password handling explanation
-  - Performance benchmarks with real metrics
-  - Troubleshooting guide with 4 common scenarios
-  - FAQ answering 10+ questions
-  - Development and contribution sections
-
-- **ARCHITECTURE.md** (735 lines) — Technical deep dive document
-  - System overview with ASCII diagrams
-  - Push/Fetch/Auto-backup pipeline flows
-  - Concurrency and file-based locking implementation
-  - 3-level error handling strategy
-  - Complete security model with password flow
-  - Performance optimization techniques (compression, parallelism)
-  - Platform integration details (systemd, launchd, Task Scheduler)
-  - Testing strategy (unit, integration, security tests)
-  - Real benchmarks and measurements
-  - Architecture decisions with rationale
-  - Future improvements roadmap
-
-- **CONTRIBUTING.md** (400 lines) — New contributor guide
-  - Complete code of conduct
-  - 5-minute development setup
-  - Full contribution workflow
-  - Bug report and feature request templates
-  - Code style and format guidelines
-  - Testing requirements by category
-  - Review process explanation
-  - High-priority areas for community help
-  - Release process documentation
-  - Contributor recognition system
-
-#### 🎯 **CLI Consistency Improvements**
-- **Phase 3 Consistency Fixes** — Reached 96% consistency score (from 90%)
-  - Enhanced `cmd_push_cron` docstring with clear cron-specific behavior
-  - Added comprehensive output wrapper to `cmd_install` command
-  - All 13 commands now follow golden standard:
-    - Title boxes at start
-    - Consistent status functions (status_ok/warn/info/fail)
-    - Proper spacing between sections
-    - Summary information at end
-    - 100% docstring coverage
-
-#### 🌍 **Internationalization**
-- **Complete English Translation** — All CLI messages now in English
-  - Translated `_update_download()` function (4 messages)
-  - Translated `cmd_update()` function (5 messages)
-  - All error messages professional and clear
-  - Consistency between code and documentation
-  - Ready for international users
-
 ### Added
-- ARCHITECTURE.md — Technical reference documentation
-- CONTRIBUTING.md — Community contribution guide
-- Enhanced README.md with diagrams and benchmarks
-- All 13 commands with consistent UX patterns
-- Complete internationalization support
+- README.md rewrite with benchmarks, troubleshooting, FAQ
+- ARCHITECTURE.md — system design, pipeline flows, platform integration
+- CONTRIBUTING.md — contributor guide with code of conduct
+- Consistent UX across all 13 commands (title boxes, status functions, summaries)
+- English translation for all CLI output
+- `push --dry-run` and `fetch --dry-run`
+- `log --filter` and `log --since`
+- Dashboard loading states and error handling
+- Interval validation for auto-backup (1-24 hours)
+- Database connection warnings before destructive operations
+
+### Fixed
+- Command injection in dashboard API (`execSync` → `execFileSync`)
+- PGPASSFILE temp file leak in `scripts/status.py`
+- Exit code inconsistency (`sys.exit(2)` → `die()`)
+- Race condition in dashboard polling (`setInterval` → `setTimeout`)
+- File encoding issues in `scripts/status.py`, `installer.py`
+- Cron integrity check before auto-backup restore
+- Password regex in `parse_remote_url()`
 
 ### Changed
-- VERSION bumped to 2.0.0 (major release)
-- Complete README.md rewrite with story-driven content
-- All error messages translated to English
-- Enhanced documentation with technical depth
-- Improved consistency score from 90% → 96%
-
-### Quality Metrics
-- **Documentation:** 1,841 new lines
-- **Consistency:** 96% (12/13 commands fully compliant)
-- **Docstrings:** 100% coverage (13/13)
-- **Language:** 100% English
-- **Testing:** All 6 verification suites passed
-- **Breaking Changes:** Zero
-
-### Documentation Quality
-- 13.7:1 documentation-to-code ratio
-- Comprehensive coverage of all features
-- Real-world use cases and examples
-- Performance benchmarks with metrics
-- Security model fully documented
-- Architecture decisions explained
-- Contributing path clearly defined
-
-### Production Readiness
-- Enterprise-grade documentation
-- Professional UX consistency
-- Clear error messages for all paths
-- Complete CLI coverage
-- Aligned code and documentation
-- Ready for international adoption
+- `cmd_init()`: password stored separately from URL
+- `mask_url_password()`: only mask when password present
+- `cmd_auto_on()`: validation for interval (positive, ≤24)
+- `cmd_fetch()`: warning before terminating active connections
+- VERSION bumped to 2.0.0
 
 ---
 
 ## [1.0.0] — 2026-07-21
 
 ### Added
-- **Preset: `hindsight-hermes`** — Hindsight memory preset for Nous Research Hermes Agent (18 tables).
-- **Security: Password separation** — `GAET_LOCAL_DB_PASS` stored separately from URL. Passwords never appear in connection strings in `.env`. URLs without passwords fully supported.
-- **Security: PGPASSFILE cleanup** — Temp password files auto-deleted after each command via `cleanup_pg_env()`. No more credential leak on disk.
-- **Security: execFileSync** — All dashboard API routes use `execFileSync` with argument arrays. No shell injection possible.
-- **Security: CORS validation** — Dashboard validates `Origin` header on every request.
-- **Security: URL masking** — Passwords masked as `****` in all display output.
-- **Feature: `push --dry-run`** — Simulate push without acquiring locks or touching data.
-- **Feature: `fetch --dry-run`** — Simulate fetch without acquiring locks or touching data.
-- **Feature: `log --filter` / `log --since`** — Filter backup log by keyword or date.
-- **Feature: Dashboard loading states** — Button text changes to "Pushing...", "Fetching...", etc. during operations.
-- **Feature: Dashboard ErrorBoundary** — Graceful error handling for runtime crashes.
-- **Feature: Update from curl install** — `gaet update` now downloads from GitHub for non-git users (tested with 102,355 byte download).
-- **Feature: Interval validation** — Auto-backup interval validated (1-24 hours) with clear error messages.
-- **Feature: Database connection warnings** — Clear warnings shown before destructive operations like fetch.
-### Testing: 17 unit tests** — Core utilities covered (`parse_remote_url`, `mask_url_password`, `get_env_str`, `get_env_int`).
-- **Documentation validation:** README, ARCHITECTURE, CONTRIBUTING all validated
-- **CLI consistency:** 96% score verification across all 13 commands
-- **Internationalization:** Zero Indonesian words in critical paths
+- Preset `hindsight-hermes` for Nous Research Hermes Agent (18 tables)
+- `GAET_LOCAL_DB_PASS` stored separately from URL
+- PGPASSFILE temp files auto-deleted after each command
+- `execFileSync` in all dashboard API routes (no shell injection)
+- CORS validation on dashboard API
+- URL masking in all display output
+- Dashboard loading states and ErrorBoundary
+- `gaet update` from curl install (GitHub download fallback)
+- Interval validation for auto-backup
+- 17 unit tests
 
 ### Fixed
-- **Security: Command injection** — Dashboard API no longer uses `execSync` with template literals.
-- **Security: PGPASSFILE leak** — Three temp file creation sites in `scripts/status.py` now properly clean up.
-- **Bug: Exit code inconsistency** — `sys.exit(2)` replaced with `die()` (exit code 1) for consistency.
-- **Bug: Unused re-imports** — Three `import re as _re` inside functions removed (re already at top level).
-- **Bug: Unused imports** — `import signal` removed.
-- **Bug: Dead code** — Unused `zip_url` variable removed from `_update_download()`.
-- **Bug: Race condition** — Dashboard polling changed from `setInterval` to recursive `setTimeout`.
-- **Bug: File encoding** — `scripts/status.py`, `installer.py`, `service_manager.py` now use explicit `encoding="utf-8"`.
-- **Bug: Duplicate code** — `PRESETS` removed from `scripts/status.py` (unused there).
-- **Bug: Config variable name** — `.env.example` uses correct `GAET_AUTO_INTERVAL` instead of `GAET_BACKUP_INTERVAL`.
-- **Bug: Cron integrity** — Auto-backup cron path now runs `pg_restore --list` integrity check before restore.
-- **Bug: Password in URL regex** — `parse_remote_url()` now supports URLs without password component.
-- **Bug: Indonesian text in update command** — Translated all error messages to English for consistency.
+- Dashboard API command injection
+- PGPASSFILE leak in `scripts/status.py`
+- Exit code inconsistency
+- Unused `re` imports
+- File encoding in Python scripts
+- Race condition in dashboard polling
+- Password regex for URLs without password
 
 ### Changed
-- **`cmd_init()`** — Local URL written without password. Password stored as `GAET_LOCAL_DB_PASS`.
-- **`_update_download()`** — Added GitHub download fallback for curl-install users.
-- **`mask_url_password()`** — Regex updated to only mask when password is present.
-- **`cmd_auto_on()`** — Enhanced validation (positive, ≤24), detailed success output.
-- **`cmd_fetch()`** — Shows warning before `pg_terminate_backend` (killed active connections).
+- Password stored separately from URL in `.env`
+- Full English translation of CLI output
 
 ---
 
 ## [0.9.0] — 2026-07-15
 
 ### Added
-- `gaet uninstall` command with `--purge` mode
-- `gaet update` command for git-based updates
-- `gaet push --cron` internal mode for scheduler
+- `gaet uninstall` with `--purge` mode
+- `gaet update` for git-based updates
+- `gaet push --cron` for scheduler
 - Windows Task Scheduler support
 - launchd support for macOS
 - `--json` flag for `gaet status`
-- Dashboard: one-click push/fetch/stop buttons
+- Dashboard: push/fetch/stop buttons
 - Dashboard: auto-refresh (8 seconds)
-- Dashboard: dark/light mode toggle
+- Dashboard: dark/light mode
 - Dashboard: per-table sync status
 
 ### Fixed
 - Windows PostgreSQL path detection
 - Systemd timer syntax validation
-- `.env` file parser edge cases
-- PGPASSWORD → PGPASSFILE migration for /proc leak prevention
+- `.env` parser edge cases
+- PGPASSWORD → PGPASSFILE for /proc leak prevention
 - Dashboard CORS validation
-- Error messages now actionable
 
 ### Changed
 - Full English translation of CLI output
