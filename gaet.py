@@ -646,6 +646,7 @@ def safe_getpass(prompt: str) -> str:
 _SUGGEST_NAMES = [
     "init", "check", "status", "push", "fetch", "stop", "log",
     "serve", "get", "set", "install", "update", "uninstall", "help",
+    "completion", "doctor",
 ]
 
 
@@ -1220,7 +1221,174 @@ def _svc_status():
 
 # ════════════════════════════════════════════════════════════════════════════
 # COMMANDS
-# ═══════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
+
+def cmd_completion(args: argparse.Namespace) -> None:
+    """Generate shell completions."""
+    shell = args.shell
+    script_dir = Path(__file__).resolve().parent / "completions"
+    shell_files = {"bash": "gaet.bash", "zsh": "gaet.zsh", "fish": "gaet.fish"}
+
+    if shell:
+        if shell not in shell_files:
+            die(f"Unsupported shell: {shell}. Use: {', '.join(shell_files.keys())}")
+        comp_file = script_dir / shell_files[shell]
+        if comp_file.is_file():
+            echo(comp_file.read_text(encoding="utf-8"))
+        else:
+            die(f"Completion file not found: {comp_file}")
+    else:
+        detected_shell = os.environ.get("SHELL", "")
+        if "bash" in detected_shell:
+            comp_file = script_dir / shell_files["bash"]
+        elif "zsh" in detected_shell:
+            comp_file = script_dir / shell_files["zsh"]
+        elif "fish" in detected_shell:
+            comp_file = script_dir / shell_files["fish"]
+        else:
+            echo(f"  {Y}Cannot auto-detect shell.{NC}")
+            echo(f"  Usage: gaet completion --shell bash")
+            return
+
+        if comp_file.is_file():
+            shell_name = comp_file.stem.split('.')[1]
+            echo(f"  {C}Shell completions for {shell_name}:{NC}")
+            echo()
+            echo(f"  Install with:")
+            if "bash" in detected_shell:
+                echo(f"    gaet completion --shell bash > ~/.bash_completion.d/gaet")
+            elif "zsh" in detected_shell:
+                echo(f"    gaet completion --shell zsh > ~/.zsh/completions/_gaet")
+            elif "fish" in detected_shell:
+                echo(f"    gaet completion --shell fish > ~/.config/fish/completions/gaet.fish")
+            echo()
+            echo(f"  Or source directly:")
+            echo(f"    source <(gaet completion --shell {shell_name})")
+
+
+def cmd_doctor(args: argparse.Namespace) -> None:
+    """Check gaet health: config, DB connections, tools, recent backups."""
+    box_title(f"{NAME} doctor")
+    issues = 0
+
+    # 1. Config
+    box_section("Config")
+    env = load_env()
+    if ENV_FILE.is_file():
+        status_ok(f"Config file: {ENV_FILE}")
+    else:
+        echo(f"    {R}{ICON_FAIL}{NC} Config file not found")
+        echo(f"    {D}Run: gaet init{NC}")
+        issues += 1
+
+    # 2. PostgreSQL tools
+    box_section("PostgreSQL Tools")
+    tools = find_pg_tools(env)
+    all_tools = True
+    for name in ("pg_dump", "pg_restore", "psql"):
+        if tools.get(name):
+            status_ok(f"{name} found")
+        else:
+            echo(f"    {R}{ICON_FAIL}{NC} {name} not found")
+            all_tools = False
+            issues += 1
+    if not all_tools:
+        echo(f"    {D}Install PostgreSQL client tools: apt install postgresql-client{NC}")
+
+    # 3. Local DB connection
+    box_section("Local Database")
+    h, p, u, n, w = get_local_db(env)
+    psql = tools.get("psql", "")
+    if psql and h:
+        echo(f"    {C}Testing {u}@{h}:{p}/{n}...{NC} ", end="")
+        out, _, rc = run_cmd(
+            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+            env={"PGPASSWORD": w}, timeout=5,
+        )
+        if rc == 0 and out.strip() == "1":
+            echo(f"{G}OK{NC}")
+            size_out, _, _ = run_cmd(
+                [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
+                 "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1)||' MB';"],
+                env={"PGPASSWORD": w}, timeout=5,
+            )
+            if size_out.strip():
+                status_arrow(f"Size: {size_out.strip()}")
+        else:
+            echo(f"{R}FAIL{NC}")
+            echo(f"    {D}Check PostgreSQL is running and credentials are correct{NC}")
+            issues += 1
+    else:
+        echo(f"    {R}{ICON_FAIL}{NC} Cannot test (psql not found or no host)")
+        issues += 1
+
+    # 4. Cloud DB connection
+    box_section("Cloud Database")
+    remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
+    parsed = parse_remote_url(remote_url)
+    if parsed:
+        ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
+        echo(f"    {C}Testing cloud connection...{NC} ", end="")
+        out, _, rc = run_cmd(
+            [psql, "-h", parsed["host"], "-p", parsed["port"],
+             "-U", parsed["user"], "-d", parsed["db"], "-tAc", "SELECT 1;"],
+            env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=10,
+        )
+        if rc == 0 and out.strip() == "1":
+            echo(f"{G}OK{NC}")
+            size_out, _, _ = run_cmd(
+                [psql, "-h", parsed["host"], "-p", parsed["port"],
+                 "-U", parsed["user"], "-d", parsed["db"], "-tAc",
+                 "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1)||' MB';"],
+                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=10,
+            )
+            if size_out.strip():
+                status_arrow(f"Size: {size_out.strip()}")
+        else:
+            echo(f"{R}FAIL{NC}")
+            echo(f"    {D}Check GAET_REMOTE_URL and cloud database status{NC}")
+            issues += 1
+    else:
+        echo(f"    {Y}Not configured{NC}")
+        status_arrow("Set GAET_REMOTE_URL to enable cloud backup")
+
+    # 5. Recent backups
+    box_section("Backups")
+    try:
+        backups = sorted(BACKUP_DIR.glob("gaet_*.dump"), reverse=True)
+        if backups:
+            newest = backups[0]
+            age_days = (time.time() - newest.stat().st_mtime) / 86400
+            total_size = sum(f.stat().st_size for f in backups) / (1024 * 1024)
+            echo(f"    {G}Found {len(backups)} backup(s){NC}")
+            status_arrow(f"Newest: {newest.name} ({age_days:.0f} days ago)")
+            status_arrow(f"Total: {total_size:.1f} MB")
+            if age_days > 7:
+                echo(f"    {Y}Newest backup is {age_days:.0f} days old — consider running 'gaet push'{NC}")
+                issues += 1
+        else:
+            echo(f"    {Y}No backups found{NC}")
+            status_arrow("Run 'gaet push' to create your first backup")
+            issues += 1
+    except OSError:
+        echo(f"    {Y}Cannot read backup directory{NC}")
+        issues += 1
+
+    # 6. Auto-backup
+    box_section("Auto-backup")
+    prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
+    if scheduler_is_active(prefix):
+        status_ok("Auto-backup is active")
+    else:
+        echo(f"    {D}Auto-backup not active (run 'gaet push --auto' to enable){NC}")
+
+    # Summary
+    echo()
+    if issues == 0:
+        echo(f"  {G}{ICON_OK}{NC}  All checks passed!")
+    else:
+        echo(f"  {Y}{ICON_WARN}{NC}  {issues} issue(s) found")
+
 
 def _local_db_menu(detected, cur_host, cur_port, cur_user, cur_db, cur_pass):
     """Interactive menu for local DB setup with full user control."""
@@ -3388,6 +3556,13 @@ def main() -> None:
     help_parser.add_argument("topic", nargs="?", default=None, help="Command name to show help for")
     help_parser.add_argument("--json", action="store_true", help="Machine-readable command schema (agent-friendly)")
 
+    # completion
+    completion_parser = subparsers.add_parser("completion", help="Generate shell completions", parents=[common])
+    completion_parser.add_argument("--shell", "-s", choices=["bash", "zsh", "fish"], default=None, help="Shell (auto-detect if omitted)")
+
+    # doctor
+    subparsers.add_parser("doctor", help="Check gaet health and connections", parents=[common])
+
     args = parser.parse_args()
 
     # Configure global output modes (--quiet / --plain) before any echo()
@@ -3471,6 +3646,8 @@ def main() -> None:
         "install": lambda: cmd_install(args),
         "update": lambda: cmd_update(args),
         "uninstall": lambda: cmd_uninstall(args),
+        "completion": lambda: cmd_completion(args),
+        "doctor": lambda: cmd_doctor(args),
     }
 
     cmd_func = command_map.get(args.command)
