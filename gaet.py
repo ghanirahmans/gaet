@@ -275,24 +275,45 @@ def get_env_int(env: Dict[str, str], key: str, default: int) -> int:
 
 def parse_remote_url(url: str) -> Optional[Dict[str, str]]:
     """
-    Parse postgresql://user:pass@host:port/db.
-    Password is optional. Returns dict or None.
+    Parse postgresql://user:pw@host:port/db.
+    Password is optional and may contain '@'. Returns dict or None.
     """
     if not url:
         return None
-    m = re.match(
-        r"postgres(?:ql)?://([^:]+)(?::([^@]*))?@([^:]+):(\d+)/([^?\s]+)",
-        url,
-    )
+    # Normalize scheme: accept postgres:// and postgresql://
+    m = re.match(r"^postgres(?:ql)?://(.*)$", url, re.IGNORECASE)
     if not m:
         return None
-    return {
-        "user": m.group(1),
-        "pass": m.group(2) or "",
-        "host": m.group(3),
-        "port": m.group(4),
-        "db": m.group(5),
-    }
+    rest = m.group(1)
+
+    # Credentials vs host: split at the LAST '@' so passwords may contain '@'
+    userinfo, sep, hostpart = rest.rpartition("@")
+    if not sep:
+        return None  # missing '@' → invalid
+    if not userinfo or not hostpart:
+        return None
+
+    # user:pass — user cannot contain ':', password may
+    if ":" in userinfo:
+        user, _, passwd = userinfo.partition(":")
+    else:
+        user, passwd = userinfo, ""
+
+    # host:port/db — split at the LAST ':' before the first '/'
+    slash_idx = hostpart.find("/")
+    if slash_idx == -1:
+        return None
+    hostport = hostpart[:slash_idx]
+    db = hostpart[slash_idx + 1:].split("?", 1)[0]  # strip query string (e.g. ?sslmode=)
+    if not db:
+        return None
+    if ":" not in hostport:
+        return None
+    host, _, port = hostport.rpartition(":")
+    if not host or not port.isdigit():
+        return None
+
+    return {"user": user, "pass": passwd, "host": host, "port": port, "db": db}
 
 
 def mask_url_password(url: str) -> str:
@@ -946,7 +967,10 @@ def cmd_init(args: argparse.Namespace) -> None:
         except OSError:
             pass
 
-    if not ENV_FILE.is_file():
+    # Always run the wizard — gaet init is re-runnable by design.
+    # Existing config (if any) has been backed up above; its values are
+    # used as defaults so re-init is fast, not a hard reset.
+    if True:  # wizard always runs
         echo()
         box_section("Local Database")
 
@@ -956,6 +980,10 @@ def cmd_init(args: argparse.Namespace) -> None:
         if psql:
             status_info("Auto-detecting local PostgreSQL...")
             detected = detect_local_pg(psql)
+
+        # Preload current config as defaults (for re-init)
+        cur_host, cur_port, cur_user, cur_db, cur_pass = get_local_db(env)
+        old_remote = env.get("GAET_REMOTE_URL") or env.get("GAET_SUPABASE_URL") or ""
 
         h, p, u, n, w = "", "", "", "", ""
 
@@ -1059,12 +1087,15 @@ def cmd_init(args: argparse.Namespace) -> None:
         echo(f"  {D}Enter the target PostgreSQL connection string.{NC}")
         echo(f"  {D}Can be from Supabase, Neon, RDS, or your own VPS.{NC}")
         echo(f"  {D}Press Enter to skip.{NC}")
-        remote_url = input("  GAET_REMOTE_URL: ").strip()
+        remote_url = input(f"  GAET_REMOTE_URL [{'set' if old_remote else 'none'}]: ").strip()
+        if not remote_url:
+            remote_url = old_remote  # keep existing on re-init
 
         echo()
         box_section("Backup")
-        ret_inp = input(f"  Retention (days) [{DEF_RETENTION_DAYS}]: ").strip()
-        ret = ret_inp or str(DEF_RETENTION_DAYS)
+        default_ret = env.get("GAET_RETENTION_DAYS", str(DEF_RETENTION_DAYS))
+        ret_inp = input(f"  Retention (days) [{default_ret}]: ").strip()
+        ret = ret_inp or default_ret
 
         # Tables line for preset (ACTIVE, not commented)
         tables_line = ""
@@ -1102,8 +1133,6 @@ def cmd_init(args: argparse.Namespace) -> None:
             f.write(env_content)
         echo()
         status_ok(f"Config saved to {ENV_FILE}")
-    else:
-        status_info(f"Config already exists: {ENV_FILE}")
 
     echo()
     box_section("Summary")
@@ -1712,7 +1741,9 @@ def cmd_push(args: argparse.Namespace) -> None:
         retention = get_env_int(env, "GAET_RETENTION_DAYS", DEF_RETENTION_DAYS)
         cutoff = time.time() - (retention * 86400)
         try:
-            for f in BACKUP_DIR.glob("gaet_*.dump"):
+            # Apply retention to ALL dump families: manual (gaet_*),
+            # cron (cron_*) and fetch (cloud_*)
+            for f in list(BACKUP_DIR.glob("gaet_*.dump")) + list(BACKUP_DIR.glob("cron_*.dump")) + list(BACKUP_DIR.glob("cloud_*.dump")):
                 if f.stat().st_mtime < cutoff:
                     f.unlink()
         except OSError:
@@ -1984,16 +2015,24 @@ def cmd_stop_auto(args: argparse.Namespace) -> None:
 
 
 def cmd_log(args: argparse.Namespace) -> None:
-    """View backup log."""
+    """View backup log (includes cron log when filtered)."""
     lines = args.lines or 30
     filter_str = getattr(args, "filter", None) or ""
     since_str = getattr(args, "since", None) or ""
-    if not LOG_FILE.is_file():
+    if not LOG_FILE.is_file() and not CRON_LOG.is_file():
         echo(f"  {Y}Belum ada log. Jalankan 'gaet push' dulu.{NC}")
         return
 
-    with open(str(LOG_FILE), "r", encoding="utf-8", errors="replace") as f:
-        all_lines = f.readlines()
+    sources = [LOG_FILE]
+    # Include cron.log when user filters for CRON entries (or always merge it,
+    # since cron entries use the same timestamp format)
+    if CRON_LOG.is_file():
+        sources.append(CRON_LOG)
+
+    all_lines = []
+    for src in sources:
+        with open(str(src), "r", encoding="utf-8", errors="replace") as f:
+            all_lines.extend(f.readlines())
 
     # Apply filters
     filtered = all_lines
@@ -2390,7 +2429,7 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
     if not skip_build:
         try:
             dashboard_dst = install_dir / "dashboard"
-            dash_files = ["package.json", "next.config.ts", "tsconfig.json", "postcss.config.js",
+            dash_files = ["package.json", "next.config.ts", "next-env.d.ts", "tsconfig.json", "postcss.config.js",
                           "app/layout.tsx", "app/page.tsx", "app/globals.css", "app/error.tsx",
                           "app/api/utils.ts",
                           "app/api/status/route.ts", "app/api/push/route.ts",
@@ -2604,6 +2643,11 @@ def cmd_serve(args: argparse.Namespace) -> None:
     port = int(get_env_str(env, "GAET_DASHBOARD_PORT", str(DEF_DASHBOARD_PORT)))
     host = get_env_str(env, "GAET_DASHBOARD_HOST", DEF_DASHBOARD_HOST)
 
+    # CLI overrides (gaet serve --port N / --no-browser)
+    if getattr(args, "port", 0):
+        port = int(args.port)
+    no_browser = getattr(args, "no_browser", False)
+
     assert dashboard_dir is not None  # already checked above
     box_title(f"{NAME} serve")
 
@@ -2632,11 +2676,12 @@ def cmd_serve(args: argparse.Namespace) -> None:
         echo(f"\n  {G}{ICON_OK}{NC}  {B}Dashboard is running!{NC}")
         echo(f"  {D}{ICON_ARROW}{NC}  http://localhost:{port}")
         # Auto-open browser
-        import webbrowser
-        try:
-            webbrowser.open(f"http://localhost:{port}")
-        except Exception:
-            pass
+        if not no_browser:
+            import webbrowser
+            try:
+                webbrowser.open(f"http://localhost:{port}")
+            except Exception:
+                pass
     else:
         status_fail(f"Dashboard failed: {msg}")
 
@@ -2723,7 +2768,9 @@ def main() -> None:
     log_parser.add_argument("--since", "-s", type=str, default="", help="Filter sejak tanggal (YYYY-MM-DD)")
 
     # serve
-    subparsers.add_parser("serve", help="Start web dashboard")
+    serve_parser = subparsers.add_parser("serve", help="Start web dashboard")
+    serve_parser.add_argument("--port", type=int, default=0, help="Custom port (default: 9191 or GAET_DASHBOARD_PORT)")
+    serve_parser.add_argument("--no-browser", action="store_true", help="Don't auto-open browser")
 
     # get
     get_parser = subparsers.add_parser("get", help="Get environment variables")

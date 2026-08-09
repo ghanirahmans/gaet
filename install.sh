@@ -88,6 +88,38 @@ for f in status.py scheduler.py service_manager.py installer.py __init__.py; do
 done
 echo "  Scripts downloaded"
 
+# ── 5b. Download dashboard ────────────────────────────────────────────────
+echo -n "  Downloading dashboard..."
+DASHBOARD_DIR="$GAET_CONFIG/dashboard"
+mkdir -p "$DASHBOARD_DIR/app/api/status" "$DASHBOARD_DIR/app/api/push" "$DASHBOARD_DIR/app/api/fetch" "$DASHBOARD_DIR/app/api/stop" "$DASHBOARD_DIR/public"
+DASH_OK=0
+declare -A dash_map=(
+  [package.json]="package.json"
+)
+# Static list of dashboard files (mirrors _update_download in gaet.py)
+for rel in \
+  package.json next.config.ts tsconfig.json postcss.config.js \
+  app/layout.tsx app/page.tsx app/globals.css app/error.tsx \
+  app/api/utils.ts \
+  app/api/status/route.ts app/api/push/route.ts app/api/fetch/route.ts app/api/stop/route.ts; do
+    url="https://raw.githubusercontent.com/ghanirahmans/gaet/master/dashboard/$rel"
+    if curl -fsSL "$url" -o "$DASHBOARD_DIR/$rel" 2>/dev/null; then
+        DASH_OK=$((DASH_OK+1))
+    else
+        echo ""
+        echo "  ⚠  Failed to download dashboard/$rel"
+    fi
+done
+# Public asset (binary)
+if curl -fsSL "https://raw.githubusercontent.com/ghanirahmans/gaet/master/dashboard/public/gaet-logo.png" -o "$DASHBOARD_DIR/public/gaet-logo.png" 2>/dev/null; then
+    DASH_OK=$((DASH_OK+1))
+fi
+if [ "$DASH_OK" -gt 0 ]; then
+    echo " OK ($DASH_OK files)"
+else
+    echo " SKIPPED (no files — install will still work, dashboard needs 'gaet update')"
+fi
+
 # ── 6. Create config if not exists ────────────────────────────────────────
 if [ ! -f "$GAET_CONFIG/.env" ]; then
     cat > "$GAET_CONFIG/.env" << 'EOF'

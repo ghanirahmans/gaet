@@ -110,13 +110,34 @@ def get_config() -> Dict:
 
 
 def parse_url(url):
-    """Parse postgresql://user:***@host:port/db -> tuple."""
+    """Parse postgresql://user:pw@host:port/db -> tuple.
+    Password is optional and may contain '@'. Returns (user, pass, host, port, db)
+    or (None, None, None, None, None) on failure.
+    """
     if not url:
         return None, None, None, None, None
-    m = re.match(r'postgres(?:ql)?://([^:]+):([^@]+)@([^:]+):(\d+)/([^\?\s]+)', url)
-    if m:
-        return m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
-    return None, None, None, None, None
+    m = re.match(r'^postgres(?:ql)?://(.*)$', url, re.IGNORECASE)
+    if not m:
+        return None, None, None, None, None
+    rest = m.group(1)
+    userinfo, sep, hostpart = rest.rpartition('@')
+    if not sep or not userinfo or not hostpart:
+        return None, None, None, None, None
+    if ':' in userinfo:
+        user, _, passwd = userinfo.partition(':')
+    else:
+        user, passwd = userinfo, ''
+    slash_idx = hostpart.find('/')
+    if slash_idx == -1:
+        return None, None, None, None, None
+    hostport = hostpart[:slash_idx]
+    db = hostpart[slash_idx + 1:].split('?', 1)[0]
+    if not db or ':' not in hostport:
+        return None, None, None, None, None
+    host, _, port = hostport.rpartition(':')
+    if not host or not port.isdigit():
+        return None, None, None, None, None
+    return user, passwd, host, port, db
 
 
 def sh(cmd, env=None, timeout=30):
