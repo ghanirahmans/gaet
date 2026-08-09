@@ -646,7 +646,7 @@ def safe_getpass(prompt: str) -> str:
 _SUGGEST_NAMES = [
     "init", "check", "status", "push", "fetch", "stop", "log",
     "serve", "get", "set", "install", "update", "uninstall", "help",
-    "completion", "doctor",
+    "completion", "doctor", "diff", "export",
 ]
 
 
@@ -1388,6 +1388,108 @@ def cmd_doctor(args: argparse.Namespace) -> None:
         echo(f"  {G}{ICON_OK}{NC}  All checks passed!")
     else:
         echo(f"  {Y}{ICON_WARN}{NC}  {issues} issue(s) found")
+
+
+def cmd_diff(args: argparse.Namespace) -> None:
+    """Compare local vs cloud database tables and row counts."""
+    env = load_env()
+    tools = find_pg_tools(env)
+    psql = tools.get("psql", "")
+    if not psql:
+        die("psql not found")
+
+    h, p, u, n, w = get_local_db(env)
+    remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
+    parsed = parse_remote_url(remote_url)
+    if not parsed:
+        die("GAET_REMOTE_URL not configured. Run: gaet init", EXIT_CONFIG)
+
+    box_title(f"{NAME} diff")
+
+    local_counts = {}
+    tables = get_tables(env, tools)
+    if tables and psql:
+        safe = [t for t in tables if _validate_table_name(t)]
+        if safe:
+            union = " UNION ALL ".join(
+                f"SELECT '{t}'::text as tbl, count(*)::int FROM public.{t}" for t in safe
+            )
+            out, _, rc = run_cmd(
+                [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", union],
+                env={"PGPASSWORD": w}, timeout=30,
+            )
+            if rc == 0:
+                for line in out.strip().split("\n"):
+                    if "|" in line:
+                        parts = line.split("|")
+                        try:
+                            local_counts[parts[0].strip()] = int(parts[1].strip())
+                        except ValueError:
+                            pass
+
+    remote_counts = {}
+    ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
+    if tables and psql:
+        safe = [t for t in tables if _validate_table_name(t)]
+        if safe:
+            union = " UNION ALL ".join(
+                f"SELECT '{t}'::text as tbl, count(*)::int FROM public.{t}" for t in safe
+            )
+            out_r, _, rc_r = run_cmd(
+                [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
+                 "-U", parsed["user"], "-d", parsed["db"], "-tAc", union],
+                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=30,
+            )
+            if rc_r == 0:
+                for line in out_r.strip().split("\n"):
+                    if "|" in line:
+                        parts = line.split("|")
+                        try:
+                            remote_counts[parts[0].strip()] = int(parts[1].strip())
+                        except ValueError:
+                            pass
+
+    all_tables = sorted(set(list(local_counts.keys()) + list(remote_counts.keys())))
+    if not all_tables:
+        echo(f"  {Y}No tables found.{NC}")
+        return
+
+    rows = []
+    for t in all_tables:
+        lo = local_counts.get(t, 0)
+        re = remote_counts.get(t, 0)
+        diff = lo - re
+        if diff == 0:
+            icon = f"{G}= same{NC}"
+        elif diff > 0:
+            icon = f"{Y}+{diff} local{NC}"
+        else:
+            icon = f"{R}{diff} cloud{NC}"
+        rows.append(f"{t}|{lo}|{re}|{icon}")
+
+    echo(f"  {B}Table          Local    Cloud    Diff{NC}")
+    echo(f"  {D}\u2500" * 45)
+    for row in rows:
+        parts = row.split("|")
+        echo(f"  {parts[0]:14} {parts[1]:>6}  {parts[2]:>6}  {parts[3]}")
+
+    echo()
+    synced = sum(1 for t in all_tables if local_counts.get(t, 0) == remote_counts.get(t, 0))
+    total = len(all_tables)
+    echo(f"  {D}{synced}/{total} tables in sync{NC}")
+
+
+def cmd_export(args: argparse.Namespace) -> None:
+    """Export config as shell-compatible env vars."""
+    env = load_env()
+    if not env:
+        echo(f"  {Y}No config found. Run: gaet init{NC}")
+        return
+    for key in sorted(env.keys()):
+        val = env[key]
+        if "pass" in key.lower() and val:
+            val = "***"
+        echo(f"export {key}={val}")
 
 
 def _local_db_menu(detected, cur_host, cur_port, cur_user, cur_db, cur_pass):
@@ -2374,6 +2476,24 @@ def cmd_push(args: argparse.Namespace) -> None:
             return
         print_push_summary(backup_file, size_mb, tables_synced)
         log("✅ Push complete")
+
+        # Webhook notification
+        notify_url = getattr(args, "notify", "") or ""
+        if notify_url:
+            try:
+                payload = json.dumps({
+                    "text": f"gaet push complete: {tables_synced} tables, {size_mb:.1f} MB",
+                    "file": str(backup_file),
+                }).encode("utf-8")
+                req = urllib.request.Request(
+                    notify_url, data=payload,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=10)
+                echo(f"  {G}Webhook notified{NC}")
+            except Exception as e:
+                echo(f"  {Y}Webhook failed: {e}{NC}")
     finally:
         release_lock()
 
@@ -3590,6 +3710,15 @@ def main() -> None:
     # doctor
     subparsers.add_parser("doctor", help="Check gaet health and connections", parents=[common])
 
+    # diff
+    subparsers.add_parser("diff", help="Compare local vs cloud tables", parents=[common])
+
+    # export
+    subparsers.add_parser("export", help="Export config as shell env vars", parents=[common])
+
+    # push --notify
+    push_parser.add_argument("--notify", type=str, default="", help="Webhook URL to notify after push")
+
     args = parser.parse_args()
 
     # Configure global output modes (--quiet / --plain) before any echo()
@@ -3675,6 +3804,8 @@ def main() -> None:
         "uninstall": lambda: cmd_uninstall(args),
         "completion": lambda: cmd_completion(args),
         "doctor": lambda: cmd_doctor(args),
+        "diff": lambda: cmd_diff(args),
+        "export": lambda: cmd_export(args),
     }
 
     cmd_func = command_map.get(args.command)

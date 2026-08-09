@@ -1,0 +1,134 @@
+.TH GAET 1
+.SH NAME
+gaet \(em PostgreSQL Backup & Sync CLI
+.SH SYNOPSIS
+.B gaet
+.RI [ COMMAND ]
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+gaet is a zero-dependency PostgreSQL backup CLI that syncs local databases
+to any cloud PostgreSQL instance (Supabase, Neon, AWS RDS, or any VPS).
+.SH COMMANDS
+.TP
+.B gaet init
+Interactive setup wizard (auto-detects local PostgreSQL).
+.TP
+.B gaet push
+Backup local database to cloud. Add
+.B \-\-auto
+to schedule periodic backups.
+.TP
+.B gaet fetch
+Restore cloud database to local (overwrites local DB).
+.TP
+.B gaet status
+Show per-table sync status between local and cloud.
+.TP
+.B gaet check
+Validate configuration and test all connections.
+.TP
+.B gaet doctor
+Comprehensive health check (config, tools, DB, backups, scheduler).
+.TP
+.B gaet diff
+Compare local vs cloud tables and row counts side by side.
+.TP
+.B gaet log
+View backup log. Add
+.B \-\-follow
+for real-time tailing.
+.TP
+.B gaet serve
+Start web dashboard at http://localhost:9191.
+.TP
+.B gaet get
+Show all or specific config variables (passwords masked).
+.TP
+.B gaet set
+Set config variables. Empty value deletes the key.
+.TP
+.B gaet export
+Print config as shell-compatible
+.B export
+statements.
+.TP
+.B gaet completion
+Generate shell completions for bash, zsh, or fish.
+.TP
+.B gaet update
+Update to latest version from GitHub.
+.TP
+.B gaet uninstall
+Remove gaet (use
+.B \-\-purge
+to remove config and backups too).
+.TP
+.B gaet stop
+Stop auto-backup and/or dashboard services.
+.SH GLOBAL OPTIONS
+.TP
+.BR \-q ", " \-\-quiet
+Suppress non-essential output (for scripts/CI).
+.TP
+.BR \-\-plain
+Plain, decoration-free output (pipe-safe for grep/awk/jq).
+.TP
+.BR \-\-version
+Show version and exit.
+.SH EXAMPLES
+.nf
+gaet init                        # First-time setup
+gaet push                        # Backup local to cloud
+gaet push \-\-dry-run             # Simulate backup
+gaet push \-\-auto=6              # Schedule every 6 hours
+gaet status                      # Show sync status
+gaet status \-\-json              # Machine-readable status
+gaet check \-\-json | jq         # Pipeline with jq
+gaet log \-\-follow              # Real-time log tailing
+gaet diff                        # Compare local vs cloud
+gaet doctor                      # Health check
+gaet completion \-\-shell bash    # Install bash completions
+.fi
+.SH FILES
+.TP
+.I ~/.gaet/.env
+Configuration file (created with 0o600 permissions).
+.TP
+.I ~/.gaet/backups/
+Local backup storage directory.
+.TP
+.I ~/.gaet/backups/cron.log
+Auto-backup log.
+.SH EXIT CODES
+.TP
+.B 0
+Success.
+.TP
+.B 1
+General failure.
+.TP
+.B 2
+Usage / argument error.
+.TP
+.B 80
+Configuration error (missing/invalid .env).
+.TP
+.B 81
+Local database unreachable.
+.TP
+.B 82
+Cloud/remote database unreachable.
+.TP
+.B 83
+Lock held by another process.
+.TP
+.B 84
+PostgreSQL tools not found.
+.SH AUTHOR
+ghaniyrahmans
+.SH LICENSE
+MIT
+.SH SEE ALSO
+.BR pg_dump (1),
+.BR pg_restore (1),
+.BR psql (1)
