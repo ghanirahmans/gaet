@@ -37,6 +37,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 import time
 import urllib.request
 from datetime import datetime
@@ -95,7 +96,11 @@ PRESETS: Dict[str, Dict[str, str]] = {
 }
 
 # ─── ANSI Colors ──────────────────────────────────────────────────────────
-if sys.stdout.isatty():
+# Honor NO_COLOR (https://no-color.org) and CLICOLOR/CLICOLOR_FORCE conventions.
+_FORCE_COLOR = os.environ.get("CLICOLOR_FORCE") == "1"
+_NO_COLOR = os.environ.get("NO_COLOR") is not None
+_USE_COLOR = (sys.stdout.isatty() or _FORCE_COLOR) and not _NO_COLOR
+if _USE_COLOR:
     R = "\033[0;31m"
     G = "\033[0;32m"
     Y = "\033[1;33m"
@@ -566,6 +571,64 @@ def safe_getpass(prompt: str) -> str:
         return getpass.getpass(prompt).strip()
     except EOFError:
         return ""
+
+
+# Canonical command names for typo suggestion (clig.dev §Errors: "Did you mean?")
+_SUGGEST_NAMES = [
+    "init", "check", "status", "push", "fetch", "stop", "log",
+    "serve", "get", "set", "install", "update", "uninstall", "help",
+]
+
+
+def suggest_command(typed: str) -> None:
+    """Print a 'Did you mean X?' hint for an unknown command (Levenshtein)."""
+    import difflib
+    matches = difflib.get_close_matches(typed, _SUGGEST_NAMES, n=1, cutoff=0.5)
+    if matches:
+        echo(f"  {D}Did you mean:{NC} {C}gaet {matches[0]}{NC} ?")
+    else:
+        echo(f"  {D}Run 'gaet --help' to see all commands.{NC}")
+
+
+
+class Spinner:
+    """Indeterminate progress spinner for long-running operations.
+
+    Used during pg_dump/pg_restore (which can take 10s+) so the user does not
+    think the CLI has hung. Auto-disabled under --quiet, --plain, or when
+    stdout is not a TTY. Stops cleanly via stop().
+    """
+
+    _FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
+    def __init__(self, label: str = ""):
+        self.label = label
+        self._active = False
+        self._thread = None
+
+    def _run(self) -> None:
+        i = 0
+        while self._active:
+            frame = self._FRAMES[i % len(self._FRAMES)]
+            sys.stdout.write(f"\r  {C}{frame}{NC} {self.label} ")
+            sys.stdout.flush()
+            time.sleep(0.1)
+            i += 1
+
+    def start(self) -> "Spinner":
+        if QUIET or PLAIN or not sys.stdout.isatty():
+            return self  # no-op when not interactive
+        self._active = True
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        return self
+
+    def stop(self) -> None:
+        if self._thread is not None:
+            self._active = False
+            self._thread.join()
+            sys.stdout.write("\r\033[K")  # clear the spinner line
+            sys.stdout.flush()
 
 
 def box_title(title: str) -> None:
@@ -1847,12 +1910,16 @@ def cmd_push(args: argparse.Namespace) -> None:
         backup_file = str(BACKUP_DIR / f"gaet_{timestamp}.dump")
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
-        out, err, rc = run_cmd(
-            [pg_dump, "-h", h, "-p", p, "-U", u, "-d", n,
-             "--format=custom", "--compress=9", f"--file={backup_file}"],
-            env={"PGPASSWORD": w},
-            timeout=120,
-        )
+        spinner = Spinner("Dumping local database").start()
+        try:
+            out, err, rc = run_cmd(
+                [pg_dump, "-h", h, "-p", p, "-U", u, "-d", n,
+                 "--format=custom", "--compress=9", f"--file={backup_file}"],
+                env={"PGPASSWORD": w},
+                timeout=120,
+            )
+        finally:
+            spinner.stop()
         if rc == 0 and Path(backup_file).is_file():
             size_mb = Path(backup_file).stat().st_size / (1024 * 1024)
             echo(f"    {G}{ICON_OK}{NC}  Dump tersimpan {D}({size_mb:.1f} MB){NC}")
@@ -1872,14 +1939,18 @@ def cmd_push(args: argparse.Namespace) -> None:
         # Step 2: Restore to cloud with timeout
         echo(f"  {C}☁️{NC}   {B}Mensinkronkan ke cloud...{NC}")
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
-        out3, err3, rc3 = run_cmd(
-            [pg_restore, "-h", parsed["host"], "-p", parsed["port"],
-             "-U", parsed["user"], "-d", parsed["db"],
-             "--clean", "--if-exists", "--no-owner", "--no-acl",
-             backup_file],
-            env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
-            timeout=120,
-        )
+        spinner = Spinner("Syncing to cloud").start()
+        try:
+            out3, err3, rc3 = run_cmd(
+                [pg_restore, "-h", parsed["host"], "-p", parsed["port"],
+                 "-U", parsed["user"], "-d", parsed["db"],
+                 "--clean", "--if-exists", "--no-owner", "--no-acl",
+                 backup_file],
+                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
+                timeout=120,
+            )
+        finally:
+            spinner.stop()
         if rc3 == 0:
             echo(f"    {G}{ICON_OK}{NC}  Sinkronisasi selesai!")
             result["sync"] = {"ok": True}
@@ -1995,13 +2066,17 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         fetch_file = str(BACKUP_DIR / f"cloud_{timestamp}.dump")
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
-        out, err, rc = run_cmd(
-            [pg_dump, "-h", parsed["host"], "-p", parsed["port"],
-             "-U", parsed["user"], "-d", parsed["db"],
-             "--format=custom", "--compress=9", f"--file={fetch_file}"],
-            env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
-            timeout=120,
-        )
+        spinner = Spinner("Dumping cloud database").start()
+        try:
+            out, err, rc = run_cmd(
+                [pg_dump, "-h", parsed["host"], "-p", parsed["port"],
+                 "-U", parsed["user"], "-d", parsed["db"],
+                 "--format=custom", "--compress=9", f"--file={fetch_file}"],
+                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
+                timeout=120,
+            )
+        finally:
+            spinner.stop()
         if rc == 0 and Path(fetch_file).is_file():
             size_mb = Path(fetch_file).stat().st_size / (1024 * 1024)
             echo(f"    {G}{ICON_OK}{NC}  Dump cloud tersimpan {D}({size_mb:.1f} MB){NC}")
@@ -2023,12 +2098,16 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             timeout=10,
         )
 
-        out3, err3, rc3 = run_cmd(
-            [pg_restore, "-h", h, "-p", p, "-U", u, "-d", n,
-             "--clean", "--if-exists", fetch_file],
-            env={"PGPASSWORD": w},
-            timeout=120,
-        )
+        spinner = Spinner("Restoring to local database").start()
+        try:
+            out3, err3, rc3 = run_cmd(
+                [pg_restore, "-h", h, "-p", p, "-U", u, "-d", n,
+                 "--clean", "--if-exists", fetch_file],
+                env={"PGPASSWORD": w},
+                timeout=120,
+            )
+        finally:
+            spinner.stop()
         if rc3 <= 1:
             echo(f"    {G}{ICON_OK}{NC}  Local restore complete!")
             result["restore"] = {"ok": True}
@@ -2887,25 +2966,49 @@ def main() -> None:
         description=f"{NAME} — Database Backup & Sync CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent("""\
-            Commands:
-              init              Setup wizard (config + test)
-              get               Get environment variables
-              set               Set environment variables
-              push              Backup local → cloud
-              push --dry-run    Simulate push without execution
-              fetch             Restore cloud → local
-              fetch --dry-run   Simulate fetch without execution
-              status            Show sync status
-              status --json     Output status as JSON
-              check             Validate config & connections
-              log               View backup log
-              log --filter      Filter log by keyword
-              push --auto[=N]   Enable auto-backup every N hours
-              stop              Stop auto-backup & dashboard
-              serve             Start web dashboard (background)
-              install           Setup/install dependencies & config
+            Examples:
+              gaet init                 First-time setup wizard
+              gaet push                 Backup local database → cloud
+              gaet status               Show sync status
+              gaet check --json | jq   Machine-readable health check (CI)
+
+            Global flags (work before OR after the command):
+              -q, --quiet   Suppress non-essential output
+              --plain       Decoration-free, pipe-safe output (grep/awk/jq)
+              --json        Structured JSON output (on check/push/fetch)
+
+            Get help for a command:
+              gaet help <command>        e.g.  gaet help push
+
+            Docs & support:
+              GitHub: https://github.com/ghanirahmans/gaet
+              Issues: https://github.com/ghanirahmans/gaet/issues
         """),
     )
+
+    # Override error() so unknown commands get a friendly "Did you mean?" hint
+    # (clig.dev §Errors: be empathetic, suggest corrections) instead of a raw
+    # argparse usage dump.
+    _orig_error = parser.error
+
+    def _error_with_suggestion(message: str) -> None:
+        # Extract the offending token from argparse's message if present
+        tok = None
+        m = re.search(r"'([^']+)'", message)
+        if m:
+            tok = m.group(1)
+        # Only suggest when the token looks like a command name (no flag dashes)
+        if tok and not tok.startswith("-"):
+            import difflib
+            matches = difflib.get_close_matches(tok, _SUGGEST_NAMES, n=1, cutoff=0.5)
+            if matches:
+                sys.stderr.write(f"gaet: error: unknown command '{tok}'\n")
+                sys.stderr.write(f"  Did you mean: gaet {matches[0]} ?\n")
+                sys.stderr.write(f"  Run 'gaet --help' for the full list.\n")
+                sys.exit(2)
+        _orig_error(message)
+
+    parser.error = _error_with_suggestion
     parser.add_argument(
         "--version", "-v",
         action="version",
@@ -3021,10 +3124,28 @@ def main() -> None:
     uninstall_parser = subparsers.add_parser("uninstall", help="Remove gaet from system", parents=[common])
     uninstall_parser.add_argument("--purge", action="store_true", help="Remove everything including config and backups")
 
+    # help <command> (git-style)
+    help_parser = subparsers.add_parser("help", help="Show help for a command (e.g. gaet help push)", parents=[common])
+    help_parser.add_argument("topic", nargs="?", default=None, help="Command name to show help for")
+
     args = parser.parse_args()
 
     # Configure global output modes (--quiet / --plain) before any echo()
     set_output_modes(getattr(args, "quiet", False), getattr(args, "plain", False))
+
+    # git-style: `gaet help <command>`
+    if args.command == "help":
+        topic = getattr(args, "topic", None)
+        if topic and topic in subparsers.choices:
+            # Re-parse to print that subcommand's help
+            parser.parse_args([topic, "--help"])
+        else:
+            # No topic or unknown → print top-level help
+            parser.print_help()
+            if topic:
+                echo(f"\n  {Y}Unknown command:{NC} {topic}")
+                suggest_command(topic)
+        return
 
     # Default command: status
     if args.command is None:
