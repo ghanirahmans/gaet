@@ -280,6 +280,9 @@ gaet completion --shell fish     # Print fish completions
 ### Maintenance
 
 ```bash
+gaet install                      # Setup/install dependencies & config
+gaet install --yes                # Auto-approve all prompts
+
 gaet update                      # Update to latest version from GitHub
 gaet update --force              # Force update (skip local changes check)
 gaet update --skip-build         # Update CLI only (skip dashboard rebuild)
