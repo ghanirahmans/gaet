@@ -7,10 +7,12 @@ Platform strategy (best practice, minimal resource):
   - Windows:  PID file + subprocess.DETACHED_PROCESS (zero deps, < 1 KB)
 
 All platforms:
-  - start()   → build + start dashboard sebagai background service
-  - stop()    → stop dashboard (systemd/launchctl/taskkill)
-  - is_running() → cek apakah dashboard aktif
-  - status()  → dict dengan info service
+  - start()   -> start dashboard sebagai background service
+  - stop()    -> stop dashboard
+  - is_running() -> cek apakah dashboard aktif
+  - status()  -> dict dengan info service
+
+Dashboard: Python HTTP server (dashboard/server.py), no Node.js needed.
 """
 
 from __future__ import annotations
@@ -55,23 +57,6 @@ def _run(cmd, timeout: int = 15, cwd: Optional[str] = None) -> Tuple[str, str, i
         return "", str(e), 1
 
 
-def _find_node() -> Optional[str]:
-    """Find node/npm executables."""
-    for exe in ["node", "node.exe"]:
-        p = shutil.which(exe)
-        if p:
-            return p
-    return None
-
-
-def _find_npm() -> Optional[str]:
-    for exe in ["npm", "npm.cmd"]:
-        p = shutil.which(exe)
-        if p:
-            return p
-    return None
-
-
 def _ensure_dirs() -> None:
     GAET_DIR.mkdir(parents=True, exist_ok=True)
     LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -79,7 +64,7 @@ def _ensure_dirs() -> None:
 
 def _write_pid(pid: int) -> None:
     _ensure_dirs()
-    fd = os.open(str(PID_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    fd = os.open(str(PID_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600 if not IS_WINDOWS else 0o666)
     with os.fdopen(fd, 'w') as f:
         f.write(str(pid))
 
@@ -97,22 +82,27 @@ def _delete_pid() -> None:
     PID_FILE.unlink(missing_ok=True)
 
 
-def _next_cmd(dashboard_dir: Path) -> Optional[List[str]]:
-    """Return the next start command as a list.
-    Returns a list of arguments suitable for subprocess.Popen.
-    """
-    # Try to find next.js binary
+def _find_python() -> Optional[str]:
+    """Find python executable."""
+    for exe in ["python3", "python", "python.exe"]:
+        p = shutil.which(exe)
+        if p:
+            return p
+    return None
+
+
+def _find_dashboard_dir() -> Optional[Path]:
+    """Auto-detect dashboard directory."""
     candidates = [
-        dashboard_dir / "node_modules" / ".bin" / "next",
-        dashboard_dir / "node_modules" / "next" / "dist" / "bin" / "next.js",
+        Path.cwd() / "dashboard",
+        Path(__file__).resolve().parent.parent / "dashboard",
+        GAET_DIR / "dashboard",
     ]
-    for c in candidates:
-        if c.exists():
-            # Use node to execute next.js (avoids shebang/symlink issues in systemd)
-            node = _find_node()
-            if node:
-                return [node, str(c)]
-            return [str(c)]
+    if "GAET_PROJECT_DIR" in os.environ:
+        candidates.insert(0, Path(os.environ["GAET_PROJECT_DIR"]) / "dashboard")
+    for d in candidates:
+        if d.is_dir() and (d / "server.py").is_file():
+            return d.resolve()
     return None
 
 
@@ -123,13 +113,15 @@ def _linux_is_running() -> bool:
     return rc == 0 and out.strip() == "active"
 
 
-def _linux_start(dashboard_dir: Path, port: int, host: str, node: str) -> Tuple[bool, str]:
+def _linux_start(dashboard_dir: Path, port: int, host: str) -> Tuple[bool, str]:
     """Create & start systemd user service for the dashboard."""
     log = str(LOG_FILE)
-    next_cmd = _next_cmd(dashboard_dir)
-    if not next_cmd:
-        return False, "next executable tidak ditemukan"
-    exec_cmd = " ".join(next_cmd + ["start", "-p", str(port), "-H", host])
+    python = _find_python()
+    if not python:
+        return False, "Python tidak ditemukan di PATH"
+
+    # Build command: python dashboard/server.py <port>
+    cmd = [python, str(dashboard_dir / "server.py"), str(port)]
 
     user_systemd = HOME / ".config" / "systemd" / "user"
     user_systemd.mkdir(parents=True, exist_ok=True)
@@ -141,7 +133,7 @@ def _linux_start(dashboard_dir: Path, port: int, host: str, node: str) -> Tuple[
 
     [Service]
     Type=simple
-    ExecStart={exec_cmd}
+    ExecStart={" ".join(cmd)}
     WorkingDirectory={dashboard_dir}
     Restart=on-failure
     RestartSec=5
@@ -184,17 +176,23 @@ def _macos_is_running() -> bool:
     return rc == 0
 
 
-def _macos_start(dashboard_dir: Path, port: int, host: str, node: str) -> Tuple[bool, str]:
+def _macos_start(dashboard_dir: Path, port: int, host: str) -> Tuple[bool, str]:
     """Create & load launchd plist for the dashboard."""
     log = str(LOG_FILE)
-    next_cmd = _next_cmd(dashboard_dir)
-    if not next_cmd:
-        return False, "next executable tidak ditemukan"
-    # launchd plist uses individual array elements (no shell escaping needed)
-    plist_args = next_cmd + ["start", "-p", str(port), "-H", host]
+    python = _find_python()
+    if not python:
+        return False, "Python tidak ditemukan di PATH"
+
+    cmd = [python, str(dashboard_dir / "server.py"), str(port)]
 
     launch_agents = HOME / "Library" / "LaunchAgents"
     launch_agents.mkdir(parents=True, exist_ok=True)
+
+    # Build plist args string without f-string expression containing backslash
+    plist_args_lines = []
+    for arg in cmd:
+        plist_args_lines.append(f'<string>{xml_escape(arg)}</string>')
+    plist_args = "\n            ".join(plist_args_lines).rstrip()
 
     plist_content = textwrap.dedent(f"""\
     <?xml version="1.0" encoding="UTF-8"?>
@@ -206,7 +204,7 @@ def _macos_start(dashboard_dir: Path, port: int, host: str, node: str) -> Tuple[
         <string>com.gaet.dashboard</string>
         <key>ProgramArguments</key>
         <array>
-            {"".join(f'<string>{xml_escape(arg)}</string>' + chr(10) + "            " for arg in plist_args).rstrip()}
+            {plist_args}
         </array>
         <key>WorkingDirectory</key>
         <string>{xml_escape(str(dashboard_dir))}</string>
@@ -249,26 +247,25 @@ def _windows_is_running() -> bool:
     pid = _read_pid()
     if pid is None:
         return False
-    out, _, rc = _run(["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"])
+    out, _, rc = _run(["tasklist", "/FI", f"PId eq {pid}", "/NH", "/FO", "CSV"])
     if rc != 0 or "INFO:" in out:
         _delete_pid()
         return False
     for line in out.strip().splitlines():
-        if f'"{pid}"' in line and ("node" in line.lower() or "next" in line.lower()):
+        if f'"{pid}"' in line and ("python" in line.lower()):
             return True
     _delete_pid()
     return False
 
 
-def _windows_start(dashboard_dir: Path, port: int, host: str, node: str) -> Tuple[bool, str]:
+def _windows_start(dashboard_dir: Path, port: int, host: str) -> Tuple[bool, str]:
     """Start dashboard as detached background process + save PID."""
     log = str(LOG_FILE)
+    python = _find_python()
+    if not python:
+        return False, "Python tidak ditemukan di PATH"
 
-    next_cmd = _next_cmd(dashboard_dir)
-    if not next_cmd:
-        return False, "next executable tidak ditemukan di node_modules"
-
-    cmd = next_cmd + ["start", "-p", str(port), "-H", host]
+    cmd = [python, str(dashboard_dir / "server.py"), str(port)]
 
     try:
         proc = subprocess.Popen(
@@ -335,10 +332,6 @@ def start(
     Returns:
         (success, message)
     """
-    node = _find_node()
-    if not node:
-        return False, "node.js tidak ditemukan di PATH"
-
     if dashboard_dir is None:
         dashboard_dir = _find_dashboard_dir()
     if dashboard_dir is None:
@@ -346,29 +339,26 @@ def start(
 
     _ensure_dirs()
 
-    # Build if needed
-    if not (dashboard_dir / ".next").is_dir():
-        npm = _find_npm()
-        if not npm:
-            return False, "npm tidak ditemukan (required untuk build)"
-        log(f"Building dashboard di {dashboard_dir}...")
-        _, err, rc = _run([npm, "install", "--silent"], timeout=120, cwd=str(dashboard_dir))
-        if rc != 0:
-            return False, f"npm install gagal: {err[:200]}"
-        _, err, rc = _run([npm, "run", "build"], timeout=120, cwd=str(dashboard_dir))
-        if rc != 0:
-            return False, f"npm run build gagal: {err[:200]}"
-
     if foreground:
         # Run in foreground (for dev / debugging)
-        return _start_foreground(dashboard_dir, port, host, node)
+        python = _find_python()
+        if not python:
+            return False, "Python tidak ditemukan di PATH"
+        cmd = [python, str(dashboard_dir / "server.py"), str(port)]
+        try:
+            subprocess.run(cmd, cwd=str(dashboard_dir))
+            return True, "foreground process exited"
+        except KeyboardInterrupt:
+            return True, "foreground process stopped"
+        except Exception as e:
+            return False, str(e)
 
     if IS_LINUX:
-        return _linux_start(dashboard_dir, port, host, node)
+        return _linux_start(dashboard_dir, port, host)
     elif IS_MACOS:
-        return _macos_start(dashboard_dir, port, host, node)
+        return _macos_start(dashboard_dir, port, host)
     elif IS_WINDOWS:
-        return _windows_start(dashboard_dir, port, host, node)
+        return _windows_start(dashboard_dir, port, host)
     return False, f"unsupported platform: {sys.platform}"
 
 
@@ -410,40 +400,11 @@ def log(msg: str) -> None:
     print(msg, file=sys.stderr)
 
 
-def _find_dashboard_dir() -> Optional[Path]:
-    """Auto-detect dashboard directory."""
-    candidates = [
-        Path.cwd() / "dashboard",
-        Path(__file__).resolve().parent.parent / "dashboard",
-        GAET_DIR / "dashboard",
-    ]
-    if "GAET_PROJECT_DIR" in os.environ:
-        candidates.insert(0, Path(os.environ["GAET_PROJECT_DIR"]) / "dashboard")
-    for d in candidates:
-        if d.is_dir() and (d / "package.json").is_file():
-            return d.resolve()
-    return None
-
-
-def _start_foreground(dashboard_dir: Path, port: int, host: str, node: str) -> Tuple[bool, str]:
-    """Start dashboard in foreground (blocking)."""
-    cmd = _next_cmd(dashboard_dir)
-    if not cmd:
-        return False, "next executable tidak ditemukan"
-    try:
-        subprocess.run(cmd, cwd=str(dashboard_dir))
-        return True, "foreground process exited"
-    except KeyboardInterrupt:
-        return True, "foreground process stopped"
-    except Exception as e:
-        return False, str(e)
-
-
 # Export for 'from scripts.service_manager import _run' compatibility
 if __name__ == "__main__":
     # Quick test
     print(f"Platform: {PLATFORM}")
-    print(f"Node: {_find_node()}")
+    print(f"Python: {_find_python()}")
     print(f"Running: {is_running()}")
     print(f"PID file: {PID_FILE}")
 

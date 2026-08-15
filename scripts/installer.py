@@ -436,38 +436,16 @@ def find_dashboard_dir() -> Optional[Path]:
 
 
 def build_dashboard(dashboard_dir: Path) -> bool:
-    """Run npm install + npm run build."""
-    box_title("Build Dashboard")
+    """Dashboard menggunakan Python HTTP server (server.py), tidak perlu build."""
+    box_title("Setup Dashboard")
 
-    if (dashboard_dir / ".next").is_dir():
-        echo(f"  {D}Dashboard sudah di-build sebelumnya.{NC}")
-        if yesno("Build ulang?", False):
-            shutil.rmtree(dashboard_dir / ".next")
-        else:
-            status_ok("Menggunakan build yang sudah ada")
-            return True
-
-    echo(f"  {D}Dashboard: {dashboard_dir}{NC}")
-
-    # npm install
-    if not (dashboard_dir / "node_modules").is_dir():
-        status_info("Menginstall dependencies (npm install)...")
-        rc = _run_interactive(["npm", "install", "--silent"], cwd=str(dashboard_dir))
-        if rc != 0:
-            status_fail("npm install gagal")
-            return False
-        status_ok("Dependencies terinstall")
-    else:
-        status_ok("node_modules sudah ada")
-
-    # npm run build
-    status_info("Membangun dashboard (npm run build)...")
-    rc = _run_interactive(["npm", "run", "build"], cwd=str(dashboard_dir))
-    if rc != 0:
-        status_fail("Build dashboard gagal")
+    # Check if dashboard/server.py exists
+    server_file = dashboard_dir / "server.py"
+    if not server_file.exists():
+        status_fail("dashboard/server.py tidak ditemukan")
         return False
-    status_ok("Dashboard siap!")
 
+    status_ok(f"Dashboard ready: {server_file}")
     return True
 
 

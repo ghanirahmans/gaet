@@ -422,10 +422,22 @@ def detect_local_pg(psql_path: str) -> List[Dict[str, str]]:
         "/var/run/postgresql/.s.PGSQL.5432",
         "/tmp/.s.PGSQL.5432",
     ]
+    # Add Windows socket paths if on Windows
+    if IS_WINDOWS:
+        # Common Windows PostgreSQL data directories
+        for prog_dir in ["C:/Program Files/PostgreSQL", "C:/Program Files (x86)/PostgreSQL"]:
+            if os.path.exists(prog_dir):
+                for version in os.listdir(prog_dir):
+                    data_dir = Path(prog_dir) / version / "data"
+                    if data_dir.exists():
+                        for port in ["5432", "5433", "5434"]:
+                            sock_path = data_dir / f".s.PGSQL.{port}"
+                            if sock_path.exists():
+                                socket_paths.append(str(sock_path))
     for sock in socket_paths:
         if os.path.exists(sock):
-            # Try common users
-            for user in ["postgres", "root", os.getlogin()]:
+            # Try common users (exclude os.getlogin() for Windows compat)
+            for user in ["postgres", "root"]:
                 out, _, rc = run_cmd(
                     [psql_path, "-h", os.path.dirname(sock), "-p", "5432", "-U", user,
                      "-d", "postgres", "-tAc", "SELECT current_database();"],
@@ -1008,7 +1020,7 @@ def pg_env(user: str, passwd: str, ssl_mode: Optional[str] = None) -> Dict[str, 
         fd, pgpass_path = tempfile.mkstemp(prefix=".pgpass_", suffix=".tmp")
         with os.fdopen(fd, 'w') as f:
             f.write(pgpass_content)
-        os.chmod(pgpass_path, 0o600)
+        os.chmod(pgpass_path, 0o600) if not IS_WINDOWS else None
         env["PGPASSFILE"] = pgpass_path
     except OSError:
         env["PGPASSWORD"] = passwd
@@ -3197,7 +3209,7 @@ def cmd_set(args: argparse.Namespace) -> None:
     with open(str(ENV_FILE), "w", encoding="utf-8") as f:
         f.writelines(lines)
     try:
-        os.chmod(str(ENV_FILE), 0o600)
+        os.chmod(str(ENV_FILE), 0o600) if not IS_WINDOWS else None
     except OSError:
         pass
 
@@ -3436,7 +3448,7 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
             data = _gh_download(url)
             dest_path = install_dir / dst
             dest_path.write_bytes(data)
-            dest_path.chmod(0o755)
+            dest_path.chmod(0o755) if not IS_WINDOWS else None
             status_ok(f"{dst} → {dest_path}")
         except Exception as e:
             die(f"Failed to download {src}: {e}")
@@ -3578,7 +3590,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     
     if src.is_file():
         shutil.copy2(str(src), str(dst))
-        dst.chmod(0o755)
+        dst.chmod(0o755) if not IS_WINDOWS else None
         status_ok(f"gaet → {dst}")
     
     # Copy scripts if exists

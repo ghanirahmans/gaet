@@ -85,6 +85,21 @@ foreach ($f in $scripts) {
 }
 Write-Host "  Scripts downloaded"
 
+# ── 5b. Download dashboard ────────────────────────────────────────────────
+$dashboardDir = "$GAET_DIR\dashboard"
+New-Item -ItemType Directory -Force -Path $dashboardDir | Out-Null
+New-Item -ItemType Directory -Force -Path "$dashboardDir\static" | Out-Null
+
+$dashboardFiles = @("server.py", "static/index.html")
+foreach ($f in $dashboardFiles) {
+    try {
+        Invoke-WebRequest -Uri "$GITHUB_RAW/dashboard/$f" -OutFile "$dashboardDir\$f" -UseBasicParsing
+        Write-Host "  ✓ Downloaded dashboard/$f" -ForegroundColor Green
+    } catch {
+        Write-Host "  ⚠  Failed to download dashboard/$f" -ForegroundColor Yellow
+    }
+}
+
 # ── 6. Create gaet.cmd wrapper ────────────────────────────────────────────
 # This lets users run `gaet` directly from anywhere
 $wrapperContent = @"
