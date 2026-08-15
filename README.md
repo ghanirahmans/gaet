@@ -22,7 +22,7 @@
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
   <img src="https://img.shields.io/badge/python-3.8+-green" alt="Python 3.8+">
   <img src="https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-supported-brightgreen" alt="Linux | macOS | Windows">
-  <img src="https://img.shields.io/badge/version-2.0.0LTS-blue" alt="v2.0.0 LTS">
+  <img src="https://img.shields.io/badge/version-2.0.0--lts-blue?label=LTS&color=blue" alt="v2.0.0 LTS">
 </p>
 
 ---

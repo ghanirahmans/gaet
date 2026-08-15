@@ -2,9 +2,11 @@
 
 All notable changes to gaet are documented here.
 
-## [2.0.0 LTS] — 2026-08-09
+## [2.0.0 LTS] — 2026-08-15
 
-Long-Term Support release for Linux. Supported until at least 2027.
+Long-Term Support release. Supported until at least 2027.
+
+**Platform support:** Linux ✅ | macOS ⚠️ | Windows ⚠️
 
 ### Added
 - `gaet doctor` — comprehensive health check (config, tools, DB, backups, scheduler)
