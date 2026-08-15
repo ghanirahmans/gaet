@@ -640,12 +640,13 @@ def safe_input(prompt: str, default: str = "") -> str:
 
     When stdin is not a terminal, we still try to read it (piped input works
     with input()). Only fallback to default when stdin is exhausted (EOF).
+    In non-interactive mode, does NOT print the prompt (avoid output pollution).
     """
     if not sys.stdin.isatty():
         try:
             return input(prompt)
         except EOFError:
-            echo(f"{prompt}{default}")
+            # Don't echo prompt + default in non-interactive mode
             return default
     try:
         return input(prompt)
@@ -662,6 +663,59 @@ def safe_getpass(prompt: str) -> str:
         return getpass.getpass(prompt).strip()
     except EOFError:
         return ""
+
+
+def _save_init_config(h, p, u, n, w, remote_url, retention_days):
+    """Save config from non-interactive init mode."""
+    GAET_DIR.mkdir(parents=True, exist_ok=True)
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Backup existing config if present
+    if ENV_FILE.is_file():
+        backup_path = GAET_DIR / f".env.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        try:
+            shutil.copy2(str(ENV_FILE), str(backup_path))
+            status_info(f"Old config backed up to: {backup_path}")
+        except OSError:
+            pass
+    
+    # Build local URL without password
+    if w:
+        local_url = f"postgresql://{u}@{h}:{p}/{n}"
+        pass_line = f"GAET_LOCAL_DB_PASS={w}"
+    else:
+        local_url = f"postgresql://{u}@{h}:{p}/{n}"
+        pass_line = "# GAET_LOCAL_DB_PASS="
+    
+    env_content = textwrap.dedent(f"""\
+        # ══════════════════════════════════════════════════════════════
+        # gaet — Konfigurasi (auto-generated)
+        # ══════════════════════════════════════════════════════════════
+        # Dibuat: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        # ══════════════════════════════════════════════════════════════
+
+        # Local Database
+        GAET_LOCAL_URL={local_url}
+        {pass_line}
+
+        # Remote Database (Cloud)
+        GAET_REMOTE_URL={remote_url}
+
+        # Backup
+        GAET_RETENTION_DAYS={retention_days}
+        """)
+    
+    fd = os.open(str(ENV_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w') as f:
+        f.write(env_content)
+    
+    echo()
+    status_ok(f"Config saved to {ENV_FILE}")
+    echo()
+    box_section("Summary")
+    env = load_env()
+    tools = find_pg_tools(env)
+    _print_summary(env, tools)
 
 
 # Canonical command names for typo suggestion (clig.dev §Errors: "Did you mean?")
@@ -1741,6 +1795,50 @@ def cmd_init(args: argparse.Namespace) -> None:
     """Interactive setup wizard."""
     env = load_env()
     box_title(f"{NAME} init")
+
+    # Non-interactive mode: use defaults and skip prompts
+    if not sys.stdin.isatty():
+        echo(f"  {Y}⚠ Non-interactive mode detected — using defaults.{NC}")
+        echo()
+        
+        # Use sensible defaults
+        h, p, u, n, w = "127.0.0.1", "5432", "postgres", "postgres", ""
+        
+        # Try to detect local PostgreSQL if tools available
+        tools = find_pg_tools(env)
+        psql = tools.get("psql", "")
+        if psql:
+            detected = detect_local_pg(psql)
+            if detected:
+                inst = detected[0]
+                h = inst["host"]
+                p = inst["port"]
+                u = inst["user"]
+                n = inst.get("default_db", "postgres")
+                echo(f"  {G}✓{NC} Auto-detected: {u}@{h}:{p}/{n}")
+            else:
+                echo(f"  {Y}⚠{NC} No PostgreSQL detected, using defaults")
+        else:
+            echo(f"  {Y}⚠{NC} pg_tool not found, using defaults")
+        
+        # Get remote URL from existing config or prompt for it
+        old_remote = env.get("GAET_REMOTE_URL") or env.get("GAET_SUPABASE_URL") or ""
+        if old_remote:
+            echo(f"  {G}✓{NC} Using existing remote URL from config")
+            remote_url = old_remote
+        else:
+            echo(f"  {D}Note: Set GAET_REMOTE_URL to enable cloud backup.{NC}")
+            echo(f"      Example: gaet set GAET_REMOTE_URL=postgresql://...")
+            remote_url = ""
+        
+        # Get retention days
+        default_ret = env.get("GAET_RETENTION_DAYS", str(DEF_RETENTION_DAYS))
+        
+        # Build and save config
+        _save_init_config(h, p, u, n, w, remote_url, default_ret)
+        return
+
+    # Interactive mode continues below...
 
     # Resolve preset
     preset_name = getattr(args, "preset_flag", None)
