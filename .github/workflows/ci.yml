@@ -8,15 +8,19 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.10', '3.11', '3.12']
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
@@ -30,10 +34,24 @@ jobs:
       - name: Check syntax
         run: |
           python -m py_compile gaet.py
+          python -m py_compile scripts/service_manager.py
+          python -m py_compile scripts/installer.py
           echo "Syntax OK"
+        shell: bash
 
-      - name: Verify man page renders
+      - name: Verify man page renders (Linux only)
+        if: runner.os == 'Linux'
         run: |
           which groff || sudo apt-get install -y groff
           groff -man -Tascii gaet.1 > /dev/null
           echo "Man page renders OK"
+
+      - name: Verify PowerShell completions syntax
+        if: runner.os == 'Windows'
+        run: |
+          powershell -Command "& { Test-Path completions/gaet.ps1 }"
+          echo "PowerShell completions exist"
+
+      - name: Check platform detection
+        run: |
+          python -c "from gaet import IS_LINUX, IS_MACOS, IS_WINDOWS; print(f'Platform: Linux={IS_LINUX}, Mac={IS_MACOS}, Win={IS_WINDOWS}')"

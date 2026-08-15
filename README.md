@@ -101,13 +101,13 @@ gaet runs `pg_dump` locally, checks the dump with `pg_restore --list`, then rest
 
 ### Platform
 
-| Platform | CLI | Auto-Backup | Dashboard |
-|----------|-----|-------------|-----------|
-| Linux | ✅ | systemd timer | systemd service |
-| macOS | 🚧 | launchd (experimental) | launchd (experimental) |
-| Windows | 🚧 | Task Scheduler (experimental) | Background service (experimental) |
+| Platform | CLI | Auto-Backup | Dashboard | Completions |
+|----------|-----|-------------|-----------|-------------|
+| Linux | ✅ | systemd timer | systemd service | bash, zsh, fish |
+| macOS | ✅ | launchd | launchd | bash, zsh, fish |
+| Windows | ✅ | Task Scheduler | Background process | PowerShell |
 
-> Cross-platform is still in development. gaet is built and tested primarily on Linux.
+All platforms supported. Linux is the reference implementation with full testing.
 
 **Dependencies:** Only PostgreSQL client tools (`pg_dump`, `pg_restore`, `psql`). No pip packages.
 
@@ -163,9 +163,14 @@ See [CHANGELOG.md](CHANGELOG.md) for the full list.
 curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 ```
 
-**Windows (PowerShell):** ⚠️ Experimental — cross-platform support is still in development. Prefer Linux for production use.
+**Windows (PowerShell):**
 ```powershell
 irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
+```
+
+After install, enable PowerShell completions:
+```powershell
+. ~/.ps1int  # or source the completion file
 ```
 
 **From source:**
