@@ -24,8 +24,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e .
+          python -m pip install --upgrade pip setuptools wheel
+          # No pip install needed - gaet is pure stdlib, run tests directly
 
       - name: Run unit tests
         run: |
@@ -36,13 +36,14 @@ jobs:
           python -m py_compile gaet.py
           python -m py_compile scripts/service_manager.py
           python -m py_compile scripts/installer.py
+          python -m py_compile dashboard/server.py
           echo "Syntax OK"
         shell: bash
 
       - name: Verify man page renders (Linux only)
         if: runner.os == 'Linux'
         run: |
-          which groff || sudo apt-get install -y groff
+          sudo apt-get install -y groff >/dev/null 2>&1 || true
           groff -man -Tascii gaet.1 > /dev/null
           echo "Man page renders OK"
 
