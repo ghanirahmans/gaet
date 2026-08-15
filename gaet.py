@@ -3902,25 +3902,36 @@ def main() -> None:
                 suggest_command(topic)
         return
 
-    # Default command: status
+    # Default command: show welcome menu (not status)
     if args.command is None:
-        if not ENV_FILE.is_file():
-            # No config yet — show friendly intro + step-by-step onboarding
-            box_title(f"{NAME}")
-            echo(f"  {Y}Belum dikonfigurasi.{NC}")
+        box_title(f"{NAME} {VERSION}")
+        echo()
+        if ENV_FILE.is_file():
+            echo(f"  {G}✓ Konfigurasi ditemukan.{NC}")
+            echo(f"  {D}Last backup:{NC} {datetime.fromtimestamp(os.path.getmtime(ENV_FILE)).strftime('%Y-%m-%d %H:%M')}")
             echo()
-            echo(f"  {B}Mulai dalam 3 langkah:{NC}")
+        else:
+            echo(f"  {Y}Belum dikonfigurasi.{NC}")
+            echo(f"  {D}Mulai dalam 3 langkah:{NC}")
             echo(f"    {C}1.{NC} gaet init          Setup wizard (local + cloud DB)")
             echo(f"    {C}2.{NC} gaet push          Backup lokal → cloud")
             echo(f"    {C}3.{NC} gaet status        Lihat ringkasan sinkronisasi")
             echo()
-            echo(f"  {D}Butuh bantuan?{NC}")
-            echo(f"    gaet check         Validasi config & koneksi")
-            echo(f"    gaet status        Cek seberapa sinkron DB kamu")
-            echo(f"    gaet --help        Daftar semua perintah")
-            echo()
-            sys.exit(0)
-        args.command = "status"
+        
+        echo(f"  {B}Perintah populer:{NC}")
+        echo(f"    {C}gaet init{NC}           Setup database")
+        echo(f"    {C}gaet push{NC}           Backup ke cloud")
+        echo(f"    {C}gaet fetch{NC}          Restore dari cloud")
+        echo(f"    {C}gaet status{NC}         Cek sinkronisasi")
+        echo(f"    {C}gaet check{NC}          Validasi koneksi")
+        echo(f"    {C}gaet serve{NC}          Buka dashboard web")
+        echo()
+        echo(f"  {D}Butuh bantuan?{NC}")
+        echo(f"    {C}gaet --help{NC}        Daftar semua perintah")
+        echo(f"    {C}gaet help push{NC}     Detail perintah push")
+        echo(f"    {C}gaet doctor{NC}        Health check lengkap")
+        echo()
+        sys.exit(0)
 
     # Set defaults for attributes that may not exist on main parser
     if not hasattr(args, "json"):
