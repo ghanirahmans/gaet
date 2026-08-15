@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gaet — Dashboard</title>
+  <style>
+    :root {
+      --bg-primary: #0a0c10;
+      --bg-secondary: #111318;
+      --bg-card: #181b21;
+      --bg-card-hover: #1e2128;
+      --border: #252830;
+      --text-primary: #e4e6ea;
+      --text-secondary: #8b8f9b;
+      --text-muted: #555966;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --purple: #a855f7;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    [data-theme="light"] {
+      --bg-primary: #fafafa;
+      --bg-secondary: #f4f4f5;
+      --bg-card: #ffffff;
+      --bg-card-hover: #fafafa;
+      --border: #e4e4e7;
+      --text-primary: #18181b;
+      --text-secondary: #71717a;
+      --text-muted: #a1a1aa;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --green: #16a34a;
+      --red: #dc2626;
+      --yellow: #ca8a04;
+      --purple: #9333ea;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+    .app-container { min-height: 100vh; display: flex; flex-direction: column; }
+    .header {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      background: rgba(10, 12, 16, 0.8);
+    }
+    [data-theme="light"] .header { background: rgba(250, 250, 250, 0.8); }
+    .header-inner {
+      max-width: 1200px; margin: 0 auto;
+      padding: 16px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 16px;
+    }
+    .logo-text h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+    .logo-text p { font-size: 12px; color: var(--text-secondary); }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: var(--radius-sm);
+      font-size: 14px; font-weight: 600;
+      border: none; cursor: pointer; transition: all 0.15s ease;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-secondary { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-card-hover); }
+    .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.2); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+    .main-content { flex: 1; max-width: 1200px; margin: 0 auto; padding: 24px; width: 100%; }
+    .error-banner {
+      background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px;
+      font-size: 14px; color: var(--red); display: flex; align-items: center; gap: 8px;
+    }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .stat-grid { grid-template-columns: 1fr; } }
+    .stat-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+      transition: all 0.2s ease; position: relative; overflow: hidden;
+    }
+    .stat-card:hover { border-color: var(--border-subtle); transform: translateY(-1px); }
+    .stat-card::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .stat-card.accent::before { background: var(--accent); }
+    .stat-card.green::before { background: var(--green); }
+    .stat-card.yellow::before { background: var(--yellow); }
+    .stat-card.purple::before { background: var(--purple); }
+    .stat-icon {
+      width: 40px; height: 40px; border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 12px; font-size: 20px;
+    }
+    .stat-icon.accent { background: rgba(59, 130, 246, 0.1); color: var(--accent); }
+    .stat-icon.green { background: rgba(34, 197, 94, 0.08); color: var(--green); }
+    .stat-icon.yellow { background: rgba(234, 179, 8, 0.08); color: var(--yellow); }
+    .stat-icon.purple { background: rgba(168, 85, 247, 0.08); color: var(--purple); }
+    .stat-content h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 4px; }
+    .stat-content .value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+    .stat-content .subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    .sync-progress { margin-top: 8px; }
+    .progress-bar { height: 6px; background: rgba(0,0,0,0.2); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .progress-fill.full { background: var(--green); }
+    .progress-fill.partial { background: var(--yellow); }
+    .progress-fill.none { background: var(--red); }
+    .progress-text { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    .section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
+    .section-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .section-header h2 { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .section-body { padding: 16px 20px; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .table-container { overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
+    .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); font-size: 13px; }
+    .data-table tbody tr:hover { background: var(--bg-card-hover); }
+    .table-name { font-weight: 500; font-family: "JetBrains Mono", monospace; font-size: 13px; }
+    .table-num { font-variant-numeric: tabular-nums; text-align: right; font-family: "JetBrains Mono", monospace; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge-success { background: rgba(34, 197, 94, 0.08); color: var(--green); }
+    .badge-warning { background: rgba(234, 179, 8, 0.08); color: var(--yellow); }
+    .badge-danger { background: rgba(239, 68, 68, 0.08); color: var(--red); }
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+      border-radius: var(--radius-sm); font-size: 14px; font-weight: 500;
+      z-index: 100; animation: slideUp 0.2s ease; backdrop-filter: blur(8px);
+    }
+    .toast-ok { background: rgba(34, 197, 94, 0.15); color: var(--green); border: 1px solid rgba(34, 197, 94, 0.3); }
+    .toast-err { background: rgba(239, 68, 68, 0.15); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.3); }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+    .theme-toggle { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; color: var(--text-secondary); }
+    .theme-toggle:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header class="header">
+      <div class="header-inner">
+        <div class="logo">
+          <div class="logo-icon">G</div>
+          <div class="logo-text">
+            <h1>gaet</h1>
+            <p>Database Backup & Sync</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌓</button>
+          <button class="btn btn-secondary" id="refreshBtn" onclick="fetchStatus()">⟳ Refresh</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div id="errorBanner" class="error-banner" style="display:none;"></div>
+
+      <div class="stat-grid">
+        <div class="stat-card accent">
+          <div class="stat-icon accent">🗄️</div>
+          <div class="stat-content">
+            <h3>Tables</h3>
+            <div class="value" id="statTables">—</div>
+            <div class="subtitle" id="statLocalSize">—</div>
+          </div>
+        </div>
+        <div class="stat-card" id="syncCard">
+          <div class="stat-icon" id="syncIcon">🔄</div>
+          <div class="stat-content">
+            <h3>Sync Status</h3>
+            <div class="value" id="syncStatus">—</div>
+            <div class="sync-progress">
+              <div class="progress-bar"><div class="progress-fill" id="syncProgress"></div></div>
+              <div class="progress-text" id="syncText">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon purple">📦</div>
+          <div class="stat-content">
+            <h3>Backup</h3>
+            <div class="value" id="backupCount">—</div>
+            <div class="subtitle" id="lastBackup">—</div>
+          </div>
+        </div>
+        <div class="stat-card" id="cronCard">
+          <div class="stat-icon" id="cronIcon">⏰</div>
+          <div class="stat-content">
+            <h3>Auto-Backup</h3>
+            <div class="value" id="cronStatus">—</div>
+            <div class="subtitle" id="cronSubtitle">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>⚡ Actions</h2>
+        </div>
+        <div class="section-body">
+          <div class="actions">
+            <button class="btn btn-primary" id="pushBtn" onclick="doAction('push', 'Pushing...', 'Push')">↑ Push ke Cloud</button>
+            <button class="btn btn-secondary" id="fetchBtn" onclick="doAction('fetch', 'Fetching...', 'Fetch')">↓ Fetch dari Cloud</button>
+            <button class="btn btn-danger" id="stopBtn" onclick="doAction('stop', 'Stopping...', 'Stop')" style="display:none;">■ Stop Auto-Backup</button>
+            <button class="btn btn-secondary" id="autoBtn" onclick="doAction('auto', 'Enabling...', 'Auto')" style="display:none;">⏰ Enable Auto-Backup</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>📊 Database Tables</h2>
+          <span class="badge" id="syncBadge">—</span>
+        </div>
+        <div class="section-body">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Table</th>
+                  <th style="text-align:right">Local</th>
+                  <th style="text-align:right">Cloud</th>
+                  <th style="text-align:center">Status</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer style="text-align:center;padding:20px;font-size:13px;color:var(--text-muted);">
+      gaet v2.0.0 • Database Backup & Sync
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" style="display:none;"></div>
+
+  <script>
+    // Theme
+    const savedTheme = localStorage.getItem('gaet-theme');
+    if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+    else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme', 'dark');
+
+    document.getElementById('themeToggle').onclick = () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('gaet-theme', next);
+    };
+
+    function fmt(n) {
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+      if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+      return String(n);
+    }
+
+    function ago(ts) {
+      const d = Date.now() - ts * 1000;
+      const h = Math.floor(d / 3600000);
+      const m = Math.floor((d % 3600000) / 60000);
+      if (h > 24) return `${Math.floor(h / 24)}j lalu`;
+      if (h > 0) return `${h}j ${m}m lalu`;
+      if (m > 0) return `${m}m lalu`;
+      return 'baru saja';
+    }
+
+    function show(msg, type) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `toast toast-${type}`;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 4000);
+    }
+
+    async function fetchStatus() {
+      try {
+        const r = await fetch('/api/status');
+        const d = await r.json();
+        render(d);
+      } catch (e) {
+        console.error('Fetch error:', e);
+      }
+    }
+
+    function render(d) {
+      // Error banner
+      const errEl = document.getElementById('errorBanner');
+      if (d.error) {
+        errEl.textContent = '⚠️ ' + d.error;
+        errEl.style.display = 'flex';
+      } else {
+        errEl.style.display = 'none';
+      }
+
+      // Stats
+      document.getElementById('statTables').textContent = fmt(d.tables?.length ?? 0);
+      document.getElementById('statLocalSize').textContent = d.local_size || '?';
+      document.getElementById('backupCount').textContent = d.backup_count || 0;
+      document.getElementById('lastBackup').textContent = d.last_backup ? `Last ${ago(d.last_backup.date)}` : 'No backup yet';
+
+      // Sync status
+      const synced = d.synced ?? false;
+      document.getElementById('syncStatus').textContent = synced ? 'Synced' : 'Not synced';
+      const syncCard = document.getElementById('syncCard');
+      syncCard.className = `stat-card ${synced ? 'green' : 'yellow'}`;
+      document.getElementById('syncIcon').className = `stat-icon ${synced ? 'green' : 'yellow'}`;
+      const tables = d.tables ?? [];
+      const syncedCount = tables.filter(t => t.ok).length;
+      const pct = tables.length > 0 ? Math.round((syncedCount / tables.length) * 100) : 0;
+      const progress = document.getElementById('syncProgress');
+      progress.style.width = pct + '%';
+      progress.className = `progress-fill ${pct === 100 ? 'full' : pct > 0 ? 'partial' : 'none'}`;
+      document.getElementById('syncText').textContent = `${syncedCount}/${tables.length} tabel sinkron (${pct}%)`;
+
+      // Badge
+      const badge = document.getElementById('syncBadge');
+      badge.className = `badge ${synced ? 'badge-success' : 'badge-warning'}`;
+      badge.innerHTML = synced ? '✓ Synced' : '✗ Not synced';
+
+      // Cron
+      document.getElementById('cronStatus').textContent = d.cron_active ? 'Active' : 'Inactive';
+      const cronCard = document.getElementById('cronCard');
+      cronCard.className = `stat-card ${d.cron_active ? 'green' : 'yellow'}`;
+      document.getElementById('cronIcon').className = `stat-icon ${d.cron_active ? 'green' : 'yellow'}`;
+      document.getElementById('cronSubtitle').textContent = d.cron_active ? 'Periodik' : 'Jalankan manual';
+
+      // Action buttons
+      document.getElementById('stopBtn').style.display = d.cron_active ? 'inline-flex' : 'none';
+      document.getElementById('autoBtn').style.display = d.cron_active ? 'none' : 'inline-flex';
+
+      // Table rows
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      tables.forEach(t => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="table-name">${t.table}</td>
+          <td class="table-num">${fmt(t.local)}</td>
+          <td class="table-num">${fmt(t.supabase)}</td>
+          <td style="text-align:center">
+            <span class="badge ${t.ok ? 'badge-success' : 'badge-danger'}">${t.ok ? '✓ Sync' : '✗ Diff'}</span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      if (tables.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No table data</td></tr>';
+      }
+    }
+
+    async function doAction(action, loadingLabel, label) {
+      const btn = document.getElementById(`${action}Btn`) || event.target.closest('.btn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span> ${loadingLabel}`;
+      try {
+        const url = action === 'auto' ? '/api/push?auto=1' : `/api/${action}`;
+        const r = await fetch(url, { method: 'POST' });
+        const d = await r.json();
+        if (d.ok) show(d.msg || 'Selesai!', 'ok');
+        else show(d.msg || 'Gagal', 'err');
+        await fetchStatus();
+      } catch {
+        show('Gagal terhubung ke server', 'err');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    // Initial load + poll
+    fetchStatus();
+    setInterval(fetchStatus, 8000);
+  </script>
+</body>
+</html>

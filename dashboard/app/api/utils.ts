@@ -27,6 +27,19 @@ export function findGaet(): string {
     return _gaetPath;
   }
 
+  // Try common install locations
+  const candidates = [
+    "/usr/local/bin/gaet",
+    "/usr/bin/gaet",
+    "/home/ghaniyrahmans/Projects/gaet/gaet.py",
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) {
+      _gaetPath = c;
+      return _gaetPath;
+    }
+  }
+
   _gaetPath = "gaet";
   return _gaetPath;
 }

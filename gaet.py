@@ -3643,31 +3643,6 @@ def cmd_update(args: argparse.Namespace) -> None:
 def cmd_serve(args: argparse.Namespace) -> None:
     """Start web dashboard."""
     env = load_env()
-
-    # Cari dashboard directory
-    script_dir = Path(__file__).resolve().parent
-    candidates = [
-        script_dir / "dashboard",
-        script_dir.parent / "dashboard",
-        GAET_DIR / "dashboard",
-        HOME / ".local/share/gaet/dashboard",
-    ]
-    # Also check the original project location
-    if "GAET_PROJECT_DIR" in os.environ:
-        candidates.insert(0, Path(os.environ["GAET_PROJECT_DIR"]) / "dashboard")
-
-    dashboard_dir = None
-    for cand in candidates:
-        if cand.is_dir() and (cand / "package.json").is_file():
-            dashboard_dir = cand
-            break
-
-    if not dashboard_dir:
-        die(
-            "Dashboard tidak ditemukan. Pastikan kamu menjalankan gaet dari folder proyek.\n"
-            "  Atau set GAET_PROJECT_DIR ke direktori proyek gaet."
-        )
-
     port = int(get_env_str(env, "GAET_DASHBOARD_PORT", str(DEF_DASHBOARD_PORT)))
     host = get_env_str(env, "GAET_DASHBOARD_HOST", DEF_DASHBOARD_HOST)
 
@@ -3676,42 +3651,20 @@ def cmd_serve(args: argparse.Namespace) -> None:
         port = int(args.port)
     no_browser = getattr(args, "no_browser", False)
 
-    assert dashboard_dir is not None  # already checked above
     box_title(f"{NAME} serve")
+    status_info(f"Starting dashboard on http://{host}:{port}...")
 
-    # Check if dashboard is built
-    if not (dashboard_dir / ".next").is_dir():
-        status_info("Dashboard belum di-build. Building...")
-        node = shutil.which("node")
-        npm = shutil.which("npm")
-        if node and npm:
-            run_cmd([npm, "install"], cwd=str(dashboard_dir), timeout=120)
-            run_cmd([npm, "run", "build"], cwd=str(dashboard_dir), timeout=120)
-            status_ok("Dashboard built")
-        else:
-            die("Node.js/npm tidak ditemukan. Install Node.js terlebih dahulu.")
+    # Import here to avoid circular imports
+    from dashboard import server as srv
 
-    # Stop existing service first
-    if _svc_is_running():
-        status_info("Menghentikan service lama...")
-        _svc_stop()
-        time.sleep(1)
+    if not no_browser:
+        import webbrowser
+        try:
+            webbrowser.open(f"http://{host}:{port}")
+        except Exception:
+            pass
 
-    # Start dashboard
-    ok, msg = _svc_start(dashboard_dir=dashboard_dir, port=port, host=host, foreground=False)
-
-    if ok:
-        echo(f"\n  {G}{ICON_OK}{NC}  {B}Dashboard is running!{NC}")
-        echo(f"  {D}{ICON_ARROW}{NC}  http://localhost:{port}")
-        # Auto-open browser
-        if not no_browser:
-            import webbrowser
-            try:
-                webbrowser.open(f"http://localhost:{port}")
-            except Exception:
-                pass
-    else:
-        status_fail(f"Dashboard failed: {msg}")
+    srv.serve(port=port, host=host)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
