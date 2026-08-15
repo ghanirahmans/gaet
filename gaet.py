@@ -33,6 +33,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -625,7 +626,13 @@ def echo(msg: str = "", end: str = "\n") -> None:
     """
     if QUIET:
         return
-    print(msg, end=end, flush=True)
+    try:
+        print(msg, end=end, flush=True)
+    except BrokenPipeError:
+        # Silently ignore broken pipe (e.g., `gaet status | head`)
+        pass
+    except KeyboardInterrupt:
+        raise
 
 
 def safe_input(prompt: str, default: str = "") -> str:
@@ -3971,6 +3978,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # Handle SIGPIPE gracefully (e.g., when output is piped to head)
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     try:
         main()
     except KeyboardInterrupt:
