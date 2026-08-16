@@ -3725,12 +3725,16 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
     if not skip_build:
         try:
             dashboard_dst = install_dir / "dashboard"
-            dash_files = ["package.json", "next.config.ts", "next-env.d.ts", "tsconfig.json", "postcss.config.js",
-                          "app/layout.tsx", "app/page.tsx", "app/globals.css", "app/error.tsx",
-                          "app/api/utils.ts",
-                          "app/api/status/route.ts", "app/api/push/route.ts",
-                          "app/api/fetch/route.ts", "app/api/stop/route.ts",
-                          "public/gaet-logo.png"]
+            # Pure Python HTTP server — no Node.js/npm build step required (v2.0.1+).
+            # server.py runs from ~/.local/bin/dashboard/ (the install dir),
+            # so it is downloaded there, NOT to ~/.gaet/dashboard.
+            dash_files = [
+                "server.py",
+                "static/index.html",
+                "static/style.css",
+                "static/app.js",
+                "public/gaet-logo.png",
+            ]
 
             for df in dash_files:
                 url = f"{GITHUB_API}/dashboard/{df}?ref=master"
@@ -3739,16 +3743,9 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
                     df_path = dashboard_dst / df
                     df_path.parent.mkdir(parents=True, exist_ok=True)
                     df_path.write_bytes(data)
+                    status_ok(f"dashboard/{df} -> {dashboard_dst}")
                 except Exception:
-                    pass  # some files may not exist
-
-            node = shutil.which("node")
-            npm = shutil.which("npm")
-            if node and npm and dashboard_dst.is_dir() and (dashboard_dst / "package.json").is_file():
-                status_info("Building dashboard...")
-                run_cmd([npm, "install"], cwd=str(dashboard_dst), timeout=120)
-                run_cmd([npm, "run", "build"], cwd=str(dashboard_dst), timeout=120)
-                status_ok("Dashboard built")
+                    status_warn(f"Failed to download dashboard/{df}")
         except Exception as e:
             status_warn(f"Dashboard update skipped: {e}")
 

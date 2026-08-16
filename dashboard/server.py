@@ -11,17 +11,30 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
-ROOT = Path(__file__).resolve().parent.parent
-GAET_PY = ROOT / "gaet.py"
-STATIC_DIR = Path(__file__).resolve().parent / "static"
-ENV_FILE = Path(os.environ.get("HOME", "/home/ghaniyrahmans"), ".gaet", ".env")
+ROOT = Path(__file__).resolve().parent.parent  # ~/.local/bin
+SCRIPT_DIR = Path(__file__).resolve().parent     # ~/.local/bin/dashboard
+GAET_CONFIG = Path(os.environ.get("HOME", str(Path.home())), ".gaet")
+ENV_FILE = GAET_CONFIG / ".env"
+
+# The `gaet` binary lives next to this dashboard module in the install dir
+# (~/.local/bin/gaet). When run from the repo (dev mode), fall back to
+# running gaet.py by name.
+GAET_BIN = ROOT / "gaet"  # ~/.local/bin/gaet (installed)
+GAET_PY = SCRIPT_DIR.parent.parent / "gaet.py"  # project dev fallback
+if not GAET_PY.is_file() and GAET_BIN.is_file():
+    GAET_CMD = [sys.executable, str(GAET_BIN)]
+elif GAET_PY.is_file():
+    GAET_CMD = [sys.executable, str(GAET_PY)]
+else:
+    GAET_CMD = ["gaet"]  # last resort: rely on PATH
+STATIC_DIR = SCRIPT_DIR / "static"
 
 
 def run_gaet(args: list[str]) -> tuple[int, str, str]:
     """Run gaet command and return (rc, stdout, stderr)."""
     import subprocess
     r = subprocess.run(
-        [sys.executable, str(GAET_PY)] + args,
+        GAET_CMD + args,
         capture_output=True, text=True, timeout=120
     )
     return r.returncode, r.stdout, r.stderr

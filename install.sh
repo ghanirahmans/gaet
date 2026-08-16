@@ -91,35 +91,35 @@ done
 echo "  Scripts downloaded ($SCRIPTS_OK/5)"
 
 # ── 5b. Download dashboard ────────────────────────────────────────────────
+# gaet serve imports `dashboard.server`, which must live in the install dir
+# (~/.local/bin/dashboard/) so it is importable from the gaet entry script
+# (sys.path[0] = ~/.local/bin). This mirrors _update_download() in gaet.py.
 echo -n "  Downloading dashboard..."
-DASHBOARD_DIR="$GAET_CONFIG/dashboard"
-mkdir -p "$DASHBOARD_DIR/app/api/status" "$DASHBOARD_DIR/app/api/push" "$DASHBOARD_DIR/app/api/fetch" "$DASHBOARD_DIR/app/api/stop" "$DASHBOARD_DIR/public"
+DASH_DIR="$GAET_DIR/dashboard"
+mkdir -p "$DASH_DIR/static" "$DASH_DIR/public"
 DASH_OK=0
-declare -A dash_map=(
-  [package.json]="package.json"
-)
-# Static list of dashboard files (mirrors _update_download in gaet.py)
-for rel in \
-  package.json next.config.ts tsconfig.json postcss.config.js \
-  app/layout.tsx app/page.tsx app/globals.css app/error.tsx \
-  app/api/utils.ts \
-  app/api/status/route.ts app/api/push/route.ts app/api/fetch/route.ts app/api/stop/route.ts; do
-    url="https://raw.githubusercontent.com/ghanirahmans/gaet/master/dashboard/$rel"
-    if curl -fsSL "$url" -o "$DASHBOARD_DIR/$rel" 2>/dev/null; then
+# Pure Python HTTP server — no Node.js/npm build step required (v2.0.1+).
+# Only files that exist in the repo are downloaded (index.html is
+# self-contained: <style> + <script> inline, no external CSS/JS).
+for f in server.py static/index.html public/gaet-logo.png; do
+    url="https://raw.githubusercontent.com/ghanirahmans/gaet/master/dashboard/$f"
+    if curl -fsSL "$url" -o "$DASH_DIR/$f" 2>/dev/null; then
         DASH_OK=$((DASH_OK+1))
     else
         echo ""
-        echo "  ⚠  Failed to download dashboard/$rel"
+        echo "  ⚠  Failed to download dashboard/$f"
     fi
 done
-# Public asset (binary)
-if curl -fsSL "https://raw.githubusercontent.com/ghanirahmans/gaet/master/dashboard/public/gaet-logo.png" -o "$DASHBOARD_DIR/public/gaet-logo.png" 2>/dev/null; then
-    DASH_OK=$((DASH_OK+1))
-fi
 if [ "$DASH_OK" -gt 0 ]; then
     echo " OK ($DASH_OK files)"
 else
-    echo " SKIPPED (no files — install will still work, dashboard needs 'gaet update')"
+    echo " SKIPPED (dashboard needs 'gaet update')"
+fi
+# gaet-logo.png is already handled in the loop above.
+if [ "$DASH_OK" -gt 0 ]; then
+    echo " OK ($DASH_OK files)"
+else
+    echo " SKIPPED (dashboard needs 'gaet update')"
 fi
 
 # ── 6. Create config if not exists ────────────────────────────────────────
