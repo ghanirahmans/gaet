@@ -28,7 +28,7 @@ from .registry import command
 def _svc_start(dashboard_dir=None, port=9191, host="0.0.0.0", foreground=False):
     if _svc_available and service_start is not None:
         return service_start(dashboard_dir, port, host, foreground)
-    print("  ⚠  service_manager module tidak tersedia. Jalankan dari folder proyek.")
+    print("  ⚠  service_manager module unavailable. Run from project directory.")
     return False, "module not found"
 
 
@@ -88,36 +88,36 @@ def cmd_stop_auto(args: argparse.Namespace) -> None:
 
     if getattr(args, "dashboard", False):
         # Only stop dashboard
-        status_info("Menghentikan dashboard...")
+        status_info("Stopping dashboard service...")
         if _svc_is_running():
             ok, msg = _svc_stop()
             if ok:
-                status_ok("Dashboard dihentikan")
+                status_ok("Dashboard stopped")
             else:
-                status_warn(f"Gagal menghentikan dashboard: {msg}")
+                status_warn(f"Failed to stop dashboard: {msg}")
         else:
-            status_warn("Dashboard tidak aktif")
+            status_warn("Dashboard is not running")
         return
 
     if getattr(args, "scheduler", False):
         # Only stop auto-backup
-        status_info("Menghentikan auto-backup...")
+        status_info("Stopping auto-backup scheduler...")
         scheduler_disable(prefix)
-        status_ok("Auto-backup dihentikan")
+        status_ok("Auto-backup scheduler stopped")
         return
 
     # Default: stop both
-    status_info("Menghentikan auto-backup...")
+    status_info("Stopping auto-backup scheduler...")
     scheduler_disable(prefix)
-    status_ok("Auto-backup dihentikan")
+    status_ok("Auto-backup scheduler stopped")
 
     if _svc_is_running():
-        status_info("Menghentikan dashboard...")
+        status_info("Stopping dashboard service...")
         ok, msg = _svc_stop()
         if ok:
-            status_ok("Dashboard dihentikan")
+            status_ok("Dashboard stopped")
         else:
-            status_warn(f"Gagal menghentikan dashboard: {msg}")
+            status_warn(f"Failed to stop dashboard: {msg}")
 
 
 # -- registry (gaetway) ------------------------------------------------------------------
@@ -126,8 +126,8 @@ from .registry import command
 
 def _build_stop_parser(subparsers, common):
     p = subparsers.add_parser("stop", help="Stop auto-backup or dashboard", parents=[common])
-    p.add_argument("--scheduler", action="store_true", help="Stop auto-backup saja")
-    p.add_argument("--dashboard", action="store_true", help="Hentikan dashboard saja")
+    p.add_argument("--scheduler", action="store_true", help="Stop auto-backup scheduler only")
+    p.add_argument("--dashboard", action="store_true", help="Stop dashboard service only")
     return p
 
 

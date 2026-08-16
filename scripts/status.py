@@ -299,7 +299,7 @@ def get_status():
                        for t in tables],
             "backup_count": 0, "last_backup": None,
             "cron_active": is_cron_active(),
-            "error": f"Lokal DB tidak terjangkau ({cfg['local_host']}:{cfg['local_port']})"
+            "error": f"Local DB unreachable ({cfg['local_host']}:{cfg['local_port']})"
         }
 
     # Hitung tabel lokal + remote

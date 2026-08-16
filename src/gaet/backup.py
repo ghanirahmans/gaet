@@ -540,7 +540,7 @@ def cmd_restore(args: argparse.Namespace) -> None:
     # 1. Locate specified dump file
     dump_files = sorted(BACKUP_DIR.glob("*.dump"), key=lambda f: f.stat().st_mtime, reverse=True)
     if not dump_files:
-        die(f"Tidak ada file backup ditemukan di {BACKUP_DIR}.\n  Jalankan 'gaet push' terlebih dahulu untuk membuat backup.")
+        die(f"No backup snapshot files found in {BACKUP_DIR}.\n  Run 'gaet push' first to create a backup snapshot.")
 
     target_file: Optional[Path] = None
     if target_arg.lower() in ("latest", "last", "newest"):
@@ -558,7 +558,7 @@ def cmd_restore(args: argparse.Namespace) -> None:
             if matches:
                 target_file = matches[0]
             else:
-                die(f"File backup '{target_arg}' tidak ditemukan di {BACKUP_DIR}")
+                die(f"Backup snapshot file '{target_arg}' not found in {BACKUP_DIR}")
 
     size_mb = target_file.stat().st_size / (1024 * 1024)
     h, p, u, n, w = check_local_db(env)
@@ -620,7 +620,7 @@ def cmd_restore(args: argparse.Namespace) -> None:
         status_ok("Snapshot integrity valid")
 
         # Step 2: Terminate active connections to local DB
-        status_warn("Menutup koneksi aktif ke database lokal...")
+        status_warn("Closing active connections to local database...")
         env_local = pg_env(u, w)
         run_cmd(
             [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-v", f"dbname={n}", "-tAc",
@@ -634,14 +634,14 @@ def cmd_restore(args: argparse.Namespace) -> None:
         ok_reset, reset_err = _reset_target_objects(psql, h, p, u, n, w)
         if not ok_reset:
             cleanup_pg_env(env_local)
-            echo(f"    {R}{ICON_FAIL}{NC}  Gagal membersihkan database lokal")
+            echo(f"    {R}{ICON_FAIL}{NC}  Failed to reset local database")
             if reset_err:
                 echo(f"    {D}{reset_err[:200]}{NC}")
             result["restore"] = {"ok": False, "error": "reset"}
-            die("Restore lokal gagal (reset target)")
+            die("Local restore failed (target reset error)")
 
         # Step 4: Execute pg_restore
-        echo(f"  {C}💾{NC}  {B}Memulihkan database dari snapshot...{NC}")
+        echo(f"  {C}💾{NC}  {B}Restoring database from snapshot...{NC}")
         spinner = Spinner("Restoring snapshot to local DB").start()
         try:
             out3, err3, rc3 = run_cmd(
@@ -654,19 +654,19 @@ def cmd_restore(args: argparse.Namespace) -> None:
             spinner.stop()
 
         if rc3 == 0:
-            echo(f"    {G}{ICON_OK}{NC}  Pemulihan snapshot selesai!")
+            echo(f"    {G}{ICON_OK}{NC}  Snapshot restore complete!")
             result["restore"] = {"ok": True, "file": str(target_file)}
         else:
-            echo(f"    {R}{ICON_FAIL}{NC}  Restore gagal ({rc3})")
+            echo(f"    {R}{ICON_FAIL}{NC}  Restore failed ({rc3})")
             if err3:
                 for line in err3.strip().splitlines()[-3:]:
                     echo(f"    {D}{line}{NC}")
             result["restore"] = {"ok": False, "error": "restore"}
-            die("Restore snapshot lokal gagal")
+            die("Local snapshot restore failed")
 
         echo()
-        box_section("Ringkasan Pemulihan")
-        status_ok(f"Database lokal '{n}' berhasil dipulihkan")
+        box_section("Restore Summary")
+        status_ok(f"Local database '{n}' restored successfully")
         status_arrow(f"Snapshot File: {target_file.name}")
         status_arrow(f"Target DB:     {u}@{h}:{p}/{n}")
         echo()
@@ -687,9 +687,9 @@ from .registry import command
 def _build_push_parser(subparsers, common):
     p = subparsers.add_parser("push", help="Backup local to cloud", parents=[common])
     p.add_argument("--auto", nargs="?", const=0, type=int,
-                   help="Aktifkan auto-backup (opsional: interval jam, default 6)")
-    p.add_argument("--cron", action="store_true", help="Jalankan dari scheduler (internal)")
-    p.add_argument("--dry-run", action="store_true", help="Simulasi tanpa mengeksekusi")
+                   help="Enable auto-backup (optional: interval hours, default 6)")
+    p.add_argument("--cron", action="store_true", help="Run from scheduler (internal)")
+    p.add_argument("--dry-run", action="store_true", help="Simulate without executing")
     p.add_argument("--json", action="store_true", help="Output JSON result")
     p.add_argument("--notify", type=str, default="", help="Webhook URL to notify after push")
     return p
@@ -697,8 +697,8 @@ def _build_push_parser(subparsers, common):
 
 def _build_fetch_parser(subparsers, common):
     p = subparsers.add_parser("fetch", help="Restore cloud to local", parents=[common])
-    p.add_argument("--dry-run", action="store_true", help="Simulasi tanpa mengeksekusi")
-    p.add_argument("--yes", "-y", action="store_true", help="Skip konfirmasi (untuk non-interaktif/dashboard)")
+    p.add_argument("--dry-run", action="store_true", help="Simulate without executing")
+    p.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt (non-interactive)")
     p.add_argument("--json", action="store_true", help="Output JSON result")
     return p
 
@@ -706,9 +706,9 @@ def _build_fetch_parser(subparsers, common):
 def _build_restore_parser(subparsers, common):
     p = subparsers.add_parser("restore", help="Restore local DB from a local snapshot file", parents=[common])
     p.add_argument("target", nargs="?", default="latest",
-                   help="Nama file dump atau 'latest' (default: latest)")
-    p.add_argument("--dry-run", action="store_true", help="Simulasi pemulihan tanpa mengubah data")
-    p.add_argument("--yes", "-y", action="store_true", help="Skip konfirmasi (untuk non-interaktif/dashboard)")
+                   help="Dump snapshot filename or 'latest' (default: latest)")
+    p.add_argument("--dry-run", action="store_true", help="Simulate restore without modifying data")
+    p.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt (non-interactive)")
     p.add_argument("--json", action="store_true", help="Output JSON result")
     return p
 
