@@ -127,6 +127,30 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.send_json(500, {"error": err or "Failed to perform diagnostic check"})
             return
 
+        # ── API Endpoint: Doctor Check ──────────────────────────────────────
+        if path == "/api/doctor":
+            rc, out, err = run_gaet(["doctor", "--plain"])
+            self.send_json(200, {"ok": rc == 0, "output": out or err})
+            return
+
+        # ── API Endpoint: Diff Analysis ─────────────────────────────────────
+        if path == "/api/diff":
+            rc, out, err = run_gaet(["diff", "--plain"])
+            self.send_json(200, {"ok": rc == 0, "output": out or err})
+            return
+
+        # ── API Endpoint: Test Remote Connection ────────────────────────────
+        if path == "/api/remote/test":
+            rc, out, err = run_gaet(["remote", "--plain"])
+            self.send_json(200, {"ok": rc == 0, "output": out or err, "connected": "Testing remote cloud connection... OK" in (out or "")})
+            return
+
+        # ── API Endpoint: Export Shell Env ──────────────────────────────────
+        if path == "/api/export":
+            rc, out, err = run_gaet(["export"])
+            self.send_json(200, {"ok": rc == 0, "env_vars": out or err})
+            return
+
         # ── API Endpoint: Detect Local PostgreSQL ───────────────────────────
         if path == "/api/detect":
             instances = get_detected_instances()
@@ -263,11 +287,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
         # ── API Endpoint: Push ──────────────────────────────────────────────
         if path == "/api/push":
             auto = params.get("auto", [None])[0] or body_data.get("auto")
+            dry_run = body_data.get("dry_run", False) or params.get("dry_run", [False])[0]
             args = ["push"]
-            if auto:
+            if dry_run:
+                args.append("--dry-run")
+            elif auto:
                 args.extend(["--auto", str(auto)])
             rc, out, err = run_gaet(args)
-            msg = "Cloud push complete!" if rc == 0 else f"Push failed: {err or out}"
+            msg = "Push dry-run completed!" if dry_run else ("Cloud push complete!" if rc == 0 else f"Push failed: {err or out}")
             self.send_json(200, {"ok": rc == 0, "msg": msg, "output": out})
             return
 

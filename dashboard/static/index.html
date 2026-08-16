@@ -393,6 +393,43 @@
     }
     
     .btn-xs { padding: 3px 8px; font-size: 11px; }
+
+    /* Modals & Dialogs */
+    .modal-backdrop {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px);
+      z-index: 9999; display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal-content {
+      background: var(--bg-card); border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg); width: 100%; box-shadow: var(--shadow-lg);
+      overflow: hidden; animation: modal-fade-in 0.2s ease;
+    }
+    @keyframes modal-fade-in {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 20px; border-bottom: 1px solid var(--border-color);
+    }
+    .modal-header h3 { font-size: 16px; margin: 0; color: var(--text-primary); }
+    .modal-close {
+      background: none; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer;
+    }
+    .modal-close:hover { color: var(--text-primary); }
+    .modal-body { padding: 20px; max-height: 450px; overflow-y: auto; }
+    .modal-footer {
+      display: flex; justify-content: flex-end; gap: 10px;
+      padding: 12px 20px; border-top: 1px solid var(--border-color);
+      background: var(--bg-hover);
+    }
+    .console-box {
+      background: #0f172a; color: #38bdf8; font-family: var(--font-mono);
+      font-size: 12px; line-height: 1.5; padding: 14px; border-radius: var(--radius-md);
+      white-space: pre-wrap; word-break: break-all; margin: 0; border: 1px solid rgba(255,255,255,0.1);
+    }
   </style>
 </head>
 <body>
@@ -421,6 +458,7 @@
           <div id="headerStatusPill" class="live-pill pill-success">
             <span class="live-pulse"></span> <span id="headerStatusText">Checking...</span>
           </div>
+          <button class="btn btn-secondary btn-sm" onclick="runDoctorCheck()" title="Run full CLI system diagnostic">🩺 Doctor Check</button>
           <button class="btn btn-secondary btn-sm" id="refreshBtn" onclick="fetchFullStatus(true)">
             <span id="refreshIcon">⟳</span> Refresh
           </button>
@@ -503,9 +541,15 @@
 
         <!-- Table Matrix Section -->
         <div class="section">
-          <div class="section-header">
-            <h2>📊 Database Table Schema Matrix</h2>
-            <span class="badge" id="syncBadge">—</span>
+          <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <h2 style="margin:0;">📊 Database Table Schema Matrix</h2>
+              <span class="badge" id="syncBadge">—</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-secondary btn-sm" onclick="runDiffAnalysis()" title="Run detailed gaet diff CLI comparison">🔍 Diff Analysis</button>
+              <button class="btn btn-secondary btn-sm" onclick="doAction('push?dry_run=1', 'Simulating push...', '⚡ Dry Run')" title="Simulate push without modifying data">⚡ Dry Run</button>
+            </div>
           </div>
           <div class="section-body">
             <div class="table-container">
@@ -699,10 +743,11 @@
               <div id="sec-cloud" class="settings-section">
                 <div class="card-header-styled">
                   <div class="card-header-icon cloud">☁️</div>
-                  <div>
+                  <div style="flex:1;">
                     <h3>Cloud Target Database</h3>
                     <p>Destination database for remote backups and schema synchronization.</p>
                   </div>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="testRemoteConnection()" title="Run gaet remote connectivity check">☁️ Test Connection</button>
                 </div>
                 <div class="card-body-styled">
                   <div class="form-group">
@@ -817,9 +862,14 @@
                 <div style="font-size:12px;color:var(--text-muted);">
                   Configuration updates are written directly to <code>~/.gaet/.env</code>.
                 </div>
-                <button type="submit" class="btn btn-primary" id="saveConfigBtn">
-                  <span>💾 Save & Apply Configuration</span>
-                </button>
+                <div style="display:flex; gap:10px;">
+                  <button type="button" class="btn btn-secondary" onclick="openExportModal()" title="Export configuration as shell env statements">
+                    📥 Export Shell Env
+                  </button>
+                  <button type="submit" class="btn btn-primary" id="saveConfigBtn">
+                    <span>💾 Save & Apply Configuration</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -830,6 +880,54 @@
     <footer style="text-align:center;padding:24px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border)">
       gaet v3.0.2 • Open-Source Database Backup & Synchronization System
     </footer>
+  <!-- Doctor Modal -->
+  <div id="doctorModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-content" style="max-width:720px;">
+      <div class="modal-header">
+        <h3>🩺 System Diagnostic Doctor Output</h3>
+        <button class="modal-close" onclick="closeModal('doctorModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <pre id="doctorOutput" class="console-box">Running gaet doctor diagnostic check...</pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('doctorModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diff Modal -->
+  <div id="diffModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-content" style="max-width:720px;">
+      <div class="modal-header">
+        <h3>🔍 Table Schema Matrix Diff Analysis</h3>
+        <button class="modal-close" onclick="closeModal('diffModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <pre id="diffOutput" class="console-box">Analyzing local vs cloud database tables...</pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('diffModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Modal -->
+  <div id="exportModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-content" style="max-width:650px;">
+      <div class="modal-header">
+        <h3>📥 Export Environment Variables</h3>
+        <button class="modal-close" onclick="closeModal('exportModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Copy these bash export statements to set environment variables directly in your terminal session:</p>
+        <pre id="exportOutput" class="console-box">Loading export variables...</pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-sm" onclick="copyExportText()">📋 Copy to Clipboard</button>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('exportModal')">Close</button>
+      </div>
+    </div>
   </div>
 
   <div id="toast" class="toast" style="display:none;"></div>
@@ -1362,6 +1460,78 @@
       } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
       }
+    }
+
+    // Modal & CLI Feature Actions
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function runDoctorCheck() {
+      const modal = document.getElementById('doctorModal');
+      const outElem = document.getElementById('doctorOutput');
+      modal.style.display = 'flex';
+      outElem.textContent = 'Running gaet doctor diagnostic check...';
+      try {
+        const r = await fetch('/api/doctor');
+        const d = await r.json();
+        outElem.textContent = d.output || (d.ok ? 'All system checks passed successfully!' : 'Doctor check completed with warnings.');
+      } catch (e) {
+        outElem.textContent = 'Failed to execute doctor check: ' + e.message;
+      }
+    }
+
+    async function runDiffAnalysis() {
+      const modal = document.getElementById('diffModal');
+      const outElem = document.getElementById('diffOutput');
+      modal.style.display = 'flex';
+      outElem.textContent = 'Analyzing local vs cloud database schema diff...';
+      try {
+        const r = await fetch('/api/diff');
+        const d = await r.json();
+        outElem.textContent = d.output || 'No diff output received.';
+      } catch (e) {
+        outElem.textContent = 'Failed to execute diff analysis: ' + e.message;
+      }
+    }
+
+    async function testRemoteConnection() {
+      showToast('Testing cloud target connection...', 'ok');
+      try {
+        const r = await fetch('/api/remote/test');
+        const d = await r.json();
+        if (d.connected || d.ok) {
+          showToast('Cloud DB connection successful! ☁️ OK', 'ok');
+        } else {
+          showToast('Cloud DB connection failed: ' + (d.output || 'Unreachable'), 'err');
+        }
+      } catch (e) {
+        showToast('Remote connection test failed', 'err');
+      }
+    }
+
+    async function openExportModal() {
+      const modal = document.getElementById('exportModal');
+      const outElem = document.getElementById('exportOutput');
+      modal.style.display = 'flex';
+      outElem.textContent = 'Loading shell export statements...';
+      try {
+        const r = await fetch('/api/export');
+        const d = await r.json();
+        outElem.textContent = d.env_vars || '# No export variables available';
+      } catch (e) {
+        outElem.textContent = 'Failed to fetch export variables: ' + e.message;
+      }
+    }
+
+    function copyExportText() {
+      const text = document.getElementById('exportOutput').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Export statements copied to clipboard!', 'ok');
+      }).catch(() => {
+        showToast('Failed to copy text', 'err');
+      });
     }
 
     // Auto-poll status
