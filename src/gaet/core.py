@@ -50,6 +50,17 @@ import subprocess
 
 import sys
 
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import tempfile
 
 import textwrap
@@ -591,6 +602,13 @@ def echo(msg: str = "", end: str = "\n", flush: bool = False) -> None:
         return
     try:
         print(msg, end=end, flush=flush)
+    except UnicodeEncodeError:
+        try:
+            sys.stdout.buffer.write((msg + end).encode("utf-8", errors="replace"))
+            if flush:
+                sys.stdout.buffer.flush()
+        except Exception:
+            print(msg.encode("ascii", errors="replace").decode("ascii"), end=end, flush=flush)
     except BrokenPipeError:
         # Silently ignore broken pipe (e.g., `gaet status | head`)
         pass
