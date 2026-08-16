@@ -785,11 +785,10 @@
                     <th style="text-align:right">Local Rows</th>
                     <th style="text-align:right">Cloud Rows</th>
                     <th style="text-align:center">Diff Status</th>
-                    <th style="text-align:center">Quick Action</th>
                   </tr>
                 </thead>
                 <tbody id="tableBody">
-                  <tr><td colspan="5" class="empty-state">Loading table matrix...</td></tr>
+                  <tr><td colspan="4" class="empty-state">Loading table matrix...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -1405,14 +1404,9 @@
           <td class="table-num" style="text-align:right">${fmt(t.local)}</td>
           <td class="table-num" style="text-align:right">${fmt(t.supabase)}</td>
           <td style="text-align:center">
-            <span class="badge ${isOk ? 'badge-success' : 'badge-warning'}" style="cursor:pointer;" onclick="inspectTable('${t.table}', ${t.local || 0}, ${t.supabase || 0})">
+            <span class="badge ${isOk ? 'badge-success' : 'badge-warning'}" style="cursor:pointer;" onclick="inspectTable('${t.table}', ${t.local || 0}, ${t.supabase || 0})" title="Click to inspect table details">
               ${isOk ? '✓ In-Sync' : '⚡ Diff'}
             </span>
-          </td>
-          <td style="text-align:center;">
-            <div style="display:inline-flex; gap:6px; align-items:center;">
-              <button class="btn btn-secondary btn-xs" onclick="inspectTable('${t.table}', ${t.local || 0}, ${t.supabase || 0})" title="Inspect table details">🔍 Inspect</button>
-            </div>
           </td>
         `;
         tbody.appendChild(tr);
@@ -1420,7 +1414,7 @@
       if (tables.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="5" class="empty-state" style="padding:40px 20px;">
+            <td colspan="4" class="empty-state" style="padding:40px 20px;">
               <div style="font-size:24px;margin-bottom:8px">⚙️</div>
               <h4 style="font-size:15px;color:var(--text-primary);margin-bottom:4px">No Database Tables Discovered</h4>
               <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Configure your database connections or run wizard to start tracking tables.</p>
