@@ -68,8 +68,8 @@ Generate shell auto\-completions for bash, zsh, fish, or ps1.
 .B gaet update
 Update gaet installation to the latest version from GitHub.
 .TP
-.B gaet uninstall [\-\-purge]
-Remove gaet binary. Add \fB\-\-purge\fR to remove ~/.gaet configuration and backup files.
+.B gaet uninstall [\-\-save]
+Remove gaet binary, packages, and config. Add \fB\-\-save\fR to archive config to ~/.gaet.backup.<ts>.tar.gz before removal.
 .TP
 .B gaet stop
 Stop active web dashboard server and background automated backup tasks.
