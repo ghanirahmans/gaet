@@ -239,6 +239,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.send_json(404, {"error": f"Snapshot file '{filename}' not found"})
                 return
 
+        # ── Favicon Fallback ───────────────────────────────────────────────
+        if path == "/favicon.ico":
+            icon_path = PUBLIC_DIR / "gaet-logo.png"
+            if icon_path.is_file():
+                with open(icon_path, "rb") as f:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/png")
+                    self.end_headers()
+                    self.wfile.write(f.read())
+                return
+
         # ── Serve Static & Public Files ─────────────────────────────────────
         if STATIC_DIR.is_dir():
             file_path = STATIC_DIR / path.lstrip("/")
