@@ -80,7 +80,7 @@ IS_WINDOWS = SYSTEM == "win32" or SYSTEM.startswith("msys") or SYSTEM.startswith
 
 HOME = Path.home()
 
-GAET_DIR = HOME / ".gaet"
+GAET_DIR = Path(os.environ.get("GAET_DIR", HOME / ".gaet"))
 
 BACKUP_DIR = GAET_DIR / "backups"
 
@@ -432,11 +432,13 @@ def discover_tables(psql: str, h: str, p: str, u: str, n: str, w: str) -> List[s
         "WHERE table_schema = 'public' AND table_type = 'BASE TABLE' "
         "ORDER BY table_name"
     )
+    env_dict = pg_env(u, w)
     out, _, rc = run_cmd(
-        [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", query],
-        env={"PGPASSWORD": w},
+        [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", query],
+        env=env_dict,
         timeout=10,
     )
+    cleanup_pg_env(env_dict)
     if rc == 0 and out.strip():
         return [t.strip() for t in out.strip().split("\n") if t.strip()]
     return []
@@ -1241,10 +1243,12 @@ def _print_summary(env: Dict[str, str], tools: Dict[str, str]) -> None:
     # Local DB status
     echo(f"  {C}💾{NC}  Local:  {u}@{h}:{p}/{n}", end="")
     if psql:
+        env_dict = pg_env(u, w)
         out, _, rc = run_cmd(
-            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
-            env={"PGPASSWORD": w}, timeout=5,
+            [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+            env=env_dict, timeout=5,
         )
+        cleanup_pg_env(env_dict)
         if rc == 0 and out.strip() == "1":
             echo(f"  {G}connected{NC}")
         else:

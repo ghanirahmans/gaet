@@ -142,14 +142,16 @@ def cmd_push(args: argparse.Namespace) -> None:
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
         spinner = Spinner("Dumping local database").start()
+        env_dict = pg_env(u, w)
         try:
             out, err, rc = run_cmd(
-                [pg_dump, "-h", h, "-p", p, "-U", u, "-d", n,
+                [pg_dump, "-w", "-h", h, "-p", p, "-U", u, "-d", n,
                  "--format=custom", "--compress=9", f"--file={backup_file}"],
-                env={"PGPASSWORD": w},
+                env=env_dict,
                 timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
             )
         finally:
+            cleanup_pg_env(env_dict)
             spinner.stop()
         if rc == 0 and Path(backup_file).is_file():
             size_mb = Path(backup_file).stat().st_size / (1024 * 1024)
@@ -320,8 +322,11 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             # Non-interactive mode (--yes flag)
             pass
         elif not sys.stdin.isatty():
-            # Non-interactive mode (piped, dashboard, cron) — skip prompt
-            echo(f"  {Y}⚠ Non-interactive mode — proceeding automatically{NC}")
+            die(
+                "Perintah 'gaet fetch' di lingkungan non-interaktif memerlukan flag --yes untuk overwrite database lokal.\n"
+                f"  Contoh: {C}gaet fetch --yes{NC}",
+                EXIT_CONFIG,
+            )
         else:
             echo(f"  {Y}⚠  PERINGATAN: Operasi ini akan OVERWRITE database lokal!{NC}")
             echo(f"  {D}Database: {u}@{h}:{p}/{n}{NC}")
@@ -341,15 +346,17 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
         spinner = Spinner("Dumping cloud database").start()
+        env_cloud = pg_env(parsed["user"], parsed["pass"], ssl)
         try:
             out, err, rc = run_cmd(
-                [pg_dump, "-h", parsed["host"], "-p", parsed["port"],
+                [pg_dump, "-w", "-h", parsed["host"], "-p", parsed["port"],
                  "-U", parsed["user"], "-d", parsed["db"],
                  "--format=custom", "--compress=9", f"--file={fetch_file}"],
-                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
+                env=env_cloud,
                 timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
             )
         finally:
+            cleanup_pg_env(env_cloud)
             spinner.stop()
         if rc == 0 and Path(fetch_file).is_file():
             size_mb = Path(fetch_file).stat().st_size / (1024 * 1024)
@@ -363,18 +370,19 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         echo(f"  {C}💾{NC}  {B}Restoring to local database...{NC}")
         # Terminate connections first
         status_warn("Menutup koneksi aktif ke database lokal...")
-        safe_db = n.replace("'", "''")
+        env_local = pg_env(u, w)
         run_cmd(
-            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
+            [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-v", f"dbname={n}", "-tAc",
              "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-             f"WHERE datname = '{safe_db}' AND pid <> pg_backend_pid();"],
-            env={"PGPASSWORD": w},
+             "WHERE datname = :'dbname' AND pid <> pg_backend_pid();"],
+            env=env_local,
             timeout=10,
         )
 
         # Drop existing objects first (handles partitioned tables; --clean can't)
         ok_reset, reset_err = _reset_target_objects(psql, h, p, u, n, w)
         if not ok_reset:
+            cleanup_pg_env(env_local)
             echo(f"    {R}{ICON_FAIL}{NC}  Gagal membersihkan database lokal")
             if reset_err:
                 echo(f"    {D}{reset_err[:200]}{NC}")
@@ -384,12 +392,13 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         spinner = Spinner("Restoring to local database").start()
         try:
             out3, err3, rc3 = run_cmd(
-                [pg_restore, "-h", h, "-p", p, "-U", u, "-d", n,
+                [pg_restore, "-w", "-h", h, "-p", p, "-U", u, "-d", n,
                  fetch_file],
-                env={"PGPASSWORD": w},
+                env=env_local,
                 timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
             )
         finally:
+            cleanup_pg_env(env_local)
             spinner.stop()
         if rc3 == 0:
             echo(f"    {G}{ICON_OK}{NC}  Local restore complete!")

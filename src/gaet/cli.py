@@ -46,7 +46,26 @@ from .update import cmd_install, cmd_uninstall, cmd_update  # noqa: F401
 
 
 def main() -> None:
-    """CLI entry point. Routes commands to their handlers."""
+    """CLI entry point. Handles signals and exceptions gracefully without breaking the terminal."""
+    if hasattr(signal, "SIGPIPE"):
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+
+    try:
+        _run_cli()
+    except (KeyboardInterrupt, EOFError):
+        sys.stdout.write("\n  \033[36mℹ\033[0m  gaet: dibatalkan oleh pengguna.\n")
+        sys.stdout.flush()
+        sys.exit(130)
+    except SystemExit as e:
+        sys.exit(e.code if e.code is not None else 0)
+    except Exception as e:
+        sys.stderr.write(f"\n  \033[31m✗\033[0m  gaet error: {e}\n")
+        sys.stderr.flush()
+        sys.exit(1)
+
+
+def _run_cli() -> None:
+    """Internal CLI argument parser and command router."""
     parser = argparse.ArgumentParser(
         prog=NAME,
         description=f"{NAME} — Database Backup & Sync CLI",
@@ -219,11 +238,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # Handle SIGPIPE gracefully (e.g., when output is piped to head)
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-    try:
-        main()
-    except KeyboardInterrupt:
-        echo()
-        status_info("Cancelled by user")
-        sys.exit(0)
+    main()
