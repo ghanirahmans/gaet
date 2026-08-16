@@ -75,7 +75,7 @@ def _run_cli() -> None:
         epilog=textwrap.dedent("""\
             Examples:
               gaet init                 First-time setup wizard
-              gaet push                 Backup local database → cloud
+              gaet push                 Backup local database -> cloud
               gaet status               Show sync status
               gaet check --json | jq   Machine-readable health check (CI)
 
@@ -186,7 +186,7 @@ def _run_cli() -> None:
             echo(f"  {Y}Belum dikonfigurasi.{NC}")
             echo(f"  {D}Mulai dalam 3 langkah:{NC}")
             echo(f"    {C}1.{NC} gaet init          Setup wizard (local + cloud DB)")
-            echo(f"    {C}2.{NC} gaet push          Backup lokal → cloud")
+            echo(f"    {C}2.{NC} gaet push          Backup lokal -> cloud")
             echo(f"    {C}3.{NC} gaet status        Lihat ringkasan sinkronisasi")
             echo()
 

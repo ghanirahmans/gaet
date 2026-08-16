@@ -244,7 +244,7 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
             dest_path = install_dir / dst
             dest_path.write_bytes(data)
             dest_path.chmod(0o755) if not IS_WINDOWS else None
-            status_ok(f"{dst} → {dest_path}")
+            status_ok(f"{dst} -> {dest_path}")
         except Exception as e:
             die(f"Failed to download {src}: {e}")
 
@@ -255,7 +255,7 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
         try:
             data = _raw_download(url)
             (pkg_dst / pf).write_bytes(data)
-            status_ok(f"src/gaet/{pf} → {pkg_dst}/")
+            status_ok(f"src/gaet/{pf} -> {pkg_dst}/")
         except Exception as e:
             status_warn(f"Failed to download src/gaet/{pf}: {e}")
 
@@ -266,7 +266,7 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
         try:
             data = _raw_download(url)
             (scripts_dst / sf).write_bytes(data)
-            status_ok(f"scripts/{sf} → {scripts_dst}/")
+            status_ok(f"scripts/{sf} -> {scripts_dst}/")
         except Exception as e:
             status_warn(f"Failed to download scripts/{sf}: {e}")
 
@@ -396,7 +396,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     if src.is_file():
         shutil.copy2(str(src), str(dst))
         dst.chmod(0o755) if not IS_WINDOWS else None
-        status_ok(f"gaet → {dst}")
+        status_ok(f"gaet -> {dst}")
 
     # v3 src-layout: copy the gaet package dir into gaet_pkg/ (shim imports
     # it; `gaet/` beside the `gaet` binary is impossible on disk)
@@ -406,7 +406,7 @@ def cmd_update(args: argparse.Namespace) -> None:
         pkg_dst.mkdir(parents=True, exist_ok=True)
         for pf in pkg_src.glob("*.py"):
             shutil.copy2(str(pf), str(pkg_dst / pf.name))
-        status_ok(f"src/gaet → {pkg_dst}")
+        status_ok(f"src/gaet -> {pkg_dst}")
     
     # Copy scripts if exists
     scripts_src = project_dir / "scripts"
@@ -415,7 +415,7 @@ def cmd_update(args: argparse.Namespace) -> None:
         scripts_dst.mkdir(parents=True, exist_ok=True)
         for f in scripts_src.glob("*.py"):
             shutil.copy2(str(f), str(scripts_dst / f.name))
-        status_ok(f"scripts → {scripts_dst}/")
+        status_ok(f"scripts -> {scripts_dst}/")
     
     # Copy dashboard if exists and rebuild
     dashboard_src = project_dir / "dashboard"

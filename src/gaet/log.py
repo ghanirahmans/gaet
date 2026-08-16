@@ -71,7 +71,7 @@ def cmd_log(args: argparse.Namespace) -> None:
     if not filtered and (filter_str or since_str):
         # Helpful context when a filter yields nothing
         if filter_str.upper() == "CRON" and not CRON_LOG.is_file():
-            echo(f"  {Y}Filter '{filter_str}' → 0 baris.{NC}")
+            echo(f"  {Y}Filter '{filter_str}' -> 0 baris.{NC}")
             echo(f"  {D}Cron log belum ada — auto-backup mungkin belum pernah berjalan.{NC}")
             echo(f"  {D}Aktifkan dengan: gaet push --auto{NC}")
         else:

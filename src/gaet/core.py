@@ -11,9 +11,9 @@ Backup PostgreSQL lokal ke cloud (Supabase, Neon, RDS, VPS).
 
 Usage:
   gaet init              Setup wizard
-  gaet push              Local → cloud
+  gaet push              Local -> Cloud
   gaet push --dry-run    Simulasi push
-  gaet fetch             Cloud → local
+  gaet fetch             Cloud -> Local
   gaet fetch --dry-run   Simulasi fetch
   gaet update            Update ke versi terbaru
   gaet --version         Show version
@@ -135,8 +135,8 @@ if _USE_COLOR:
     ICON_FAIL = "✗"
     ICON_WARN = "⚠"
     ICON_INFO = "ℹ"
-    ICON_ARROW = "→"
-    ICON_STAR = "✦"
+    ICON_ARROW = "▪"
+    ICON_STAR = "★"
 else:
     R = G = Y = C = B = D = W = NC = ""
     ICON_OK = "OK"
