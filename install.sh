@@ -75,7 +75,7 @@ if echo "$api_json" | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); sys
              config.py status.py backup.py scheduler.py log.py serve.py export.py update.py; do
         pkg_json=$(curl -sSL "$API_BASE/src/gaet/$f?ref=master")
         if echo "$pkg_json" | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if 'content' in d else 1)" 2>/dev/null; then
-            mkdir -p "$GAET_DIR/gaet_pkg"
+            mkdir -p "$GAET_DIR/gaet_pkg/gaet"
             echo "$pkg_json" | "$PYTHON" -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" > "$GAET_DIR/gaet_pkg/gaet/$f"
             PKG_OK=$((PKG_OK+1))
         fi
