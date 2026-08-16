@@ -86,8 +86,8 @@ gaet [<global-options>] <command> [<args>]
 Get up and running in under 2 minutes:
 
 ```bash
-# 1. Install gaet CLI
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+# 1. Install gaet CLI (LTS Release)
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.sh | bash
 
 # 2. Run interactive setup wizard
 gaet init
@@ -103,16 +103,16 @@ gaet status
 
 ## Installation
 
-### Method 1: Automated Script (Recommended)
+### Method 1: Automated Script (Recommended LTS Release)
 
-**Linux / macOS:**
+**Linux / macOS (Bash):**
 ```bash
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
+irm https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.ps1 | iex
 ```
 
 ### Method 2: System Package / Source Installation
