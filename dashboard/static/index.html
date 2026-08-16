@@ -1190,28 +1190,54 @@
     }
 
     async function fetchCheck() {
+      const container = document.getElementById('checkBody');
+      if (!container) return;
+      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)"><span class="spinner"></span> Running diagnostic checks...</div>';
       try {
         const r = await fetch('/api/check');
         const d = await r.json();
-        const container = document.getElementById('checkBody');
         const checks = d.checks || {};
         
+        const toolsOk = checks.tools?.ok ?? false;
+        const remoteConf = checks.remote_db?.configured ?? false;
+        const remoteReach = checks.remote_db?.reachable ?? false;
+        const autoActive = checks.auto_backup?.active ?? false;
+
         container.innerHTML = `
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
-            <div style="background:var(--bg-secondary);padding:16px;border-radius:var(--radius-sm)">
-              <h4 style="margin-bottom:8px">🔧 PostgreSQL CLI Tools</h4>
-              <p>pg_dump: <code>${checks.tools?.pg_dump || 'Not found'}</code></p>
-              <p>psql: <code>${checks.tools?.psql || 'Not found'}</code></p>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+            <div style="background:var(--bg-secondary);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <h4 style="font-size:13px;margin:0">🔧 PostgreSQL CLI Tools</h4>
+                <span class="badge ${toolsOk ? 'badge-success' : 'badge-danger'}">${toolsOk ? '✓ OK' : '✗ Missing'}</span>
+              </div>
+              <p style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">pg_dump: <code style="color:var(--accent)">${checks.tools?.pg_dump || 'Not found'}</code></p>
+              <p style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">psql: <code style="color:var(--accent)">${checks.tools?.psql || 'Not found'}</code></p>
+              <p style="font-size:11px;color:var(--text-secondary)">pg_restore: <code style="color:var(--accent)">${checks.tools?.pg_restore || 'Not found'}</code></p>
             </div>
-            <div style="background:var(--bg-secondary);padding:16px;border-radius:var(--radius-sm)">
-              <h4 style="margin-bottom:8px">☁️ Cloud Database Target</h4>
-              <p>Configured: <b>${checks.remote_db?.configured ? 'Yes' : 'No'}</b></p>
-              <p>Reachable: <b>${checks.remote_db?.reachable ? 'Yes' : 'No'}</b></p>
+
+            <div style="background:var(--bg-secondary);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <h4 style="font-size:13px;margin:0">☁️ Cloud Target Database</h4>
+                <span class="badge ${remoteConf && remoteReach ? 'badge-success' : remoteConf ? 'badge-warning' : 'badge-danger'}">${remoteConf && remoteReach ? '✓ Reachable' : remoteConf ? '⚠️ Unreachable' : '✗ Unconfigured'}</span>
+              </div>
+              <p style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Configured: <b>${remoteConf ? 'Yes' : 'No'}</b></p>
+              <p style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Host: <code>${checks.remote_db?.host || 'N/A'}:${checks.remote_db?.port || 'N/A'}</code></p>
+              <p style="font-size:11px;color:var(--text-secondary)">Database: <code>${checks.remote_db?.db || 'N/A'}</code></p>
+            </div>
+
+            <div style="background:var(--bg-secondary);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <h4 style="font-size:13px;margin:0">⏰ Auto-Backup Scheduler</h4>
+                <span class="badge ${autoActive ? 'badge-success' : 'badge-warning'}">${autoActive ? '✓ Active' : 'Inactive'}</span>
+              </div>
+              <p style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Status: <b>${autoActive ? 'Running' : 'Stopped'}</b></p>
+              <p style="font-size:11px;color:var(--text-muted)">${autoActive ? 'Periodic backups active' : 'Run gaet push --auto to enable'}</p>
             </div>
           </div>
         `;
       } catch (e) {
         console.error('Check fetch error:', e);
+        container.innerHTML = `<div class="empty-state" style="color:var(--red)">Failed to run system diagnostics: ${e.message}</div>`;
       }
     }
 
