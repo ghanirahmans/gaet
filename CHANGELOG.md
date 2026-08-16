@@ -21,6 +21,14 @@ All notable changes to gaet are documented here.
 ### Fixed
 - Fresh `curl | bash` install after the v3 package split silently produced a
   broken binary (shim without package) — installer now fetches both.
+- **v3 split regression:** `gaet push --auto=N` and `gaet push --cron` were
+  silently no-ops — the auto/cron dispatch that lived in the monolith's `main()`
+  was not carried into `backup.py`. `cmd_push` now routes `--auto` to
+  `cmd_auto_on` and `--cron` to `cmd_push_cron`, matching v2 behavior.
+- **v3 split regression:** `auto-on`/`stop` crashed in the installed layout
+  because `scheduler.py` imported the service backend (`_svc_mod`) from `core`,
+  where it only existed as a function-local import. `scheduler` now imports
+  `scripts.service_manager` directly (lazy, with fallback).
 
 ## [3.0.0] — 2026-08-16
 

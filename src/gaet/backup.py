@@ -7,8 +7,9 @@ import sys
 import time
 import urllib
 from typing import Any, Dict, Optional, Tuple
-from .core import Any, B, BACKUP_DIR, C, D, DEF_PG_TIMEOUT, DEF_REMOTE_SSLMODE, DEF_RETENTION_DAYS, Dict, ENV_FILE, EXIT_CLOUD_DOWN, EXIT_CONFIG, EXIT_LOCAL_DOWN, G, ICON_FAIL, ICON_OK, NC, Optional, Path, R, Spinner, Tuple, Y, acquire_lock, argparse, box_section, box_title, cleanup_pg_env, cronlog, datetime, die, echo, find_pg_tools, get_env_int, get_env_str, get_local_db, get_tables, json, load_env, log, parse_remote_url, pg_env, print_push_summary, release_lock, run_cmd, safe_input, set_output_modes, status_arrow, status_info, status_ok, status_warn, sys, time, urllib
+from .core import Any, B, BACKUP_DIR, C, D, DEF_AUTO_INTERVAL, DEF_PG_TIMEOUT, DEF_REMOTE_SSLMODE, DEF_RETENTION_DAYS, Dict, ENV_FILE, EXIT_CLOUD_DOWN, EXIT_CONFIG, EXIT_LOCAL_DOWN, G, ICON_FAIL, ICON_OK, NC, Optional, Path, R, Spinner, Tuple, Y, acquire_lock, argparse, box_section, box_title, cleanup_pg_env, cronlog, datetime, die, echo, find_pg_tools, get_env_int, get_env_str, get_local_db, get_tables, json, load_env, log, parse_remote_url, pg_env, print_push_summary, release_lock, run_cmd, safe_input, set_output_modes, status_arrow, status_info, status_ok, status_warn, sys, time, urllib
 from .status import check_local_db, check_tools
+from .scheduler import cmd_auto_on
 
 def _reset_target_objects(
     psql: str, host: str, port: str, user: str, db: str, passwd: str,
@@ -59,6 +60,19 @@ def cmd_push(args: argparse.Namespace) -> None:
     if want_json:
         set_output_modes(quiet=True, plain=True)
     result: Dict[str, Any] = {"command": "push", "ok": False}
+
+    # ── auto / cron modes (mirrors the former monolith dispatch) ──
+    if getattr(args, "cron", False):
+        env = load_env()
+        cmd_push_cron(env)
+        return
+    if getattr(args, "auto", None) is not None:
+        # --auto without value defaults to GAET_AUTO_INTERVAL
+        if args.auto == 0:
+            env = load_env()
+            args.auto = get_env_int(env, "GAET_AUTO_INTERVAL", DEF_AUTO_INTERVAL)
+        cmd_auto_on(args)
+        return
 
     if dry_run:
         env = load_env()
