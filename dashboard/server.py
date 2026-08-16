@@ -20,7 +20,7 @@ ENV_FILE = GAET_CONFIG / ".env"
 # (~/.local/bin/gaet). When run from the repo (dev mode), fall back to
 # running gaet.py by name.
 GAET_BIN = ROOT / "gaet"  # ~/.local/bin/gaet (installed)
-GAET_PY = SCRIPT_DIR.parent.parent / "gaet.py"  # project dev fallback
+GAET_PY = SCRIPT_DIR.parent / "gaet.py"  # repo dev fallback (dashboard/.. = repo root)
 if not GAET_PY.is_file() and GAET_BIN.is_file():
     GAET_CMD = [sys.executable, str(GAET_BIN)]
 elif GAET_PY.is_file():

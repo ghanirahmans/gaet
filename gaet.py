@@ -3731,8 +3731,6 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
             dash_files = [
                 "server.py",
                 "static/index.html",
-                "static/style.css",
-                "static/app.js",
                 "public/gaet-logo.png",
             ]
 
