@@ -713,31 +713,65 @@ def _is_socket_host(h: str) -> bool:
     return bool(h) and h.startswith("/")
 
 
-def _local_config_lines(h, p, u, n, w) -> Tuple[str, str, str]:
-    """Build the local-database section of ~/.gaet/.env.
+def _local_config_lines(h, p, u, n, w) -> Tuple[List[str], str, str]:
+    """Build the local-database section of ~/.gaet/.env as a line list.
 
-    Returns (local_lines, pass_line, tables_note):
+    Returns (lines, pass_line, tables_note):
       - Host is a socket dir  → individual GAET_LOCAL_DB_* vars (URL can't
         encode a path with '/'); connection keeps working via psql -h <dir>.
       - Host is TCP/IP        → compact GAET_LOCAL_URL (git-style default).
+    No indentation is applied here — callers must emit plain KEY=value lines
+    (textwrap.dedent cannot handle multi-line interpolated values).
     """
     if _is_socket_host(h):
         # Socket path: cannot live in a connection URL. Write individual
         # variables so load_env/get_local_db round-trips correctly.
-        local_lines = (
-            f"GAET_LOCAL_DB_HOST={h}\n"
-            f"GAET_LOCAL_DB_PORT={p}\n"
-            f"GAET_LOCAL_DB_USER={u}\n"
-            f"GAET_LOCAL_DB_NAME={n}"
-        )
+        local_lines = [
+            f"GAET_LOCAL_DB_HOST={h}",
+            f"GAET_LOCAL_DB_PORT={p}",
+            f"GAET_LOCAL_DB_USER={u}",
+            f"GAET_LOCAL_DB_NAME={n}",
+        ]
     else:
         local_url = f"postgresql://{u}@{h}:{p}/{n}"
-        local_lines = f"GAET_LOCAL_URL={local_url}"
+        local_lines = [f"GAET_LOCAL_URL={local_url}"]
     if w:
         pass_line = f"GAET_LOCAL_DB_PASS={w}"
     else:
         pass_line = "# GAET_LOCAL_DB_PASS="
     return local_lines, pass_line, ""
+
+
+def _build_env_content(
+    h, p, u, n, w, remote_url, retention_days, tables_line="", header="Konfigurasi"
+) -> str:
+    """Build the full ~/.gaet/.env content as plain KEY=value lines.
+
+    No textwrap.dedent and no indentation anywhere — .env files must be
+    sourceable by POSIX shells (`source ~/.gaet/.env`), so every line is
+    flush-left.
+    """
+    local_lines, pass_line, _ = _local_config_lines(h, p, u, n, w)
+    lines = [
+        "# ══════════════════════════════════════════════════════════════",
+        f"# gaet — {header}",
+        "# ══════════════════════════════════════════════════════════════",
+        f"# Dibuat: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "# ══════════════════════════════════════════════════════════════",
+        "",
+        "# Local Database",
+        *local_lines,
+        pass_line,
+        "",
+        "# Remote Database (Cloud)",
+        f"GAET_REMOTE_URL={remote_url}",
+        "",
+        "# Backup",
+        f"GAET_RETENTION_DAYS={retention_days}",
+    ]
+    if tables_line:
+        lines.append(tables_line)
+    return "\n".join(lines) + "\n"
 
 
 def _write_env_file(content: str) -> None:
@@ -819,25 +853,9 @@ def _save_init_config(h, p, u, n, w, remote_url, retention_days):
         except OSError:
             pass
 
-    local_lines, pass_line, _ = _local_config_lines(h, p, u, n, w)
-
-    env_content = textwrap.dedent(f"""\
-        # ══════════════════════════════════════════════════════════════
-        # gaet — Konfigurasi (auto-generated)
-        # ══════════════════════════════════════════════════════════════
-        # Dibuat: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-        # ══════════════════════════════════════════════════════════════
-
-        # Local Database
-        {local_lines}
-        {pass_line}
-
-        # Remote Database (Cloud)
-        GAET_REMOTE_URL={remote_url}
-
-        # Backup
-        GAET_RETENTION_DAYS={retention_days}
-        """)
+    env_content = _build_env_content(
+        h, p, u, n, w, remote_url, retention_days, header="Konfigurasi (auto-generated)"
+    )
 
     _write_env_file(env_content)
 
@@ -2157,27 +2175,12 @@ def cmd_init(args: argparse.Namespace) -> None:
         if preset and "tables" in preset:
             tables_line = f"GAET_TABLES={preset['tables']}"
 
-        # Build local config lines — socket hosts become individual vars
-        # (see _local_config_lines); URL form used for TCP/IP hosts.
-        local_lines, pass_line, _ = _local_config_lines(h, p, u, n, w)
-
-        env_content = textwrap.dedent(f"""\
-        # ══════════════════════════════════════════════════════════════
-        # gaet — Konfigurasi
-        # ══════════════════════════════════════════════════════════════
-        # Dibuat: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-        # ══════════════════════════════════════════════════════════════
-
-        # Local Database
-        {local_lines}
-        {pass_line}
-
-        # Remote Database (Cloud)
-        GAET_REMOTE_URL={remote_url}
-
-        # Backup
-        GAET_RETENTION_DAYS={ret}
-        {tables_line}""")
+        # Build config content — socket hosts become individual vars
+        # (see _local_config_lines); plain KEY=value lines, no indentation.
+        env_content = _build_env_content(
+            h, p, u, n, w, remote_url, ret, tables_line=tables_line,
+            header="Konfigurasi",
+        )
 
         _write_env_file(env_content)
         echo()

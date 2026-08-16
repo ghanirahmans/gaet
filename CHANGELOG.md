@@ -17,6 +17,10 @@ All notable changes to gaet are documented here.
 ### Fixed
 - `gaet init` with a detected Unix socket wrote an invalid `GAET_LOCAL_URL`
   that could not be parsed back by `get_local_db` — now round-trips correctly.
+- **`.env` produced by `gaet init` had mixed indentation** (8-space lines
+  interleaved with flush-left lines) because `textwrap.dedent` cannot handle
+  multi-line interpolated values — this silently broke `source ~/.gaet/.env`
+  for users. Config is now built from a plain line list, always flush-left.
 - Socket auto-detect hardcoded port `5432` and a fixed socket list, missing
   instances on other ports (e.g. `5433` found in `/tmp`); port is now read
   from the socket filename and all socket directories are scanned.

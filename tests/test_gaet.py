@@ -15,6 +15,7 @@ from gaet import (
     get_local_db,
     _is_socket_host,
     _local_config_lines,
+    _build_env_content,
     _socket_port,
     _find_socket_paths,
 )
@@ -143,6 +144,19 @@ class TestLocalConfigLines(unittest.TestCase):
         self.assertIn("GAET_LOCAL_DB_USER=pg", lines)
         self.assertIn("GAET_LOCAL_DB_NAME=appdb", lines)
         self.assertEqual(pass_line, "GAET_LOCAL_DB_PASS=s3cret")
+
+    def test_build_env_content_has_no_indentation(self):
+        """.env must be sourceable — every line flush-left (dedent bug fix)."""
+        content = _build_env_content(
+            "/run/postgresql", "5432", "pg", "appdb", "pw", "", "7"
+        )
+        for line in content.splitlines():
+            if line and not line.startswith("#"):
+                # KEY=value lines must start at column 0
+                self.assertFalse(line.startswith(" "), f"indented line: {line!r}")
+        # socket vars present, no GAET_LOCAL_URL
+        self.assertIn("GAET_LOCAL_DB_HOST=/run/postgresql", content)
+        self.assertNotIn("GAET_LOCAL_URL", content)
 
     def test_socket_config_roundtrips_through_get_local_db(self):
         """The config written for a socket host must parse back correctly."""
