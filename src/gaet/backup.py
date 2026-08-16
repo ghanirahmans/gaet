@@ -130,7 +130,7 @@ def cmd_push(args: argparse.Namespace) -> None:
                 EXIT_CONFIG,
             )
 
-        log("🚀 Push: local → cloud")
+        log("🚀 Push: local -> cloud")
         box_title("gaet push")
         pg_dump = tools["pg_dump"]
         pg_restore = tools["pg_restore"]
@@ -262,7 +262,7 @@ def cmd_push(args: argparse.Namespace) -> None:
         release_lock()
 
 def cmd_fetch(args: argparse.Namespace) -> None:
-    """Restore cloud → local."""
+    """Restore cloud -> local."""
     dry_run = getattr(args, "dry_run", False)
     want_json = getattr(args, "json", False)
     if want_json:
@@ -286,12 +286,12 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             print(json.dumps(result, indent=2))
             return
         box_title("gaet fetch --dry-run")
-        echo(f"  {C}☁️{NC}   {B}Simulasi fetch cloud → local{NC}")
+        echo(f"  {C}☁️{NC}   {B}Simulasi fetch cloud -> local{NC}")
         echo()
         cloud_info = f"Cloud:  {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}" if parsed else "Cloud: not configured"
         status_arrow(cloud_info)
         status_arrow(f"Local:  {u}@{h}:{p}/{n}")
-        status_arrow(f"Aksi:   Dump cloud → restore ke local (overwrite)")
+        status_arrow(f"Aksi:   Dump cloud -> restore ke local (overwrite)")
         echo()
         status_info("Dry-run: Tidak ada perubahan yang dilakukan.")
         return
@@ -316,7 +316,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         pg_dump = tools["pg_dump"]
         pg_restore = tools["pg_restore"]
 
-        log("⬇️ Fetch: cloud → local")
+        log("⬇️ Fetch: cloud -> local")
         box_title("gaet fetch")
 
         # Confirmation before overwriting local DB
