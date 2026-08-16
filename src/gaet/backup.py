@@ -516,6 +516,170 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
     finally:
         release_lock()
 
+def cmd_restore(args: argparse.Namespace) -> None:
+    """Restore local database from a local snapshot (.dump file).
+
+    Usage:
+      gaet restore               (restores the latest local backup)
+      gaet restore latest        (restores the latest local backup)
+      gaet restore gaet_20260816_190000.dump
+    """
+    dry_run = getattr(args, "dry_run", False)
+    skip_confirm = getattr(args, "yes", False)
+    want_json = getattr(args, "json", False)
+    target_arg = getattr(args, "target", None) or "latest"
+
+    if want_json:
+        set_output_modes(quiet=True, plain=True)
+    result: Dict[str, Any] = {"command": "restore", "ok": False}
+
+    env = load_env()
+    tools = find_pg_tools(env)
+    check_tools(env)
+
+    # 1. Locate specified dump file
+    dump_files = sorted(BACKUP_DIR.glob("*.dump"), key=lambda f: f.stat().st_mtime, reverse=True)
+    if not dump_files:
+        die(f"Tidak ada file backup ditemukan di {BACKUP_DIR}.\n  Jalankan 'gaet push' terlebih dahulu untuk membuat backup.")
+
+    target_file: Optional[Path] = None
+    if target_arg.lower() in ("latest", "last", "newest"):
+        target_file = dump_files[0]
+    else:
+        # Check if argument is absolute/relative path or filename in BACKUP_DIR
+        candidate = Path(target_arg)
+        if candidate.is_file():
+            target_file = candidate
+        elif (BACKUP_DIR / target_arg).is_file():
+            target_file = BACKUP_DIR / target_arg
+        else:
+            # Match by substring
+            matches = [f for f in dump_files if target_arg in f.name]
+            if matches:
+                target_file = matches[0]
+            else:
+                die(f"File backup '{target_arg}' tidak ditemukan di {BACKUP_DIR}")
+
+    size_mb = target_file.stat().st_size / (1024 * 1024)
+    h, p, u, n, w = check_local_db(env)
+
+    if dry_run:
+        if want_json:
+            result.update({
+                "dry_run": True,
+                "target_file": str(target_file),
+                "size_mb": round(size_mb, 1),
+                "destination": {"host": h, "port": p, "user": u, "db": n},
+                "ok": True,
+            })
+            print(json.dumps(result, indent=2))
+            return
+        box_title("gaet restore --dry-run")
+        box_section("Simulation Details")
+        status_arrow(f"Snapshot File: {target_file.name}")
+        status_arrow(f"Full Path:     {target_file}")
+        status_arrow(f"Size:          {size_mb:.1f} MB")
+        status_arrow(f"Target DB:     {u}@{h}:{p}/{n}")
+        echo()
+        status_info("Dry-run mode: No database changes will be made")
+        echo()
+        status_info(f"To proceed: gaet restore {target_file.name}")
+        echo()
+        return
+
+    # Safety Guard for TTY & Non-TTY
+    if not skip_confirm:
+        if not sys.stdin.isatty():
+            die(
+                "Perintah destruktif 'gaet restore' di lingkungan non-interaktif membutuhkan flag --yes / -y",
+                EXIT_CONFIG,
+            )
+        echo()
+        box_title("gaet restore")
+        status_warn(f"⚠️ PERINGATAN DESTRUKTIF: Seluruh tabel di database lokal '{n}' akan DIHAPUS dan DIPULIHKAN dari snapshot!")
+        status_arrow(f"File Snapshot: {target_file.name} ({size_mb:.1f} MB)")
+        status_arrow(f"Target Database: {u}@{h}:{p}/{n}")
+        echo()
+        ans = safe_input(f"  Apakah Anda yakin ingin memulihkan snapshot ini? Ketik 'yes' untuk melanjutkan: ").strip().lower()
+        if ans not in ("yes", "y"):
+            echo(f"  {Y}Restore dibatalkan oleh pengguna.{NC}")
+            return
+
+    acquire_lock()
+    try:
+        log(f"🔄 Restore local DB from snapshot: {target_file.name}")
+        box_title("gaet restore")
+        pg_restore = tools["pg_restore"]
+        psql = tools["psql"]
+
+        # Step 1: Verify integrity of dump
+        echo(f"  {C}🔍{NC}  {B}Memeriksa integritas file snapshot...{NC}")
+        _, _, rc_check = run_cmd([pg_restore, "--list", str(target_file)], timeout=30)
+        if rc_check != 0:
+            die(f"File snapshot '{target_file.name}' korup atau tidak valid.", EXIT_CONFIG)
+        status_ok("Integritas snapshot valid")
+
+        # Step 2: Terminate active connections to local DB
+        status_warn("Menutup koneksi aktif ke database lokal...")
+        env_local = pg_env(u, w)
+        run_cmd(
+            [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-v", f"dbname={n}", "-tAc",
+             "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+             "WHERE datname = :'dbname' AND pid <> pg_backend_pid();"],
+            env=env_local,
+            timeout=10,
+        )
+
+        # Step 3: Reset target objects
+        ok_reset, reset_err = _reset_target_objects(psql, h, p, u, n, w)
+        if not ok_reset:
+            cleanup_pg_env(env_local)
+            echo(f"    {R}{ICON_FAIL}{NC}  Gagal membersihkan database lokal")
+            if reset_err:
+                echo(f"    {D}{reset_err[:200]}{NC}")
+            result["restore"] = {"ok": False, "error": "reset"}
+            die("Restore lokal gagal (reset target)")
+
+        # Step 4: Execute pg_restore
+        echo(f"  {C}💾{NC}  {B}Memulihkan database dari snapshot...{NC}")
+        spinner = Spinner("Restoring snapshot to local DB").start()
+        try:
+            out3, err3, rc3 = run_cmd(
+                [pg_restore, "-w", "-h", h, "-p", p, "-U", u, "-d", n, str(target_file)],
+                env=env_local,
+                timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
+            )
+        finally:
+            cleanup_pg_env(env_local)
+            spinner.stop()
+
+        if rc3 == 0:
+            echo(f"    {G}{ICON_OK}{NC}  Pemulihan snapshot selesai!")
+            result["restore"] = {"ok": True, "file": str(target_file)}
+        else:
+            echo(f"    {R}{ICON_FAIL}{NC}  Restore gagal ({rc3})")
+            if err3:
+                for line in err3.strip().splitlines()[-3:]:
+                    echo(f"    {D}{line}{NC}")
+            result["restore"] = {"ok": False, "error": "restore"}
+            die("Restore snapshot lokal gagal")
+
+        echo()
+        box_section("Ringkasan Pemulihan")
+        status_ok(f"Database lokal '{n}' berhasil dipulihkan")
+        status_arrow(f"Snapshot File: {target_file.name}")
+        status_arrow(f"Target DB:     {u}@{h}:{p}/{n}")
+        echo()
+
+        result["ok"] = True
+        if want_json:
+            print(json.dumps(result, indent=2))
+            return
+        log(f"✅ Restore local DB complete ({target_file.name})")
+    finally:
+        release_lock()
+
+
 # -- registry (gaetway) ------------------------------------------------------------------
 from .registry import command
 
@@ -539,6 +703,17 @@ def _build_fetch_parser(subparsers, common):
     return p
 
 
+def _build_restore_parser(subparsers, common):
+    p = subparsers.add_parser("restore", help="Restore local DB from a local snapshot file", parents=[common])
+    p.add_argument("target", nargs="?", default="latest",
+                   help="Nama file dump atau 'latest' (default: latest)")
+    p.add_argument("--dry-run", action="store_true", help="Simulasi pemulihan tanpa mengubah data")
+    p.add_argument("--yes", "-y", action="store_true", help="Skip konfirmasi (untuk non-interaktif/dashboard)")
+    p.add_argument("--json", action="store_true", help="Output JSON result")
+    return p
+
+
 command("push", "Backup local to cloud", build=_build_push_parser)(cmd_push)
 command("fetch", "Restore cloud to local", build=_build_fetch_parser)(cmd_fetch)
+command("restore", "Restore local DB from a local snapshot file", build=_build_restore_parser)(cmd_restore)
 
