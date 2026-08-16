@@ -1305,7 +1305,7 @@ except ImportError:
     _svc_available = False
 
 GITHUB_API = "https://api.github.com/repos/ghanirahmans/gaet/contents"
-GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/master"
+GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0"
 
 
 def _raw_download(url: str, timeout: int = 15) -> bytes:
