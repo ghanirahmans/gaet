@@ -16,13 +16,13 @@ Get your first backup running in 5 minutes.
 ## Step 1: Install
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.sh | bash
 ```
 
 Verify installation:
 ```bash
 gaet --version
-# Output: gaet v2.0.0
+# Output: gaet v1.0.0
 ```
 
 ---

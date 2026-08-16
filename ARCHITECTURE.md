@@ -22,7 +22,7 @@ This document explains how gaet works internally, design decisions, and trade-of
 ```
 ┌──────────────────────────────────────────────────────┐
 │                    gaet CLI                          │
-│  (Single Python file, ~2500 lines, zero dependencies)│
+│  (Modular src/gaet package, zero dependencies)       │
 └──────────────────┬───────────────────────────────────┘
                    │
         ┌──────────┼──────────┐
@@ -30,7 +30,7 @@ This document explains how gaet works internally, design decisions, and trade-of
         ▼          ▼          ▼
    ┌────────┐ ┌──────────┐ ┌─────────────┐
    │  Push  │ │  Fetch   │ │  Dashboard  │
-   │Pipeline│ │ Pipeline │ │   (Flask)   │
+   │Pipeline│ │ Pipeline │ │ (Stdlib HTTP)│
    └────────┘ └──────────┘ └─────────────┘
         │          │              │
         └──────────┼──────────────┘
@@ -665,24 +665,21 @@ def test_command_args_safe():
 |-----------|--------|-------|
 | CLI startup | 5MB | Minimal |
 | Backup (1GB) | 50MB | Streaming, not buffered |
-| Dashboard | 30MB | Node.js + React |
+| Dashboard | < 15MB | Python stdlib HTTP server |
 | During restore | 50MB | Limited buffering |
 
 ---
 
 ## Architecture Decisions & Rationale
 
-### Decision: Single Python File (Not Modular)
+### Decision: Clean Modular `src/gaet` Package Layout
 
-**Choice:** Keep all CLI code in `gaet.py` (one file)
+**Choice:** Separate subcommands and core modules into `src/gaet/` while maintaining a zero-dependency single-file entry shim (`gaet.py`).
 
 **Rationale:**
-- Easier to audit (security)
-- Zero import complexity
-- Faster startup (no module loading)
-- Simpler distribution
-
-**Trade-off:** Less modular, but CLI isn't complex enough to justify modules
+- High maintainability: individual subcommands registered via `@command` decorator
+- Clean unit test isolation (`python3 -m unittest discover -s tests`)
+- Retains single-file cURL installer capability via entry shim
 
 ### Decision: Pure Python (No External Dependencies)
 
