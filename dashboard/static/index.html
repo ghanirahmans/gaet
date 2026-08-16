@@ -549,7 +549,7 @@
     function renderOverview(d) {
       const banner = document.getElementById('globalBanner');
       if (d.error) {
-        banner.textContent = '⚠️ ' + d.error;
+        banner.innerHTML = `<span>⚠️ <b>Connection Alert:</b> ${d.error} — Go to <b>Settings</b> tab or run <code>gaet init</code> in terminal.</span> <button class="btn btn-secondary btn-sm" onclick="switchTab('settings')">⚙️ Settings</button>`;
         banner.style.display = 'flex';
       } else {
         banner.style.display = 'none';
@@ -575,12 +575,12 @@
       progress.style.width = pct + '%';
       progress.className = `progress-fill ${pct === 100 ? 'full' : pct > 0 ? 'partial' : 'none'}`;
       
-      document.getElementById('syncText').textContent = `${syncedCount}/${tables.length} tables in sync`;
+      document.getElementById('syncText').textContent = tables.length > 0 ? `${syncedCount}/${tables.length} tables in sync` : 'No tables configured';
       document.getElementById('syncPct').textContent = `${pct}%`;
 
       const badge = document.getElementById('syncBadge');
-      badge.className = `badge ${synced ? 'badge-success' : 'badge-warning'}`;
-      badge.innerHTML = synced ? '✓ In-Sync' : '⚡ Diff Detected';
+      badge.className = `badge ${synced && tables.length > 0 ? 'badge-success' : 'badge-warning'}`;
+      badge.innerHTML = synced && tables.length > 0 ? '✓ In-Sync' : tables.length === 0 ? '⚠️ Unconfigured / Empty' : '⚡ Diff Detected';
 
       const cronActive = d.cron_active ?? false;
       document.getElementById('cronStatus').textContent = cronActive ? 'Active' : 'Inactive';
@@ -608,7 +608,15 @@
         tbody.appendChild(tr);
       });
       if (tables.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No tables discovered in local database</td></tr>';
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="empty-state" style="padding:40px 20px;">
+              <div style="font-size:24px;margin-bottom:8px">⚙️</div>
+              <h4 style="font-size:15px;color:var(--text-primary);margin-bottom:4px">No Database Tables Discovered</h4>
+              <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Configure your database connections or run wizard to start tracking tables.</p>
+              <button class="btn btn-primary btn-sm" onclick="switchTab('settings')">Configure Database Settings</button>
+            </td>
+          </tr>`;
       }
     }
 

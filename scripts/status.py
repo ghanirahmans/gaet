@@ -18,10 +18,7 @@ BACKUP_DIR = f"{GAET_DIR}/backups"
 ENV_FILE = f"{GAET_DIR}/.env"
 
 # Backward-compatible fallback (used only if discovery fails)
-FALLBACK_TABLES = [
-    "memory_units", "banks", "chunks", "entities", "documents",
-    "async_operations", "audit_log", "file_storage", "memory_links"
-]
+FALLBACK_TABLES: List[str] = []
 
 
 def load_env(path):
