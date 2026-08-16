@@ -118,7 +118,7 @@ def _linux_start(dashboard_dir: Path, port: int, host: str) -> Tuple[bool, str]:
     log = str(LOG_FILE)
     python = _find_python()
     if not python:
-        return False, "Python tidak ditemukan di PATH"
+        return False, "Python not found in PATH"
 
     # Build command: python dashboard/server.py <port>
     cmd = [python, str(dashboard_dir / "server.py"), str(port)]
@@ -181,7 +181,7 @@ def _macos_start(dashboard_dir: Path, port: int, host: str) -> Tuple[bool, str]:
     log = str(LOG_FILE)
     python = _find_python()
     if not python:
-        return False, "Python tidak ditemukan di PATH"
+        return False, "Python not found in PATH"
 
     cmd = [python, str(dashboard_dir / "server.py"), str(port)]
 
@@ -263,7 +263,7 @@ def _windows_start(dashboard_dir: Path, port: int, host: str) -> Tuple[bool, str
     log = str(LOG_FILE)
     python = _find_python()
     if not python:
-        return False, "Python tidak ditemukan di PATH"
+        return False, "Python not found in PATH"
 
     cmd = [python, str(dashboard_dir / "server.py"), str(port)]
 
@@ -335,7 +335,7 @@ def start(
     if dashboard_dir is None:
         dashboard_dir = _find_dashboard_dir()
     if dashboard_dir is None:
-        return False, "dashboard directory tidak ditemukan"
+        return False, "dashboard directory not found"
 
     _ensure_dirs()
 
@@ -343,7 +343,7 @@ def start(
         # Run in foreground (for dev / debugging)
         python = _find_python()
         if not python:
-            return False, "Python tidak ditemukan di PATH"
+            return False, "Python not found in PATH"
         cmd = [python, str(dashboard_dir / "server.py"), str(port)]
         try:
             subprocess.run(cmd, cwd=str(dashboard_dir))
@@ -374,7 +374,7 @@ def stop() -> Tuple[bool, str]:
 
 
 def status() -> Dict:
-    """Return dict dengan info service dashboard."""
+    """Return dict containing dashboard service status information."""
     running = is_running()
     result: Dict = {
         "running": running,

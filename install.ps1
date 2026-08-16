@@ -8,7 +8,19 @@ $ErrorActionPreference = "Stop"
 
 $GAET_DIR = "$env:USERPROFILE\.local\bin"
 $GAET_CONFIG = "$env:USERPROFILE\.gaet"
-$GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/master"
+
+# Use TLS 1.2 for GitHub
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+# Resolve commit SHA dynamically to bypass GitHub raw CDN 5-minute cache
+try {
+    $commitResp = Invoke-RestMethod -Uri "https://api.github.com/repos/ghanirahmans/gaet/commits/master" -UseBasicParsing -ErrorAction SilentlyContinue
+    $commitSha = $commitResp.sha
+} catch {
+    $commitSha = "master"
+}
+if (-not $commitSha) { $commitSha = "master" }
+$GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/$commitSha"
 
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════════════╗" -ForegroundColor Cyan
@@ -62,8 +74,6 @@ New-Item -ItemType Directory -Force -Path "$GAET_DIR\scripts" | Out-Null
 # ── 4. Download gaet CLI (gaet.py) ───────────────────────────────────────
 Write-Host "  Downloading gaet.py... " -NoNewline
 try {
-    # Use TLS 1.2 for GitHub
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri "$GITHUB_RAW/gaet.py" -OutFile "$GAET_DIR\gaet.py" -UseBasicParsing
     Write-Host " OK" -ForegroundColor Green
 } catch {
@@ -102,20 +112,34 @@ foreach ($f in $scripts) {
 }
 Write-Host "  Scripts downloaded"
 
+# ── 5a. Download completions ──────────────────────────────────────────────
+$compDir = "$GAET_DIR\completions"
+New-Item -ItemType Directory -Force -Path $compDir | Out-Null
+$compFiles = @("gaet.bash", "gaet.zsh", "gaet.fish", "gaet.ps1")
+foreach ($f in $compFiles) {
+    try {
+        Invoke-WebRequest -Uri "$GITHUB_RAW/completions/$f" -OutFile "$compDir\$f" -UseBasicParsing
+    } catch {
+        Write-Host "  ⚠  Failed to download completions/$f" -ForegroundColor Yellow
+    }
+}
+Write-Host "  Completions downloaded"
+
 # ── 5b. Download dashboard ────────────────────────────────────────────────
 $dashboardDir = "$GAET_DIR\dashboard"
 New-Item -ItemType Directory -Force -Path $dashboardDir | Out-Null
 New-Item -ItemType Directory -Force -Path "$dashboardDir\static" | Out-Null
+New-Item -ItemType Directory -Force -Path "$dashboardDir\public" | Out-Null
 
-$dashboardFiles = @("server.py", "static/index.html")
+$dashboardFiles = @("server.py", "static/index.html", "public/gaet-logo.png")
 foreach ($f in $dashboardFiles) {
     try {
         Invoke-WebRequest -Uri "$GITHUB_RAW/dashboard/$f" -OutFile "$dashboardDir\$f" -UseBasicParsing
-        Write-Host "  ✓ Downloaded dashboard/$f" -ForegroundColor Green
     } catch {
         Write-Host "  ⚠  Failed to download dashboard/$f" -ForegroundColor Yellow
     }
 }
+Write-Host "  Dashboard downloaded"
 
 # ── 6. Create gaet.cmd wrapper ────────────────────────────────────────────
 # This lets users run `gaet` directly from anywhere
