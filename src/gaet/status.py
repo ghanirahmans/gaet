@@ -15,17 +15,17 @@ def check_tools(env: Dict[str, str]) -> None:
     tools = find_pg_tools(env)
     ok = True
     if not tools["pg_dump"]:
-        status_fail("pg_dump tidak ditemukan")
+        status_fail("pg_dump not found")
         ok = False
     if not tools["pg_restore"]:
-        status_fail("pg_restore tidak ditemukan")
+        status_fail("pg_restore not found")
         ok = False
     if not tools["psql"]:
-        status_fail("psql tidak ditemukan")
+        status_fail("psql not found")
         ok = False
     if not ok:
         die(
-            "Pasang PostgreSQL tools dulu, atau set GAET_PG_DUMP dll di .env"
+            "Install PostgreSQL tools first, or set GAET_PG_DUMP etc. in .env"
         )
 
 def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
@@ -34,7 +34,7 @@ def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
     tools = find_pg_tools(env)
     psql = tools["psql"]
     if not psql:
-        die("psql tidak ditemukan", EXIT_TOOLS)
+        die("psql not found", EXIT_TOOLS)
 
     env_dict = pg_env(u, w)
     out, _, rc = run_cmd(
@@ -48,22 +48,22 @@ def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
         hint = ""
         if not ENV_FILE.is_file():
             hint = (
-                f"\n  {Y}Belum ada konfigurasi.{NC}\n"
-                f"  Jalankan: {C}gaet init{NC}  (setup wizard — panduan langkah demi langkah)\n"
-                f"  Atau set manual: {C}gaet set GAET_LOCAL_URL=postgresql://user:pw@host:5432/db{NC}"
+                f"\n  {Y}No configuration found.{NC}\n"
+                f"  Run: {C}gaet init{NC}  (interactive setup wizard)\n"
+                f"  Or set manually: {C}gaet set GAET_LOCAL_URL=postgresql://user:pw@host:5432/db{NC}"
             )
         else:
             hint = (
-                f"\n  {Y}Pastikan:{NC}\n"
-                f"    1. PostgreSQL berjalan di {h}:{p}\n"
-                f"    2. user '{u}' & password benar\n"
-                f"    3. database '{n}' ada\n"
-                f"  Edit dengan: {C}gaet init{NC}  atau  {C}gaet set GAET_LOCAL_URL=...{NC}\n"
-                f"  File config: {D}{ENV_FILE}{NC}"
+                f"\n  {Y}Make sure:{NC}\n"
+                f"    1. PostgreSQL is running on {h}:{p}\n"
+                f"    2. User '{u}' & password are correct\n"
+                f"    3. Database '{n}' exists\n"
+                f"  Edit with: {C}gaet init{NC}  or  {C}gaet set GAET_LOCAL_URL=...{NC}\n"
+                f"  Config file: {D}{ENV_FILE}{NC}"
             )
         die(
             f"Cannot connect to local database ({h}:{p}/{n})\n"
-            f"  {Y}Periksa konfigurasi database.{NC}{hint}",
+            f"  {Y}Check database configuration.{NC}{hint}",
             EXIT_LOCAL_DOWN,
         )
     return h, p, u, n, w
@@ -430,7 +430,7 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, Any
             status_arrow(f"Size: {size_out}")
         else:
             echo(f"{R}FAIL{NC}")
-            status_arrow(f"Tidak dapat terhubung ke {h}:{p}/{n} (jalankan 'gaet init' untuk perbarui)")
+            status_arrow(f"Could not connect to {h}:{p}/{n} (run 'gaet init' to update)")
             result["ok"] = False
         cleanup_pg_env(env_dict)
     else:
@@ -448,7 +448,7 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, Any
             "user": parsed["user"], "db": parsed["db"], "reachable": False,
         }
         # Connection test
-        echo(f"  {C}☁️{NC}   Koneksi cloud... ", end="")
+        echo(f"  {C}☁️{NC}   Cloud connection... ", end="")
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
         env_dict = pg_env(parsed["user"], parsed["pass"], ssl)
         out, _, rc = run_cmd(
@@ -472,12 +472,12 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, Any
             result["ok"] = False
         cleanup_pg_env(env_dict)
     else:
-        echo(f"{Y}LEWAT{NC}")
-        status_arrow(f"Set GAET_REMOTE_URL di {ENV_FILE}")
+        echo(f"{Y}SKIPPED{NC}")
+        status_arrow(f"Set GAET_REMOTE_URL in {ENV_FILE}")
         result["checks"]["remote_db"] = {"configured": False, "reachable": False}
 
     # Backup dir
-    echo(f"  {C}📁{NC}  Direktori backup... ", end="")
+    echo(f"  {C}📁{NC}  Backup directory... ", end="")
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     if BACKUP_DIR.is_dir():
         echo(f"{G}OK{NC} {D}{BACKUP_DIR}{NC}")
@@ -495,9 +495,9 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, Any
     echo(f"  {C}⏰{NC}  Auto-backup timer... ", end="")
     auto_active = scheduler_is_active(prefix)
     if auto_active:
-        echo(f"{G}AKTIF{NC}")
+        echo(f"{G}ACTIVE{NC}")
     else:
-        echo(f"{Y}tidak aktif{NC}")
+        echo(f"{Y}inactive{NC}")
         status_arrow("Enable with: gaet push --auto")
     result["checks"]["auto_backup"] = {"active": auto_active}
 
@@ -553,9 +553,9 @@ def cmd_status(args: argparse.Namespace) -> None:
             mtime = datetime.fromtimestamp(latest.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
             status_ok(f"Last backup: {mtime} {D}({size_mb:.1f} MB){NC}")
         else:
-            status_warn("Belum pernah backup")
+            status_warn("No previous backups found")
     except OSError:
-        status_warn("Belum pernah backup")
+        status_warn("No previous backups found")
 
     try:
         count = len(list(BACKUP_DIR.glob("*.dump")))
