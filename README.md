@@ -5,11 +5,11 @@
 [![Platform: Linux | macOS | Windows](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-supported-brightgreen.svg)]()
 [![v3.0.1](https://img.shields.io/badge/v3.0.1-blue?label=release)](CHANGELOG.md)
 
-> **gaet** is a zero-dependency, Git-styled PostgreSQL backup & synchronization CLI tool. It provides seamless snapshot management, local-to-cloud push/fetch operations, structured status badges, and automated retention policies.
+> **gaet** is a zero-dependency PostgreSQL backup and synchronization CLI tool. It handles snapshot retention, local-to-cloud pushes, fetches, and status reporting.
 
 ---
 
-## 📖 Table of Contents
+## Table of Contents
 
 1. [Name & Synopsis](#name--synopsis)
 2. [Description & Architecture](#description--architecture)
@@ -32,7 +32,7 @@
 ## Name & Synopsis
 
 **NAME**  
-`gaet` — Zero-dependency PostgreSQL database backup, synchronization, and snapshot management CLI.
+`gaet` - PostgreSQL backup and synchronization CLI.
 
 **SYNOPSIS**  
 ```bash
@@ -40,9 +40,9 @@ gaet [<global-options>] <command> [<args>]
 ```
 
 **GLOBAL OPTIONS**  
-- `-q, --quiet` : Suppress non-essential informational headers and output formatting.
-- `--plain`     : Output plain, unformatted TSV output (pipe-safe for `grep`, `awk`, `sed`).
-- `--json`      : Return structured JSON objects for programmatic consumption.
+- `-q, --quiet` : Suppress non-essential output headers.
+- `--plain`     : Output plain TSV lines (pipe-safe for `grep` and `awk`).
+- `--json`      : Return raw JSON objects.
 - `--dry-run`   : Simulate execution without writing files or mutating databases.
 
 ---
