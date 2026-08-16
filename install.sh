@@ -77,16 +77,18 @@ fi
 
 # ── 5. Download scripts ───────────────────────────────────────────────────
 mkdir -p "$GAET_DIR/scripts"
+SCRIPTS_OK=0
 for f in status.py scheduler.py service_manager.py installer.py __init__.py; do
     api_json=$(curl -sSL "$API_BASE/scripts/$f?ref=master")
     if echo "$api_json" | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if 'content' in d else 1)" 2>/dev/null; then
         echo "$api_json" | "$PYTHON" -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" > "$GAET_DIR/scripts/$f"
+        SCRIPTS_OK=$((SCRIPTS_OK+1))
     else
         err_msg=$(echo "$api_json" | "$PYTHON" -c "import json,sys; print(json.load(sys.stdin).get('message','API error'))" 2>/dev/null || echo "unknown error")
-        echo "  ⚠  Gagal mendownload scripts/$f: $err_msg"
+        echo "  ⚠  Failed to download scripts/$f: $err_msg"
     fi
 done
-echo "  Scripts downloaded"
+echo "  Scripts downloaded ($SCRIPTS_OK/5)"
 
 # ── 5b. Download dashboard ────────────────────────────────────────────────
 echo -n "  Downloading dashboard..."
