@@ -4,6 +4,8 @@ import argparse
 import shutil
 import sys
 import time
+import tarfile
+from datetime import datetime
 from .core import C, D, DEF_SERVICE_PREFIX, G, GAET_DIR, GITHUB_API, HOME, IS_LINUX, IS_MACOS, IS_WINDOWS, NAME, NC, Path, Y, _gh_download, argparse, box_section, box_title, die, echo, get_env_str, load_env, run_cmd, safe_input, scheduler_disable, scheduler_is_active, shutil, status_arrow, status_fail, status_info, status_ok, status_warn, sys, time
 from .scheduler import _svc_is_running, _svc_stop
 
@@ -41,14 +43,25 @@ def cmd_install(args: argparse.Namespace) -> None:
     sys.exit(rc)
 
 def cmd_uninstall(args: argparse.Namespace) -> None:
-    """Uninstall gaet. Safe mode keeps config, purge removes everything."""
-    purge = getattr(args, "purge", False)
-    mode = "purge" if purge else "safe"
+    """Uninstall gaet. By default removes everything (binary, package, scripts,
+    config and backups) — a clean wipe. Use --save to archive the config first.
+    \b
+    Modes:
+      uninstall          — remove all (clean default)
+      uninstall --save   — remove all, but archive ~/.gaet → ~/.gaet.backup.<ts>.tar.gz
+    """
+    purge = True  # default is now a full, clean wipe
+    save = getattr(args, "save", False)
+    mode = "save" if save else "purge"
+    backup_path: Path | None = None
     
     box_title(f"{NAME} uninstall ({mode})")
     
-    if purge:
-        echo(f"  {Y}⚠  PURGE MODE: Akan menghapus gaet DAN semua config/backup{NC}")
+    if save:
+        echo(f"  {Y}⚠  Config akan disimpan ke archive sebelum dihapus.{NC}")
+        echo("")
+    else:
+        echo(f"  {Y}⚠  PURGE: menghapus gaet, package, config, dan backup.{NC}")
         echo("")
         confirm = safe_input(f"  Ketik 'yes' untuk konfirmasi: ").strip().lower()
         if confirm != "yes":
@@ -181,21 +194,25 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
         
         config_dir = GAET_DIR
         if config_dir.exists():
-            shutil.rmtree(config_dir)
+            if save:
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_path = HOME / f".gaet.backup.{ts}.tar.gz"
+                with tarfile.open(backup_path, "w:gz") as tar:
+                    tar.add(str(config_dir), arcname=".gaet")
+                echo(f"    {G}✓{NC} Config di-archive ke: {backup_path}")
+            shutil.rmtree(config_dir, ignore_errors=True)
             echo(f"    {G}✓{NC} Dihapus: {config_dir}")
         else:
             echo(f"    {D}  Config directory tidak ditemukan{NC}")
     
     # ── 5. Summary ───────────────────────────────────────────────────
-    echo("")
+    echo()
     echo(f"  {G}✓ Uninstall selesai ({mode} mode){NC}")
-    echo("")
-    
-    if purge:
-        echo(f"  Semua sudah dihapus.")
+    echo()
+    if save and backup_path:
+        echo(f"  Config di-archive di: {backup_path.name} (restore: gaet init)")
     else:
-        echo(f"  Config disimpan di: {GAET_DIR}/")
-        echo(f"  Untuk hapus config juga, jalankan: gaet uninstall --purge")
+        echo(f"  Semua sudah dihapus.")
     
     echo(f"  Untuk reinstall: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash")
     echo("")
@@ -479,7 +496,7 @@ def _build_update_parser(subparsers, common):
 
 def _build_uninstall_parser(subparsers, common):
     p = subparsers.add_parser("uninstall", help="Remove gaet from system", parents=[common])
-    p.add_argument("--purge", action="store_true", help="Remove everything including config and backups")
+    p.add_argument("--save", action="store_true", help="Archive config to ~/.gaet.backup.<ts>.tar.gz before removing")
     return p
 
 
