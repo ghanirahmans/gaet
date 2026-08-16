@@ -234,6 +234,7 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
         "__init__.py", "__main__.py", "registry.py", "cli.py", "core.py",
         "detect.py", "init.py", "config.py", "status.py", "backup.py",
         "scheduler.py", "log.py", "serve.py", "export.py", "update.py",
+        "remote.py", "snapshots.py",
     ]
     script_files = ["__init__.py", "status.py", "scheduler.py", "service_manager.py", "installer.py"]
 

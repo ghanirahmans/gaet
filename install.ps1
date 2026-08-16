@@ -74,6 +74,23 @@ try {
     return
 }
 
+# ── 4b. Download gaet_pkg ───────────────────────────────────────────────
+$pkgDir = "$GAET_DIR\gaet_pkg\gaet"
+New-Item -ItemType Directory -Force -Path $pkgDir | Out-Null
+$pkgFiles = @(
+    "__init__.py", "__main__.py", "registry.py", "cli.py", "core.py",
+    "detect.py", "init.py", "config.py", "status.py", "backup.py",
+    "scheduler.py", "log.py", "serve.py", "export.py", "update.py",
+    "remote.py", "snapshots.py"
+)
+foreach ($f in $pkgFiles) {
+    try {
+        Invoke-WebRequest -Uri "$GITHUB_RAW/src/gaet/$f" -OutFile "$pkgDir\$f" -UseBasicParsing
+    } catch {
+        Write-Host "  ⚠  Failed to download src/gaet/$f" -ForegroundColor Yellow
+    }
+}
+
 # ── 5. Download scripts ───────────────────────────────────────────────────
 $scripts = @("status.py", "scheduler.py", "service_manager.py", "installer.py", "__init__.py")
 foreach ($f in $scripts) {
