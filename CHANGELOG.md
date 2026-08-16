@@ -2,6 +2,21 @@
 
 All notable changes to gaet are documented here.
 
+## [3.0.2] — 2026-08-16
+
+### Changed
+- **`gaet uninstall` is clean by default.** The old `--purge` flag is removed;
+  `uninstall` now wipes the binary, package, scripts, **and** config in one go
+  (with a `yes` confirmation, matching the previous `--purge` behavior). A new
+  `--save` flag archives `~/.gaet` to `~/.gaet.backup.<timestamp>.tar.gz`
+  before the wipe, so a clean default is still recoverable. Motivation: a bare
+  `uninstall` should leave no trace behind.
+
+  ```
+  gaet uninstall          # remove binary + config + package (clean, asks yes)
+  gaet uninstall --save   # archive config first, then remove all
+  ```
+
 ## [3.0.1] — 2026-08-16
 
 ### Changed

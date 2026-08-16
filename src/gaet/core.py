@@ -66,7 +66,7 @@ from pathlib import Path
 
 from typing import Any, Dict, List, Optional, Tuple
 
-VERSION = "3.0.1"
+VERSION = "3.0.2"
 
 NAME = "gaet"
 
