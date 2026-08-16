@@ -1199,9 +1199,34 @@ except ImportError:
     _svc_available = False
 
 GITHUB_API = "https://api.github.com/repos/ghanirahmans/gaet/contents"
+GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/master"
+
+
+def _raw_download(url: str, timeout: int = 15) -> bytes:
+    """Download a file from a raw URL (e.g. raw.githubusercontent.com).
+
+    Unlike _gh_download (which hits the GitHub API and its 60 req/h
+    unauthenticated rate limit), raw URLs are served by the CDN with no
+    API quota — so `gaet update` works even right after a fresh install that
+    already burned the API budget. Retries transient failures.
+    """
+    last_err: Exception | None = None
+    for _ in range(3):
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as resp:
+                return resp.read()
+        except Exception as e:
+            last_err = e
+            time.sleep(1)
+    raise RuntimeError(f"download failed for {url}: {last_err}")
+
 
 def _gh_download(url: str, timeout: int = 15) -> bytes:
-    """Download file from GitHub API, decoding base64 content."""
+    """Download file from GitHub API, decoding base64 content.
+
+    Kept for backward compat; _update_download now uses _raw_download instead
+    (raw URLs, no API rate limit).
+    """
     with urllib.request.urlopen(url, timeout=timeout) as resp:
         data = json.loads(resp.read().decode())
     if isinstance(data, dict) and "content" in data:
