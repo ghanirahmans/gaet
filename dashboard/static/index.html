@@ -3,264 +3,484 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>gaet — Dashboard</title>
+  <title>gaet — Database Operations Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-primary: #0a0c10;
-      --bg-secondary: #111318;
-      --bg-card: #181b21;
-      --bg-card-hover: #1e2128;
-      --border: #252830;
-      --text-primary: #e4e6ea;
-      --text-secondary: #8b8f9b;
-      --text-muted: #555966;
+      --bg-primary: #0b0f17;
+      --bg-secondary: #111827;
+      --bg-card: rgba(17, 24, 39, 0.7);
+      --bg-card-hover: rgba(31, 41, 55, 0.8);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(59, 130, 246, 0.3);
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
       --accent: #3b82f6;
       --accent-hover: #2563eb;
-      --green: #22c55e;
+      --green: #10b981;
+      --green-bg: rgba(16, 185, 129, 0.12);
       --red: #ef4444;
-      --yellow: #eab308;
-      --purple: #a855f7;
+      --red-bg: rgba(239, 68, 68, 0.12);
+      --yellow: #f59e0b;
+      --yellow-bg: rgba(245, 158, 11, 0.12);
+      --purple: #8b5cf6;
+      --purple-bg: rgba(139, 92, 246, 0.12);
       --radius: 12px;
       --radius-sm: 8px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
     }
     [data-theme="light"] {
-      --bg-primary: #fafafa;
-      --bg-secondary: #f4f4f5;
-      --bg-card: #ffffff;
-      --bg-card-hover: #fafafa;
-      --border: #e4e4e7;
-      --text-primary: #18181b;
-      --text-secondary: #71717a;
-      --text-muted: #a1a1aa;
+      --bg-primary: #f8fafc;
+      --bg-secondary: #f1f5f9;
+      --bg-card: rgba(255, 255, 255, 0.9);
+      --bg-card-hover: #ffffff;
+      --border: rgba(0, 0, 0, 0.08);
+      --border-accent: rgba(37, 99, 235, 0.3);
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
       --accent: #2563eb;
       --accent-hover: #1d4ed8;
-      --green: #16a34a;
+      --green: #059669;
+      --green-bg: rgba(5, 150, 105, 0.1);
       --red: #dc2626;
-      --yellow: #ca8a04;
-      --purple: #9333ea;
+      --red-bg: rgba(220, 38, 38, 0.1);
+      --yellow: #d97706;
+      --yellow-bg: rgba(217, 119, 6, 0.1);
+      --purple: #7c3aed;
+      --purple-bg: rgba(124, 58, 237, 0.1);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: var(--font-sans);
       background: var(--bg-primary);
       color: var(--text-primary);
       line-height: 1.5;
+      min-height: 100vh;
     }
     .app-container { min-height: 100vh; display: flex; flex-direction: column; }
+    
+    /* Header */
     .header {
       position: sticky; top: 0; z-index: 50;
-      background: var(--bg-primary);
+      background: rgba(11, 15, 23, 0.85);
       border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(12px);
-      background: rgba(10, 12, 16, 0.8);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
     }
-    [data-theme="light"] .header { background: rgba(250, 250, 250, 0.8); }
+    [data-theme="light"] .header { background: rgba(248, 250, 252, 0.85); }
     .header-inner {
-      max-width: 1200px; margin: 0 auto;
-      padding: 16px 24px;
+      max-width: 1280px; margin: 0 auto;
+      padding: 14px 24px;
       display: flex; justify-content: space-between; align-items: center;
     }
     .logo { display: flex; align-items: center; gap: 12px; }
     .logo-icon {
-      width: 36px; height: 36px;
+      width: 40px; height: 40px;
       background: linear-gradient(135deg, var(--accent), var(--purple));
-      border-radius: var(--radius-sm);
+      border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
-      color: white; font-weight: 700; font-size: 16px;
+      color: white; font-weight: 800; font-size: 18px;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
-    .logo-text h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+    .logo-text h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+    .logo-text .version-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(59, 130, 246, 0.15); color: var(--accent); border: 1px solid var(--border-accent); }
     .logo-text p { font-size: 12px; color: var(--text-secondary); }
+    
+    /* Nav Tabs */
+    .nav-tabs { display: flex; gap: 6px; }
+    .tab-btn {
+      padding: 8px 16px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 600; color: var(--text-secondary);
+      background: transparent; border: 1px solid transparent;
+      cursor: pointer; transition: all 0.2s ease;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .tab-btn:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.04); }
+    .tab-btn.active { color: var(--text-primary); background: var(--bg-card); border-color: var(--border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); }
+    
     .header-actions { display: flex; gap: 8px; align-items: center; }
     .btn {
-      display: inline-flex; align-items: center; gap: 8px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       padding: 8px 16px; border-radius: var(--radius-sm);
-      font-size: 14px; font-weight: 600;
-      border: none; cursor: pointer; transition: all 0.15s ease;
+      font-size: 13px; font-weight: 600;
+      border: 1px solid transparent; cursor: pointer; transition: all 0.2s ease;
     }
     .btn-primary { background: var(--accent); color: white; }
-    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
-    .btn-secondary { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); }
-    .btn-secondary:hover { background: var(--bg-card-hover); }
-    .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.2); }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+    .btn-secondary { background: var(--bg-card); color: var(--text-primary); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--bg-card-hover); border-color: var(--text-muted); }
+    .btn-danger { background: var(--red-bg); color: var(--red); border-color: rgba(239, 68, 68, 0.3); }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.2); }
+    .btn-warning { background: var(--yellow-bg); color: var(--yellow); border-color: rgba(245, 158, 11, 0.3); }
+    .btn-warning:hover { background: rgba(245, 158, 11, 0.2); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
-    .main-content { flex: 1; max-width: 1200px; margin: 0 auto; padding: 24px; width: 100%; }
-    .error-banner {
-      background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2);
-      border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px;
-      font-size: 14px; color: var(--red); display: flex; align-items: center; gap: 8px;
+
+    /* Layout */
+    .main-content { flex: 1; max-width: 1280px; margin: 0 auto; padding: 24px; width: 100%; }
+    .tab-content { display: none; animation: fadeIn 0.25s ease; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Banners */
+    .banner {
+      border-radius: var(--radius); padding: 14px 18px; margin-bottom: 24px;
+      font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
     }
+    .banner-danger { background: var(--red-bg); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--red); }
+    .banner-warning { background: var(--yellow-bg); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--yellow); }
+
+    /* Stat Cards */
     .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    @media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 500px) { .stat-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 960px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .stat-grid { grid-template-columns: 1fr; } }
     .stat-card {
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 20px;
       transition: all 0.2s ease; position: relative; overflow: hidden;
+      backdrop-filter: blur(8px);
     }
-    .stat-card:hover { border-color: var(--border-subtle); transform: translateY(-1px); }
-    .stat-card::before {
-      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-    }
-    .stat-card.accent::before { background: var(--accent); }
-    .stat-card.green::before { background: var(--green); }
-    .stat-card.yellow::before { background: var(--yellow); }
-    .stat-card.purple::before { background: var(--purple); }
+    .stat-card:hover { border-color: var(--border-accent); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2); }
+    .stat-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
     .stat-icon {
-      width: 40px; height: 40px; border-radius: var(--radius-sm);
+      width: 42px; height: 42px; border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
-      margin-bottom: 12px; font-size: 20px;
+      font-size: 20px;
     }
-    .stat-icon.accent { background: rgba(59, 130, 246, 0.1); color: var(--accent); }
-    .stat-icon.green { background: rgba(34, 197, 94, 0.08); color: var(--green); }
-    .stat-icon.yellow { background: rgba(234, 179, 8, 0.08); color: var(--yellow); }
-    .stat-icon.purple { background: rgba(168, 85, 247, 0.08); color: var(--purple); }
-    .stat-content h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 4px; }
-    .stat-content .value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
-    .stat-content .subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
-    .sync-progress { margin-top: 8px; }
-    .progress-bar { height: 6px; background: rgba(0,0,0,0.2); border-radius: 3px; overflow: hidden; }
-    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .stat-icon.accent { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+    .stat-icon.green { background: var(--green-bg); color: var(--green); }
+    .stat-icon.yellow { background: var(--yellow-bg); color: var(--yellow); }
+    .stat-icon.purple { background: var(--purple-bg); color: var(--purple); }
+    
+    .stat-content h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-bottom: 4px; }
+    .stat-content .value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; font-family: var(--font-mono); }
+    .stat-content .subtitle { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+
+    .sync-progress { margin-top: 10px; }
+    .progress-bar { height: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 999px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 999px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
     .progress-fill.full { background: var(--green); }
     .progress-fill.partial { background: var(--yellow); }
     .progress-fill.none { background: var(--red); }
-    .progress-text { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
-    .section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
-    .section-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-    .section-header h2 { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-    .section-body { padding: 16px 20px; }
-    .actions { display: flex; gap: 12px; flex-wrap: wrap; }
-    .table-container { overflow-x: auto; }
-    .data-table { width: 100%; border-collapse: collapse; }
-    .data-table th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
-    .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); font-size: 13px; }
+    .progress-text { font-size: 12px; color: var(--text-secondary); margin-top: 6px; display: flex; justify-content: space-between; }
+
+    /* Cards & Sections */
+    .section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 24px; overflow: hidden; backdrop-filter: blur(8px); }
+    .section-header { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .section-header h2 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+    .section-body { padding: 24px; }
+    
+    /* Tables */
+    .table-container { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .data-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
+    .data-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-primary); }
+    .data-table tbody tr { transition: background 0.15s ease; }
     .data-table tbody tr:hover { background: var(--bg-card-hover); }
-    .table-name { font-weight: 500; font-family: "JetBrains Mono", monospace; font-size: 13px; }
-    .table-num { font-variant-numeric: tabular-nums; text-align: right; font-family: "JetBrains Mono", monospace; }
-    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-    .badge-success { background: rgba(34, 197, 94, 0.08); color: var(--green); }
-    .badge-warning { background: rgba(234, 179, 8, 0.08); color: var(--yellow); }
-    .badge-danger { background: rgba(239, 68, 68, 0.08); color: var(--red); }
-    .toast {
-      position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
-      border-radius: var(--radius-sm); font-size: 14px; font-weight: 500;
-      z-index: 100; animation: slideUp 0.2s ease; backdrop-filter: blur(8px);
+    .data-table tbody tr:last-child td { border-bottom: none; }
+    .table-name { font-weight: 600; font-family: var(--font-mono); color: var(--text-primary); }
+    .table-num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+    
+    /* Badges */
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge-success { background: var(--green-bg); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.2); }
+    .badge-warning { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(245, 158, 11, 0.2); }
+    .badge-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.2); }
+    .badge-purple { background: var(--purple-bg); color: var(--purple); border: 1px solid rgba(139, 92, 246, 0.2); }
+
+    /* Terminal Log Viewer */
+    .terminal-window {
+      background: #06080d; border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      font-family: var(--font-mono); font-size: 13px;
     }
-    .toast-ok { background: rgba(34, 197, 94, 0.15); color: var(--green); border: 1px solid rgba(34, 197, 94, 0.3); }
-    .toast-err { background: rgba(239, 68, 68, 0.15); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.3); }
-    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    .spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .terminal-bar {
+      background: #111520; padding: 10px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .terminal-dots { display: flex; gap: 8px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+    .terminal-body {
+      padding: 16px; max-height: 420px; overflow-y: auto;
+      color: #d1d5db; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+    }
+    .log-line { display: flex; gap: 12px; padding: 2px 0; }
+    .log-info { color: #38bdf8; }
+    .log-warn { color: #fbbf24; }
+    .log-fail { color: #f87171; }
+    .log-ok { color: #4ade80; }
+
+    /* Form controls */
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+    .form-control {
+      width: 100%; padding: 10px 14px; border-radius: var(--radius-sm);
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      color: var(--text-primary); font-family: var(--font-mono); font-size: 13px;
+      transition: border-color 0.2s ease;
+    }
+    .form-control:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+    .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 28px; right: 28px; padding: 14px 22px;
+      border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
+      z-index: 1000; animation: slideUp 0.25s ease; backdrop-filter: blur(12px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); display: flex; align-items: center; gap: 10px;
+    }
+    .toast-ok { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .toast-err { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loader { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
-    .theme-toggle { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; color: var(--text-secondary); }
-    .theme-toggle:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    
+    .theme-toggle { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s ease; }
+    .theme-toggle:hover { color: var(--text-primary); border-color: var(--border-accent); }
+    
+    .empty-state { text-align: center; padding: 36px 16px; color: var(--text-muted); }
   </style>
 </head>
 <body>
   <div class="app-container">
+    <!-- Header -->
     <header class="header">
       <div class="header-inner">
         <div class="logo">
-          <div class="logo-icon">G</div>
+          <div class="logo-icon">⚡</div>
           <div class="logo-text">
-            <h1>gaet</h1>
-            <p>Database Backup & Sync</p>
+            <h1>gaet <span class="version-badge">v3.0.2</span></h1>
+            <p>Database Backup & Sync Operations Hub</p>
           </div>
         </div>
+        
+        <!-- Nav Tabs -->
+        <nav class="nav-tabs">
+          <button class="tab-btn active" onclick="switchTab('overview')">📊 Overview</button>
+          <button class="tab-btn" onclick="switchTab('snapshots')">💾 Snapshots</button>
+          <button class="tab-btn" onclick="switchTab('logs')">🖥️ System Logs</button>
+          <button class="tab-btn" onclick="switchTab('settings')">⚙️ Settings</button>
+        </nav>
+
         <div class="header-actions">
-          <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌓</button>
-          <button class="btn btn-secondary" id="refreshBtn" onclick="fetchStatus()">⟳ Refresh</button>
+          <button class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">🌓</button>
+          <button class="btn btn-secondary" id="refreshBtn" onclick="fetchFullStatus()">⟳ Refresh</button>
         </div>
       </div>
     </header>
 
+    <!-- Main Container -->
     <main class="main-content">
-      <div id="errorBanner" class="error-banner" style="display:none;"></div>
+      <div id="globalBanner" class="banner banner-warning" style="display:none;"></div>
 
-      <div class="stat-grid">
-        <div class="stat-card accent">
-          <div class="stat-icon accent">🗄️</div>
-          <div class="stat-content">
-            <h3>Tables</h3>
-            <div class="value" id="statTables">—</div>
-            <div class="subtitle" id="statLocalSize">—</div>
+      <!-- TAB 1: OVERVIEW & TABLES -->
+      <div id="tab-overview" class="tab-content active">
+        <!-- Stat Cards Grid -->
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-header">
+              <div class="stat-icon accent">🗄️</div>
+            </div>
+            <div class="stat-content">
+              <h3>Tables Tracked</h3>
+              <div class="value" id="statTables">—</div>
+              <div class="subtitle" id="statLocalSize">Local DB: —</div>
+            </div>
           </div>
-        </div>
-        <div class="stat-card" id="syncCard">
-          <div class="stat-icon" id="syncIcon">🔄</div>
-          <div class="stat-content">
-            <h3>Sync Status</h3>
-            <div class="value" id="syncStatus">—</div>
-            <div class="sync-progress">
-              <div class="progress-bar"><div class="progress-fill" id="syncProgress"></div></div>
-              <div class="progress-text" id="syncText">—</div>
+          
+          <div class="stat-card" id="syncCard">
+            <div class="stat-header">
+              <div class="stat-icon" id="syncIcon">🔄</div>
+            </div>
+            <div class="stat-content">
+              <h3>Sync Status</h3>
+              <div class="value" id="syncStatus">—</div>
+              <div class="sync-progress">
+                <div class="progress-bar"><div class="progress-fill" id="syncProgress"></div></div>
+                <div class="progress-text">
+                  <span id="syncText">—</span>
+                  <span id="syncPct">0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-header">
+              <div class="stat-icon purple">📦</div>
+            </div>
+            <div class="stat-content">
+              <h3>Backup Snapshots</h3>
+              <div class="value" id="backupCount">—</div>
+              <div class="subtitle" id="lastBackup">No backup yet</div>
+            </div>
+          </div>
+          
+          <div class="stat-card" id="cronCard">
+            <div class="stat-header">
+              <div class="stat-icon" id="cronIcon">⏰</div>
+            </div>
+            <div class="stat-content">
+              <h3>Auto-Backup</h3>
+              <div class="value" id="cronStatus">—</div>
+              <div class="subtitle" id="cronSubtitle">Manual execution</div>
             </div>
           </div>
         </div>
-        <div class="stat-card purple">
-          <div class="stat-icon purple">📦</div>
-          <div class="stat-content">
-            <h3>Backup</h3>
-            <div class="value" id="backupCount">—</div>
-            <div class="subtitle" id="lastBackup">—</div>
+
+        <!-- Quick Control Panel -->
+        <div class="section">
+          <div class="section-header">
+            <h2>⚡ Quick Operations</h2>
+          </div>
+          <div class="section-body" style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="pushBtn" onclick="doAction('push', 'Pushing to Cloud...', '↑ Push to Cloud')">↑ Push to Cloud</button>
+            <button class="btn btn-secondary" id="fetchBtn" onclick="doAction('fetch', 'Fetching from Cloud...', '↓ Fetch from Cloud')">↓ Fetch from Cloud</button>
+            <button class="btn btn-warning" id="autoBtn" onclick="doAction('auto', 'Enabling Auto-Backup...', '⏰ Enable Auto-Backup (6h)')">⏰ Enable Auto-Backup</button>
+            <button class="btn btn-danger" id="stopBtn" onclick="doAction('stop', 'Stopping Scheduler...', '■ Stop Auto-Backup')" style="display:none;">■ Stop Auto-Backup</button>
           </div>
         </div>
-        <div class="stat-card" id="cronCard">
-          <div class="stat-icon" id="cronIcon">⏰</div>
-          <div class="stat-content">
-            <h3>Auto-Backup</h3>
-            <div class="value" id="cronStatus">—</div>
-            <div class="subtitle" id="cronSubtitle">—</div>
+
+        <!-- Table Matrix Section -->
+        <div class="section">
+          <div class="section-header">
+            <h2>📊 Database Table Schema Matrix</h2>
+            <span class="badge" id="syncBadge">—</span>
+          </div>
+          <div class="section-body">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Table Name</th>
+                    <th style="text-align:right">Local Rows</th>
+                    <th style="text-align:right">Cloud Rows</th>
+                    <th style="text-align:center">Diff Status</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody">
+                  <tr><td colspan="4" class="empty-state">Loading table matrix...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="section">
-        <div class="section-header">
-          <h2>⚡ Actions</h2>
-        </div>
-        <div class="section-body">
-          <div class="actions">
-            <button class="btn btn-primary" id="pushBtn" onclick="doAction('push', 'Pushing...', 'Push')">↑ Push to Cloud</button>
-            <button class="btn btn-secondary" id="fetchBtn" onclick="doAction('fetch', 'Fetching...', 'Fetch')">↓ Fetch from Cloud</button>
-            <button class="btn btn-danger" id="stopBtn" onclick="doAction('stop', 'Stopping...', 'Stop')" style="display:none;">■ Stop Auto-Backup</button>
-            <button class="btn btn-secondary" id="autoBtn" onclick="doAction('auto', 'Enabling...', 'Auto')" style="display:none;">⏰ Enable Auto-Backup</button>
+      <!-- TAB 2: SNAPSHOTS HUB -->
+      <div id="tab-snapshots" class="tab-content">
+        <div class="section">
+          <div class="section-header">
+            <h2>💾 Local Backup Snapshots</h2>
+            <button class="btn btn-primary btn-sm" onclick="doAction('push', 'Creating Snapshot...', '↑ Create Snapshot Now')">+ Create Snapshot</button>
+          </div>
+          <div class="section-body">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Snapshot File</th>
+                    <th>Size</th>
+                    <th>Created Date</th>
+                    <th style="text-align:center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="snapshotsBody">
+                  <tr><td colspan="4" class="empty-state">Loading snapshots...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="section">
-        <div class="section-header">
-          <h2>📊 Database Tables</h2>
-          <span class="badge" id="syncBadge">—</span>
+      <!-- TAB 3: SYSTEM LOGS -->
+      <div id="tab-logs" class="tab-content">
+        <div class="section">
+          <div class="section-header">
+            <h2>🖥️ Real-time Operations Log</h2>
+            <button class="btn btn-secondary btn-sm" onclick="fetchLogs()">⟳ Refresh Log</button>
+          </div>
+          <div class="section-body">
+            <div class="terminal-window">
+              <div class="terminal-bar">
+                <div class="terminal-dots">
+                  <div class="dot dot-red"></div>
+                  <div class="dot dot-yellow"></div>
+                  <div class="dot dot-green"></div>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted)">~/.gaet/backups/cron.log</div>
+              </div>
+              <div class="terminal-body" id="terminalBody">Loading log entries...</div>
+            </div>
+          </div>
         </div>
-        <div class="section-body">
-          <div class="table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Table</th>
-                  <th style="text-align:right">Local</th>
-                  <th style="text-align:right">Cloud</th>
-                  <th style="text-align:center">Status</th>
-                </tr>
-              </thead>
-              <tbody id="tableBody"></tbody>
-            </table>
+      </div>
+
+      <!-- TAB 4: SETTINGS & DIAGNOSTICS -->
+      <div id="tab-settings" class="tab-content">
+        <!-- Diagnostic Checklist -->
+        <div class="section">
+          <div class="section-header">
+            <h2>🔧 System Diagnostics Check</h2>
+            <button class="btn btn-secondary btn-sm" onclick="fetchCheck()">Run Diagnostic</button>
+          </div>
+          <div class="section-body" id="checkBody">
+            <div class="empty-state">Click 'Run Diagnostic' to check PostgreSQL tools & connections.</div>
+          </div>
+        </div>
+
+        <!-- Configuration Form -->
+        <div class="section">
+          <div class="section-header">
+            <h2>⚙️ Environment Configuration (.env)</h2>
+          </div>
+          <div class="section-body">
+            <form id="configForm" onsubmit="saveConfig(event)">
+              <div class="form-group">
+                <label>Cloud Database URL (GAET_REMOTE_URL)</label>
+                <input type="text" class="form-control" id="cfgRemoteUrl" placeholder="postgresql://user:pass@host:5432/dbname" />
+                <div class="form-hint">Target cloud PostgreSQL connection string.</div>
+              </div>
+
+              <div class="form-group">
+                <label>Local Database Connection (GAET_LOCAL_URL)</label>
+                <input type="text" class="form-control" id="cfgLocalUrl" placeholder="postgresql://postgres:@127.0.0.1:5432/postgres" />
+                <div class="form-hint">Local PostgreSQL database target.</div>
+              </div>
+
+              <div class="form-group">
+                <label>Backup Retention Period (Days)</label>
+                <input type="number" class="form-control" id="cfgRetention" placeholder="7" min="1" max="365" />
+                <div class="form-hint">Number of days to keep backup snapshot dump files before auto-purging.</div>
+              </div>
+
+              <button type="submit" class="btn btn-primary" id="saveConfigBtn">Save Configuration</button>
+            </form>
           </div>
         </div>
       </div>
     </main>
 
-    <footer style="text-align:center;padding:20px;font-size:13px;color:var(--text-muted);">
-      gaet v2.0.0 • Database Backup & Sync
+    <footer style="text-align:center;padding:24px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border)">
+      gaet v3.0.2 • Open-Source Database Backup & Synchronization System
     </footer>
   </div>
 
   <div id="toast" class="toast" style="display:none;"></div>
 
   <script>
-    // Theme
+    // Theme Switcher
     const savedTheme = localStorage.getItem('gaet-theme');
     if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
     else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme', 'dark');
@@ -272,13 +492,32 @@
       localStorage.setItem('gaet-theme', next);
     };
 
+    // Tab Navigation
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.textContent.toLowerCase().includes(tabName));
+      if (targetBtn) targetBtn.classList.add('active');
+      
+      const targetContent = document.getElementById(`tab-${tabName}`);
+      if (targetContent) targetContent.classList.add('active');
+
+      if (tabName === 'snapshots') fetchSnapshots();
+      if (tabName === 'logs') fetchLogs();
+      if (tabName === 'settings') { fetchConfig(); fetchCheck(); }
+    }
+
+    // Formatters
     function fmt(n) {
+      if (n === null || n === undefined) return '0';
       if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
       if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
       return String(n);
     }
 
     function ago(ts) {
+      if (!ts) return 'No backup yet';
       const d = Date.now() - ts * 1000;
       const h = Math.floor(d / 3600000);
       const m = Math.floor((d % 3600000) / 60000);
@@ -288,113 +527,258 @@
       return 'just now';
     }
 
-    function show(msg, type) {
+    function showToast(msg, type = 'ok') {
       const t = document.getElementById('toast');
-      t.textContent = msg;
+      t.innerHTML = (type === 'ok' ? '✓ ' : '✗ ') + msg;
       t.className = `toast toast-${type}`;
-      t.style.display = 'block';
+      t.style.display = 'flex';
       setTimeout(() => { t.style.display = 'none'; }, 4000);
     }
 
-    async function fetchStatus() {
+    // API Calls
+    async function fetchFullStatus() {
       try {
         const r = await fetch('/api/status');
         const d = await r.json();
-        render(d);
+        renderOverview(d);
       } catch (e) {
-        console.error('Fetch error:', e);
+        console.error('Status fetch error:', e);
       }
     }
 
-    function render(d) {
-      // Error banner
-      const errEl = document.getElementById('errorBanner');
+    function renderOverview(d) {
+      const banner = document.getElementById('globalBanner');
       if (d.error) {
-        errEl.textContent = '⚠️ ' + d.error;
-        errEl.style.display = 'flex';
+        banner.textContent = '⚠️ ' + d.error;
+        banner.style.display = 'flex';
       } else {
-        errEl.style.display = 'none';
+        banner.style.display = 'none';
       }
 
-      // Stats
       document.getElementById('statTables').textContent = fmt(d.tables?.length ?? 0);
-      document.getElementById('statLocalSize').textContent = d.local_size || '?';
+      document.getElementById('statLocalSize').textContent = `Local DB: ${d.local_size || '?'}`;
       document.getElementById('backupCount').textContent = d.backup_count || 0;
       document.getElementById('lastBackup').textContent = d.last_backup ? `Last ${ago(d.last_backup.date)}` : 'No backup yet';
 
-      // Sync status
       const synced = d.synced ?? false;
-      document.getElementById('syncStatus').textContent = synced ? 'Synced' : 'Not synced';
+      document.getElementById('syncStatus').textContent = synced ? 'In-Sync' : 'Out-of-Sync';
+      
       const syncCard = document.getElementById('syncCard');
       syncCard.className = `stat-card ${synced ? 'green' : 'yellow'}`;
       document.getElementById('syncIcon').className = `stat-icon ${synced ? 'green' : 'yellow'}`;
+      
       const tables = d.tables ?? [];
       const syncedCount = tables.filter(t => t.ok).length;
       const pct = tables.length > 0 ? Math.round((syncedCount / tables.length) * 100) : 0;
+      
       const progress = document.getElementById('syncProgress');
       progress.style.width = pct + '%';
       progress.className = `progress-fill ${pct === 100 ? 'full' : pct > 0 ? 'partial' : 'none'}`;
-      document.getElementById('syncText').textContent = `${syncedCount}/${tables.length} tables in sync (${pct}%)`;
+      
+      document.getElementById('syncText').textContent = `${syncedCount}/${tables.length} tables in sync`;
+      document.getElementById('syncPct').textContent = `${pct}%`;
 
-      // Badge
       const badge = document.getElementById('syncBadge');
       badge.className = `badge ${synced ? 'badge-success' : 'badge-warning'}`;
-      badge.innerHTML = synced ? '✓ Synced' : '✗ Not synced';
+      badge.innerHTML = synced ? '✓ In-Sync' : '⚡ Diff Detected';
 
-      // Cron
-      document.getElementById('cronStatus').textContent = d.cron_active ? 'Active' : 'Inactive';
+      const cronActive = d.cron_active ?? false;
+      document.getElementById('cronStatus').textContent = cronActive ? 'Active' : 'Inactive';
       const cronCard = document.getElementById('cronCard');
-      cronCard.className = `stat-card ${d.cron_active ? 'green' : 'yellow'}`;
-      document.getElementById('cronIcon').className = `stat-icon ${d.cron_active ? 'green' : 'yellow'}`;
-      document.getElementById('cronSubtitle').textContent = d.cron_active ? 'Periodic' : 'Manual run';
+      cronCard.className = `stat-card ${cronActive ? 'green' : 'yellow'}`;
+      document.getElementById('cronIcon').className = `stat-icon ${cronActive ? 'green' : 'yellow'}`;
+      document.getElementById('cronSubtitle').textContent = cronActive ? 'Scheduled periodic run' : 'Manual execution mode';
 
-      // Action buttons
-      document.getElementById('stopBtn').style.display = d.cron_active ? 'inline-flex' : 'none';
-      document.getElementById('autoBtn').style.display = d.cron_active ? 'none' : 'inline-flex';
+      document.getElementById('stopBtn').style.display = cronActive ? 'inline-flex' : 'none';
+      document.getElementById('autoBtn').style.display = cronActive ? 'none' : 'inline-flex';
 
-      // Table rows
+      // Table Matrix
       const tbody = document.getElementById('tableBody');
       tbody.innerHTML = '';
       tables.forEach(t => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td class="table-name">${t.table}</td>
-          <td class="table-num">${fmt(t.local)}</td>
-          <td class="table-num">${fmt(t.supabase)}</td>
+          <td class="table-num" style="text-align:right">${fmt(t.local)}</td>
+          <td class="table-num" style="text-align:right">${fmt(t.supabase)}</td>
           <td style="text-align:center">
-            <span class="badge ${t.ok ? 'badge-success' : 'badge-danger'}">${t.ok ? '✓ Sync' : '✗ Diff'}</span>
+            <span class="badge ${t.ok ? 'badge-success' : 'badge-danger'}">${t.ok ? '✓ In-Sync' : '⚡ Diff'}</span>
           </td>
         `;
         tbody.appendChild(tr);
       });
       if (tables.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No table data</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No tables discovered in local database</td></tr>';
+      }
+    }
+
+    async function fetchSnapshots() {
+      try {
+        const r = await fetch('/api/snapshots');
+        const d = await r.json();
+        const tbody = document.getElementById('snapshotsBody');
+        tbody.innerHTML = '';
+        const list = d.snapshots || [];
+        list.forEach(s => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="table-name">📦 ${s.filename}</td>
+            <td class="table-num">${s.size_mb} MB</td>
+            <td>${s.created_at || 'Recent'}</td>
+            <td style="text-align:center;display:flex;gap:6px;justify-content:center">
+              <button class="btn btn-secondary btn-sm" onclick="restoreSnapshot('${s.filename}')">Restore</button>
+              <a href="/api/snapshots/download?file=${encodeURIComponent(s.filename)}" class="btn btn-secondary btn-sm">Download</a>
+              <button class="btn btn-danger btn-sm" onclick="deleteSnapshot('${s.filename}')">Delete</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No backup snapshot dump files stored yet.</td></tr>';
+        }
+      } catch (e) {
+        console.error('Snapshots fetch error:', e);
+      }
+    }
+
+    async function restoreSnapshot(filename) {
+      if (!confirm(`Are you sure you want to RESTORE snapshot '${filename}' to your local database? All current local data will be overwritten!`)) return;
+      showToast(`Restoring '${filename}'...`, 'ok');
+      try {
+        const r = await fetch('/api/restore', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({filename: filename})
+        });
+        const d = await r.json();
+        if (d.ok) showToast(d.msg, 'ok');
+        else showToast(d.msg, 'err');
+        fetchFullStatus();
+      } catch (e) {
+        showToast('Failed to perform restore operation', 'err');
+      }
+    }
+
+    async function deleteSnapshot(filename) {
+      if (!confirm(`Delete snapshot '${filename}'?`)) return;
+      try {
+        const r = await fetch('/api/snapshots/delete', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({filename: filename})
+        });
+        const d = await r.json();
+        if (d.ok) { showToast(d.msg, 'ok'); fetchSnapshots(); }
+        else showToast(d.msg, 'err');
+      } catch (e) {
+        showToast('Failed to delete snapshot', 'err');
+      }
+    }
+
+    async function fetchLogs() {
+      try {
+        const r = await fetch('/api/logs');
+        const d = await r.json();
+        const body = document.getElementById('terminalBody');
+        body.textContent = (d.logs || []).join('');
+        body.scrollTop = body.scrollHeight;
+      } catch (e) {
+        console.error('Logs fetch error:', e);
+      }
+    }
+
+    async function fetchCheck() {
+      try {
+        const r = await fetch('/api/check');
+        const d = await r.json();
+        const container = document.getElementById('checkBody');
+        const checks = d.checks || {};
+        
+        container.innerHTML = `
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
+            <div style="background:var(--bg-secondary);padding:16px;border-radius:var(--radius-sm)">
+              <h4 style="margin-bottom:8px">🔧 PostgreSQL CLI Tools</h4>
+              <p>pg_dump: <code>${checks.tools?.pg_dump || 'Not found'}</code></p>
+              <p>psql: <code>${checks.tools?.psql || 'Not found'}</code></p>
+            </div>
+            <div style="background:var(--bg-secondary);padding:16px;border-radius:var(--radius-sm)">
+              <h4 style="margin-bottom:8px">☁️ Cloud Database Target</h4>
+              <p>Configured: <b>${checks.remote_db?.configured ? 'Yes' : 'No'}</b></p>
+              <p>Reachable: <b>${checks.remote_db?.reachable ? 'Yes' : 'No'}</b></p>
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        console.error('Check fetch error:', e);
+      }
+    }
+
+    async function fetchConfig() {
+      try {
+        const r = await fetch('/api/config');
+        const d = await r.json();
+        const cfg = d.config || {};
+        document.getElementById('cfgRemoteUrl').value = cfg.GAET_REMOTE_URL || '';
+        document.getElementById('cfgLocalUrl').value = cfg.GAET_LOCAL_URL || '';
+        document.getElementById('cfgRetention').value = cfg.GAET_RETENTION_DAYS || '7';
+      } catch (e) {
+        console.error('Config fetch error:', e);
+      }
+    }
+
+    async function saveConfig(e) {
+      e.preventDefault();
+      const btn = document.getElementById('saveConfigBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      const payload = {
+        config: {
+          GAET_REMOTE_URL: document.getElementById('cfgRemoteUrl').value,
+          GAET_LOCAL_URL: document.getElementById('cfgLocalUrl').value,
+          GAET_RETENTION_DAYS: document.getElementById('cfgRetention').value
+        }
+      };
+
+      try {
+        const r = await fetch('/api/config', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        if (d.ok) showToast(d.msg, 'ok');
+        else showToast(d.msg, 'err');
+      } catch (err) {
+        showToast('Failed to save configuration', 'err');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Configuration';
       }
     }
 
     async function doAction(action, loadingLabel, label) {
-      const btn = document.getElementById(`${action}Btn`) || event.target.closest('.btn');
-      const originalText = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = `<span class="spinner"></span> ${loadingLabel}`;
+      const btn = event?.target?.closest('.btn');
+      const originalText = btn ? btn.innerHTML : label;
+      if (btn) { btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> ${loadingLabel}`; }
+      
       try {
-        const url = action === 'auto' ? '/api/push?auto=1' : `/api/${action}`;
+        const url = action === 'auto' ? '/api/push?auto=6' : `/api/${action}`;
         const r = await fetch(url, { method: 'POST' });
         const d = await r.json();
-        if (d.ok) show(d.msg || 'Success!', 'ok');
-        else show(d.msg || 'Failed', 'err');
-        await fetchStatus();
+        if (d.ok) showToast(d.msg || 'Success!', 'ok');
+        else showToast(d.msg || 'Action failed', 'err');
+        fetchFullStatus();
       } catch {
-        show('Failed to connect to server', 'err');
+        showToast('Failed to connect to server', 'err');
       } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
       }
     }
 
-    // Initial load + poll
-    fetchStatus();
-    setInterval(fetchStatus, 8000);
+    // Auto-poll status
+    fetchFullStatus();
+    setInterval(fetchFullStatus, 10000);
   </script>
 </body>
 </html>
