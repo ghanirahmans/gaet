@@ -43,7 +43,7 @@ def _reset_target_objects(
     env = pg_env(user, passwd, ssl_mode)
     try:
         out, err, rc = run_cmd(
-            [psql, "-h", host, "-p", port, "-U", user, "-d", db, "-v", "ON_ERROR_STOP=1", "-c", sql],
+            [psql, "-w", "-h", host, "-p", port, "-U", user, "-d", db, "-v", "ON_ERROR_STOP=1", "-c", sql],
             env=env,
             timeout=30,
         )
@@ -184,16 +184,18 @@ def cmd_push(args: argparse.Namespace) -> None:
             result["sync"] = {"ok": False, "error": "reset"}
             die("Sinkronisasi cloud gagal (reset target)", EXIT_CLOUD_DOWN)
         spinner = Spinner("Syncing to cloud").start()
+        env_cloud = pg_env(parsed["user"], parsed["pass"], ssl)
         try:
             out3, err3, rc3 = run_cmd(
-                [pg_restore, "-h", parsed["host"], "-p", parsed["port"],
+                [pg_restore, "-w", "-h", parsed["host"], "-p", parsed["port"],
                  "-U", parsed["user"], "-d", parsed["db"],
                  "--no-owner", "--no-acl",
                  backup_file],
-                env=pg_env(parsed["user"], parsed["pass"], ssl),
+                env=env_cloud,
                 timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
             )
         finally:
+            cleanup_pg_env(env_cloud)
             spinner.stop()
         if rc3 == 0:
             echo(f"    {G}{ICON_OK}{NC}  Sinkronisasi selesai!")
@@ -468,12 +470,17 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
         cron_file = str(BACKUP_DIR / f"cron_{timestamp}.dump")
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
-        out, err, rc = run_cmd(
-            [pg_dump, "-h", h, "-p", p, "-U", u, "-d", n,
-             "--format=custom", "--compress=9", f"--file={cron_file}"],
-            env={"PGPASSWORD": w},
-            timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
-        )
+        env_local = pg_env(u, w)
+        try:
+            out, err, rc = run_cmd(
+                [pg_dump, "-w", "-h", h, "-p", p, "-U", u, "-d", n,
+                 "--format=custom", "--compress=9", f"--file={cron_file}"],
+                env=env_local,
+                timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
+            )
+        finally:
+            cleanup_pg_env(env_local)
+
         if rc == 0 and Path(cron_file).is_file():
             # Integrity check
             _, _, rc_check = run_cmd(
@@ -485,13 +492,18 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
                 cronlog("❌ [cron] Dump korup — backup dibatalkan")
                 return
 
-            out2, err2, rc2 = run_cmd(
-                [pg_restore, "-h", parsed["host"], "-p", parsed["port"],
-                 "-U", parsed["user"], "-d", parsed["db"],
-                 "--clean", "--if-exists", "--no-owner", "--no-acl", cron_file],
-                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
-                timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
-            )
+            env_cloud = pg_env(parsed["user"], parsed["pass"], ssl)
+            try:
+                out2, err2, rc2 = run_cmd(
+                    [pg_restore, "-w", "-h", parsed["host"], "-p", parsed["port"],
+                     "-U", parsed["user"], "-d", parsed["db"],
+                     "--clean", "--if-exists", "--no-owner", "--no-acl", cron_file],
+                    env=env_cloud,
+                    timeout=get_env_int(env, "GAET_PG_TIMEOUT", DEF_PG_TIMEOUT),
+                )
+            finally:
+                cleanup_pg_env(env_cloud)
+
             if rc2 == 0:
                 size_mb = Path(cron_file).stat().st_size / (1024 * 1024)
                 cronlog(f"✅ [cron] Backup success ({size_mb:.1f} MB)")

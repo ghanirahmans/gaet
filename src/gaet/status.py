@@ -280,10 +280,14 @@ def cmd_diff(args: argparse.Namespace) -> None:
             union = " UNION ALL ".join(
                 f"SELECT '{t}'::text as tbl, count(*)::int FROM public.{t}" for t in safe
             )
-            out, _, rc = run_cmd(
-                [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", union],
-                env={"PGPASSWORD": w}, timeout=30,
-            )
+            env_local = pg_env(u, w)
+            try:
+                out, _, rc = run_cmd(
+                    [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", union],
+                    env=env_local, timeout=30,
+                )
+            finally:
+                cleanup_pg_env(env_local)
             if rc == 0:
                 for line in out.strip().split("\n"):
                     if "|" in line:
@@ -302,11 +306,15 @@ def cmd_diff(args: argparse.Namespace) -> None:
             union = " UNION ALL ".join(
                 f"SELECT '{t}'::text as tbl, count(*)::int FROM public.{t}" for t in safe
             )
-            out_r, _, rc_r = run_cmd(
-                [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
-                 "-U", parsed["user"], "-d", parsed["db"], "-tAc", union],
-                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=30,
-            )
+            env_remote = pg_env(parsed["user"], parsed["pass"], ssl)
+            try:
+                out_r, _, rc_r = run_cmd(
+                    [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
+                     "-U", parsed["user"], "-d", parsed["db"], "-tAc", union],
+                    env=env_remote, timeout=30,
+                )
+            finally:
+                cleanup_pg_env(env_remote)
             if rc_r == 0:
                 for line in out_r.strip().split("\n"):
                     if "|" in line:
