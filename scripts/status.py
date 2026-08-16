@@ -83,8 +83,8 @@ def get_config() -> Dict:
     local_url = env.get("GAET_LOCAL_URL", "")
     if local_url:
         p = parse_url(local_url)
-        if p:
-            lh, lp, lu, ln, lw = p
+        if p and all(x is not None for x in p):
+            lu, lw, lh, lp, ln = p
         else:
             lh, lp, lu, ln, lw = "127.0.0.1", "5432", "postgres", "postgres", ""
     else:
@@ -124,15 +124,22 @@ def parse_url(url):
         user, _, passwd = userinfo.partition(':')
     else:
         user, passwd = userinfo, ''
-    slash_idx = hostpart.find('/')
+    slash_idx = hostpart.rfind('/')
     if slash_idx == -1:
         return None, None, None, None, None
     hostport = hostpart[:slash_idx]
     db = hostpart[slash_idx + 1:].split('?', 1)[0]
-    if not db or ':' not in hostport:
+    if not db or not hostport:
         return None, None, None, None, None
-    host, _, port = hostport.rpartition(':')
-    if not host or not port.isdigit():
+    if ':' in hostport:
+        host, _, port = hostport.rpartition(':')
+        if not port.isdigit():
+            host = hostport
+            port = '5432'
+    else:
+        host = hostport
+        port = '5432'
+    if not host:
         return None, None, None, None, None
     return user, passwd, host, port, db
 

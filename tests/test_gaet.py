@@ -62,6 +62,15 @@ class TestParseRemoteURL(unittest.TestCase):
         self.assertEqual(p["user"], "user")
         self.assertEqual(p["pass"], "pass")
 
+    def test_unix_socket_url(self):
+        url = "postgresql://postgres@/tmp:5433/cloud_test"
+        p = parse_remote_url(url)
+        self.assertIsNotNone(p)
+        self.assertEqual(p["user"], "postgres")
+        self.assertEqual(p["host"], "/tmp")
+        self.assertEqual(p["port"], "5433")
+        self.assertEqual(p["db"], "cloud_test")
+
     def test_empty_url(self):
         self.assertIsNone(parse_remote_url(""))
 

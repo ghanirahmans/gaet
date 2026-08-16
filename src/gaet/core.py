@@ -311,7 +311,7 @@ def get_env_int(env: Dict[str, str], key: str, default: int) -> int:
 
 def parse_remote_url(url: str) -> Optional[Dict[str, str]]:
     """
-    Parse postgresql://user:pw@host:port/db.
+    Parse postgresql://user:pw@host:port/db or postgresql://user:pw@/socket_dir:port/db.
     Password is optional and may contain '@'. Returns dict or None.
     """
     if not url:
@@ -324,9 +324,7 @@ def parse_remote_url(url: str) -> Optional[Dict[str, str]]:
 
     # Credentials vs host: split at the LAST '@' so passwords may contain '@'
     userinfo, sep, hostpart = rest.rpartition("@")
-    if not sep:
-        return None  # missing '@' → invalid
-    if not userinfo or not hostpart:
+    if not sep or not userinfo or not hostpart:
         return None
 
     # user:pass — user cannot contain ':', password may
@@ -335,18 +333,25 @@ def parse_remote_url(url: str) -> Optional[Dict[str, str]]:
     else:
         user, passwd = userinfo, ""
 
-    # host:port/db — split at the LAST ':' before the first '/'
-    slash_idx = hostpart.find("/")
+    # host:port/db — split at the LAST '/' to support unix socket paths (e.g. /tmp:5433/db)
+    slash_idx = hostpart.rfind("/")
     if slash_idx == -1:
         return None
     hostport = hostpart[:slash_idx]
     db = hostpart[slash_idx + 1:].split("?", 1)[0]  # strip query string (e.g. ?sslmode=)
-    if not db:
+    if not db or not hostport:
         return None
-    if ":" not in hostport:
-        return None
-    host, _, port = hostport.rpartition(":")
-    if not host or not port.isdigit():
+
+    if ":" in hostport:
+        host, _, port = hostport.rpartition(":")
+        if not port.isdigit():
+            host = hostport
+            port = "5432"
+    else:
+        host = hostport
+        port = "5432"
+
+    if not host:
         return None
 
     return {"user": user, "pass": passwd, "host": host, "port": port, "db": db}
