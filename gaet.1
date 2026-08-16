@@ -1,141 +1,155 @@
 .TH GAET 1
 .SH NAME
-gaet \- PostgreSQL Backup \& Sync CLI
+gaet \- PostgreSQL Backup & Sync CLI
 .SH SYNOPSIS
 .B gaet
-.RI [ COMMAND ]
 .RI [ OPTIONS ]
+.RI [ COMMAND ]
+.RI [ ARGS ]
 .SH DESCRIPTION
 gaet is a zero\-dependency PostgreSQL backup CLI that syncs local databases
-to any cloud PostgreSQL instance (Supabase, Neon, AWS RDS, or any VPS).
+to any cloud PostgreSQL instance (Supabase, Neon, AWS RDS, GCP Cloud SQL, or any VPS).
 .SH COMMANDS
 .TP
-.B gaet init
-Interactive setup wizard (auto\-detects local PostgreSQL).
+.B gaet init [preset]
+Interactive setup wizard (auto\-detects local PostgreSQL TCP & Unix domain sockets).
 .TP
 .B gaet push
-Backup local database to cloud. Add
-.B \-\-auto
-to schedule periodic backups.
+Backup local database to cloud instance. Supports \fB\-\-dry\-run\fR and \fB\-\-auto\fR.
 .TP
 .B gaet fetch
-Restore cloud database to local (overwrites local DB).
+Restore cloud database to local (overwrites local DB; requires \fB\-\-yes\fR in non\-TTY).
+.TP
+.B gaet restore [snapshot_file]
+Restore local database from a specific local snapshot \fB.dump\fR file (defaults to latest).
 .TP
 .B gaet status
-Show per\-table sync status between local and cloud.
+Show per\-table sync status, local/remote row counts, and auto\-backup timer state.
 .TP
 .B gaet check
-Validate configuration and test all connections.
+Validate configuration, PostgreSQL client tools availability, and DB connectivity.
 .TP
 .B gaet doctor
-Comprehensive health check (config, tools, DB, backups, scheduler).
+Comprehensive health check (OS environment, file permissions, tools, DB connections).
 .TP
 .B gaet diff
-Compare local vs cloud tables and row counts side by side.
+Compare local vs cloud table row counts side by side.
 .TP
-.B gaet log
-View backup log. Add
-.B \-\-follow
-for real\-time tailing.
+.B gaet log [lines]
+View structured activity log history. Add \fB\-\-follow\fR for real\-time log tailing.
+.TP
+.B gaet snapshots
+List all local backup snapshots in ~/.gaet/backups with file size and creation time.
+.TP
+.B gaet remote [show|set-url|remove]
+Git\-style management for Remote Cloud Database URL settings.
 .TP
 .B gaet serve
-Start web dashboard at http://localhost:9191.
+Start web monitoring dashboard at http://127.0.0.1:9191.
 .TP
-.B gaet get
-Show all or specific config variables (passwords masked).
+.B gaet get [KEY] [\-\-list]
+Show configured environment variables (passwords masked). Add \fB\-\-list\fR for reference table.
 .TP
-.B gaet set
-Set config variables. Empty value deletes the key.
+.B gaet set KEY=VALUE
+Set environment variable in ~/.gaet/.env. Empty value deletes the variable key.
 .TP
 .B gaet install
-Setup/install dependencies, config, and system services.
+Setup/install dependencies, executable binary symlink, and system services.
 .TP
-.B gaet help
-Show help for a command (e.g. \fBgaet help push\fR).
+.B gaet help [command]
+Show interactive command usage manual or machine\-readable JSON schema (\fB\-\-json\fR).
 .TP
 .B gaet export
-Print config as shell\-compatible
-.B export
-statements.
+Print config as shell\-compatible \fBexport GAET_...\\fR statements.
 .TP
-.B gaet completion
-Generate shell completions for bash, zsh, or fish.
+.B gaet completion [shell]
+Generate shell auto\-completions for bash, zsh, fish, or ps1.
 .TP
 .B gaet update
-Update to latest version from GitHub.
+Update gaet installation to the latest version from GitHub.
 .TP
-.B gaet uninstall
-Remove gaet (use
-.B \-\-purge
-to remove config and backups too).
+.B gaet uninstall [\-\-purge]
+Remove gaet binary. Add \fB\-\-purge\fR to remove ~/.gaet configuration and backup files.
 .TP
 .B gaet stop
-Stop auto\-backup and/or dashboard services.
+Stop active web dashboard server and background automated backup tasks.
 .SH CONFIGURATION
 .TP
-.B GAET_LOCAL_DB_HOST
-Local PostgreSQL host (default: /run/postgresql Unix socket).
+.B GAET_LOCAL_URL
+Full connection URL (postgresql://user:pass@host:port/db).
 .TP
-.B GAET_LOCAL_DB_NAME
-Local database name.
+.B GAET_LOCAL_DB_HOST
+Local PostgreSQL host (default: 127.0.0.1 or Unix socket path).
+.TP
+.B GAET_LOCAL_DB_PORT
+Local PostgreSQL listener port (default: 5432).
 .TP
 .B GAET_LOCAL_DB_USER
-Local database user.
+Local database user (default: postgres).
+.TP
+.B GAET_LOCAL_DB_NAME
+Local database name (default: postgres).
 .TP
 .B GAET_LOCAL_DB_PASS
-Local database password (optional for trust auth).
+Local database authentication password.
 .TP
 .B GAET_REMOTE_URL
 Cloud PostgreSQL connection URL (e.g. postgresql://user:pass@host:port/db).
 .TP
 .B GAET_REMOTE_SSLMODE
-SSL mode for remote connection (default: prefer). Use \fBrequire\fR only if SSL is mandatory.
+SSL connection mode for cloud remote (default: require).
 .TP
 .B GAET_PG_TIMEOUT
-Per\-operation timeout in seconds for pg_dump/pg_restore (default: 120). Increase for large databases (>1 GB).
+Per\-operation timeout in seconds for pg_dump/pg_restore (default: 3600).
 .TP
 .B GAET_RETENTION_DAYS
-Number of days to keep local backups (default: 7).
+Number of days to retain local .dump backup snapshots (default: 7).
 .SH GLOBAL OPTIONS
 .TP
 .BR \-q ", " \-\-quiet
-Suppress non\-essential output (for scripts/CI).
+Suppress non\-essential informational output.
 .TP
 .BR \-\-plain
-Plain, decoration\-free output (pipe\-safe for grep/awk/jq).
+Plain, pipe\-safe output without box\-drawing or status icons (for grep/awk).
+.TP
+.BR \-\-json
+Output structured JSON payload for machine parsing.
+.TP
+.BR \-\-dry\-run
+Simulate execution without modifying databases or writing files.
 .TP
 .BR \-\-version
-Show version and exit.
+Show software version and exit.
 .SH EXAMPLES
 .nf
-gaet init                      # First\-time setup
-gaet push                      # Backup local \u2192 cloud
+gaet init                      # First\-time setup wizard
+gaet push                      # Backup local -> cloud
 gaet push \-\-dry\-run           # Simulate backup
-gaet push \-\-auto=6            # Schedule every 6 hours
-gaet fetch                     # Restore cloud \u2192 local
-gaet status                    # Show sync status
-gaet status \-\-json            # Machine\-readable status
-gaet check \-\-json | jq        # Pipeline with jq
-gaet log \-\-follow             # Real\-time log tailing
-gaet diff                       # Compare local vs cloud
-gaet doctor                     # Health check
-gaet completion \-\-shell bash   # Install bash completions
+gaet fetch \-\-yes               # Restore cloud -> local
+gaet restore                   # Restore latest local snapshot
+gaet snapshots                 # List local snapshot dumps
+gaet remote set-url <url>      # Update cloud DB remote URL
+gaet status                    # Show table sync status
+gaet status \-\-json            # Output status as JSON
+gaet check                     # Validate connections
+gaet log \-\-follow             # Tail log file in real time
+gaet diff                       # Row count comparison
+gaet doctor                     # System health diagnostics
+gaet get \-\-list                # View configuration reference
 .fi
 .SH FILES
 .TP
 .I ~/.gaet/
-gaet workspace. When git is available, `gaet init` versions this
-directory (`.gitignore` keeps `.env`, `backups/`, and lock files out of
-history — secrets never enter git).
+Configuration and workspace directory.
 .TP
 .I ~/.gaet/.env
-Configuration file (created with 0600 permissions; git\\-ignored).
+Configuration file (created with 0600 permissions; git\-ignored).
 .TP
 .I ~/.gaet/backups/
-Local backup storage directory.
+Local backup snapshot storage directory (*.dump files).
 .TP
-.I ~/.gaet/backups/cron.log
-Auto\-backup log.
+.I ~/.gaet/logs/gaet.log
+Application execution log file.
 .SH EXIT CODES
 .TP
 .B 0
@@ -148,7 +162,7 @@ General failure.
 Usage / argument error.
 .TP
 .B 80
-Configuration error (missing/invalid .env).
+Configuration error (missing or invalid .env).
 .TP
 .B 81
 Local database unreachable.
@@ -157,10 +171,10 @@ Local database unreachable.
 Cloud/remote database unreachable.
 .TP
 .B 83
-Lock held by another process.
+File lock held by another process.
 .TP
 .B 84
-PostgreSQL tools not found.
+PostgreSQL client tools (psql, pg_dump, pg_restore) missing.
 .SH AUTHOR
 ghaniyrahmans
 .SH LICENSE
