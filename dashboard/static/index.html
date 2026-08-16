@@ -908,9 +908,22 @@
       </div>
     </main>
 
-    <footer style="text-align:center;padding:24px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border)">
-      gaet v3.0.2 • Open-Source Database Backup & Synchronization System
+    <footer style="border-top:1px solid var(--border); background:rgba(11, 15, 23, 0.85); backdrop-filter:blur(12px); padding:12px 24px; font-size:12px; color:var(--text-muted); font-family:var(--font-mono); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:32px;">
+      <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+        <span style="font-weight:600; color:var(--text-secondary);">gaet v3.0.2</span>
+        <span><code style="color:var(--accent);">Alt+1</code> Overview</span>
+        <span><code style="color:var(--accent);">Alt+2</code> Snapshots</span>
+        <span><code style="color:var(--accent);">Alt+3</code> Logs</span>
+        <span><code style="color:var(--accent);">Alt+4</code> Settings</span>
+      </div>
+      <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+        <span><code style="color:var(--accent);">Alt+K</code> Command Palette</span>
+        <span><code style="color:var(--text-secondary);">Alt+D</code> Doctor Diagnostic</span>
+        <span><code style="color:var(--text-secondary);">Alt+R</code> Refresh</span>
+      </div>
     </footer>
+  </div>
+
   <!-- Doctor Modal -->
   <div id="doctorModal" class="modal-backdrop" style="display:none;">
     <div class="modal-content" style="max-width:720px;">
@@ -957,6 +970,22 @@
       <div class="modal-footer">
         <button class="btn btn-primary btn-sm" onclick="copyExportText()">📋 Copy to Clipboard</button>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('exportModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table Inspector Modal -->
+  <div id="tableModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-content" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 id="tableModalTitle">🔍 Table Inspection</h3>
+        <button class="modal-close" onclick="closeModal('tableModal')">✕</button>
+      </div>
+      <div class="modal-body" id="tableModalBody">
+        <!-- Dynamic inspection content -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('tableModal')">Close</button>
       </div>
     </div>
   </div>
@@ -1134,16 +1163,25 @@
         const tr = document.createElement('tr');
         const isOk = t.ok;
         tr.innerHTML = `
-          <td class="table-name"><code>${t.table}</code></td>
+          <td class="table-name">
+            <code style="cursor:pointer; color:var(--accent);" onclick="inspectTable('${t.table}', ${t.local || 0}, ${t.supabase || 0})" title="Click to inspect table details">
+              ${t.table}
+            </code>
+          </td>
           <td class="table-num" style="text-align:right">${fmt(t.local)}</td>
           <td class="table-num" style="text-align:right">${fmt(t.supabase)}</td>
           <td style="text-align:center">
-            <span class="badge ${isOk ? 'badge-success' : 'badge-warning'}">${isOk ? '✓ In-Sync' : '⚡ Diff'}</span>
+            <span class="badge ${isOk ? 'badge-success' : 'badge-warning'}" style="cursor:pointer;" onclick="inspectTable('${t.table}', ${t.local || 0}, ${t.supabase || 0})">
+              ${isOk ? '✓ In-Sync' : '⚡ Diff'}
+            </span>
           </td>
-          <td style="text-align:center">
-            ${isOk 
-              ? `<span style="color:var(--text-muted);font-size:11px;">✓ Up to date</span>`
-              : `<button class="btn btn-primary btn-xs" onclick="doAction('push', 'Pushing data...', '↑ Push Sync')" title="Push local changes to cloud">↑ Push Sync</button>`}
+          <td style="text-align:center;">
+            <div style="display:inline-flex; gap:6px; align-items:center;">
+              <button class="btn btn-secondary btn-xs" onclick="inspectTable('${t.table}', ${t.local || 0}, ${t.supabase || 0})" title="Inspect table details">🔍 Inspect</button>
+              ${isOk 
+                ? `<span style="color:var(--text-muted);font-size:11px;">✓ Synced</span>`
+                : `<button class="btn btn-primary btn-xs" onclick="doAction('push', 'Pushing data...', '↑ Push Sync')" title="Push local changes to cloud">↑ Sync</button>`}
+            </div>
           </td>
         `;
         tbody.appendChild(tr);
@@ -1579,6 +1617,50 @@
       } catch (e) {
         outElem.textContent = 'Failed to execute doctor check: ' + e.message;
       }
+    }
+
+    function inspectTable(name, localRows, cloudRows) {
+      const modal = document.getElementById('tableModal');
+      const title = document.getElementById('tableModalTitle');
+      const body = document.getElementById('tableModalBody');
+      if (!modal || !body) return;
+
+      title.innerHTML = `🔍 Table Inspection: <code style="color:var(--accent); font-family:var(--font-mono);">${name}</code>`;
+      
+      const isSync = (localRows === cloudRows);
+      const statusBadge = isSync 
+        ? '<span class="badge badge-success">✓ Synced</span>' 
+        : '<span class="badge badge-warning">⚡ Differences Detected</span>';
+
+      body.innerHTML = `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px;">
+          <div style="background:var(--bg-secondary); padding:14px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Local Database</div>
+            <div style="font-size:22px; font-weight:700; font-family:var(--font-mono); color:var(--text-primary);">${fmt(localRows)} <span style="font-size:12px; font-weight:400; color:var(--text-secondary);">rows</span></div>
+          </div>
+          <div style="background:var(--bg-secondary); padding:14px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Cloud Database</div>
+            <div style="font-size:22px; font-weight:700; font-family:var(--font-mono); color:var(--text-primary);">${fmt(cloudRows)} <span style="font-size:12px; font-weight:400; color:var(--text-secondary);">rows</span></div>
+          </div>
+        </div>
+        <div style="background:var(--bg-card); padding:14px; border-radius:var(--radius-sm); border:1px solid var(--border); margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h4 style="font-size:13px; margin:0;">Schema & Sync State</h4>
+            ${statusBadge}
+          </div>
+          <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin:0;">
+            ${isSync 
+              ? 'Table row counts match perfectly between local PostgreSQL and cloud database target.' 
+              : `Variance detected: ${Math.abs(localRows - cloudRows)} records difference between local and remote environments.`}
+          </p>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="closeModal('tableModal'); runDiffAnalysis();">🔍 Detailed Diff</button>
+          <button class="btn btn-primary btn-sm" onclick="closeModal('tableModal'); doAction('push', 'Syncing cloud data...', '↑ Sync Cloud');">↑ Sync Cloud</button>
+        </div>
+      `;
+
+      modal.style.display = 'flex';
     }
 
     async function runDiffAnalysis() {
