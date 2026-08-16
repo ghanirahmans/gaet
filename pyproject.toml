@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=64"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "gaet"
@@ -9,7 +9,7 @@ description = "PostgreSQL Backup & Sync CLI"
 requires-python = ">=3.8"
 license = { text = "MIT" }
 readme = "README.md"
-authors = [{ name = "Ghaniyrahmans", url = "https://github.com/ghanirahmans" }]
+authors = [{ name = "Ghaniyrahmans", email = "ghaniyrahmans@users.noreply.github.com" }]
 keywords = ["postgresql", "backup", "sync", "devops", "database", "cli"]
 
 [project.urls]
