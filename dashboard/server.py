@@ -53,9 +53,9 @@ def mask_password_url(url_str: str) -> str:
 def get_detected_instances() -> list[dict]:
     """Auto-detect running local PostgreSQL instances."""
     try:
-        sys_path = str(ROOT / "src")
-        if sys_path not in sys.path:
-            sys.path.insert(0, sys_path)
+        for p in [str(ROOT / "src"), str(ROOT / "gaet_pkg"), str(ROOT)]:
+            if p not in sys.path and os.path.isdir(p):
+                sys.path.insert(0, p)
         from gaet.detect import detect_local_pg
         from gaet.core import find_pg_tools, load_env
         env = load_env()
@@ -75,7 +75,8 @@ def get_detected_instances() -> list[dict]:
                 "databases": dbs
             })
         return formatted
-    except Exception:
+    except Exception as e:
+        print(f"Detect error: {e}", file=sys.stderr)
         return []
 
 
