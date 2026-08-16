@@ -763,7 +763,7 @@ def get_status_inline(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, A
         except Exception as e:
             error = str(e)
     else:
-        error = "psql tidak ditemukan"
+        error = "psql not found or no tables defined"
 
     # Check remote
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
