@@ -41,17 +41,17 @@ def cmd_remote(args: argparse.Namespace) -> None:
 
     if subaction == "set-url":
         if not url_arg:
-            die("Penggunaan: gaet remote set-url <postgresql://user:pass@host:port/db>")
+            die("Usage: gaet remote set-url <postgresql://user:pass@host:port/db>")
         parsed = parse_remote_url(url_arg)
         if not parsed:
-            die("URL remote tidak valid. Format: postgresql://user:pass@host:port/dbname")
+            die("Invalid remote URL format. Expected: postgresql://user:pass@host:port/dbname")
         set_env_key("GAET_REMOTE_URL", url_arg)
-        status_ok(f"GAET_REMOTE_URL berhasil diperbarui ({parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']})")
+        status_ok(f"GAET_REMOTE_URL updated successfully ({parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']})")
         return
 
     if subaction in ("remove", "unset", "rm"):
         set_env_key("GAET_REMOTE_URL", "")
-        status_ok("GAET_REMOTE_URL berhasil dihapus dari .env")
+        status_ok("GAET_REMOTE_URL removed successfully from .env")
         return
 
     # Default / 'show' action
@@ -69,8 +69,8 @@ def cmd_remote(args: argparse.Namespace) -> None:
 
     box_title("gaet remote")
     if not parsed:
-        echo(f"  {Y}Belum ada Remote Cloud DB yang dikonfigurasi.{NC}")
-        echo(f"  Gunakan: {C}gaet remote set-url postgresql://user:pass@host:port/db{NC}")
+        echo(f"  {Y}No Remote Cloud DB configured yet.{NC}")
+        echo(f"  Usage: {C}gaet remote set-url postgresql://user:pass@host:port/db{NC}")
         return
 
     masked_pass = "*****" if parsed["pass"] else ""
@@ -103,7 +103,7 @@ def cmd_remote(args: argparse.Namespace) -> None:
             echo(f"{G}OK{NC}")
         else:
             echo(f"{R}FAIL{NC}")
-            status_warn("Tidak dapat terhubung ke remote cloud DB. Periksa URL atau koneksi internet.")
+            status_warn("Cannot connect to remote cloud DB. Check your connection URL or network.")
     else:
         echo(f"{Y}SKIPPED (psql not found){NC}")
     echo()
@@ -112,8 +112,8 @@ def cmd_remote(args: argparse.Namespace) -> None:
 def _build_remote_parser(subparsers, common):
     p = subparsers.add_parser("remote", help="Manage remote cloud database configuration", parents=[common])
     p.add_argument("remote_action", nargs="?", default="show", choices=["show", "set-url", "remove", "unset", "rm"],
-                   help="Aksi: show (default), set-url, remove")
-    p.add_argument("url", nargs="?", default=None, help="Connection URL (untuk set-url)")
+                   help="Action: show (default), set-url, remove")
+    p.add_argument("url", nargs="?", default=None, help="Connection URL (for set-url)")
     p.add_argument("--json", action="store_true", help="Output JSON result")
     return p
 

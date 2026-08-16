@@ -325,18 +325,18 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             pass
         elif not sys.stdin.isatty():
             die(
-                "Perintah 'gaet fetch' di lingkungan non-interaktif memerlukan flag --yes untuk overwrite database lokal.\n"
-                f"  Contoh: {C}gaet fetch --yes{NC}",
+                "The 'gaet fetch' command in non-interactive environment requires the --yes flag to overwrite local database.\n"
+                f"  Example: {C}gaet fetch --yes{NC}",
                 EXIT_CONFIG,
             )
         else:
-            echo(f"  {Y}⚠  PERINGATAN: Operasi ini akan OVERWRITE database lokal!{NC}")
+            echo(f"  {Y}[WARN]  WARNING: This operation will OVERWRITE your local database!{NC}")
             echo(f"  {D}Database: {u}@{h}:{p}/{n}{NC}")
             echo(f"  {D}Cloud:    {parsed['user']}@{parsed['host']}:{parsed['port']}/{parsed['db']}{NC}")
             echo()
-            confirm = safe_input(f"  Ketik 'yes' untuk melanjutkan: ").strip().lower()
+            confirm = safe_input(f"  Type 'yes' to proceed: ").strip().lower()
             if confirm != "yes":
-                echo(f"  {G}Dibatalkan.{NC}")
+                echo(f"  {G}Cancelled.{NC}")
                 return
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -591,18 +591,18 @@ def cmd_restore(args: argparse.Namespace) -> None:
     if not skip_confirm:
         if not sys.stdin.isatty():
             die(
-                "Perintah destruktif 'gaet restore' di lingkungan non-interaktif membutuhkan flag --yes / -y",
+                "Destructive command 'gaet restore' in non-interactive environment requires flag --yes / -y",
                 EXIT_CONFIG,
             )
         echo()
         box_title("gaet restore")
-        status_warn(f"⚠️ PERINGATAN DESTRUKTIF: Seluruh tabel di database lokal '{n}' akan DIHAPUS dan DIPULIHKAN dari snapshot!")
-        status_arrow(f"File Snapshot: {target_file.name} ({size_mb:.1f} MB)")
+        status_warn(f"DESTRUCTIVE WARNING: All tables in local database '{n}' will be DROPPED and RESTORED from snapshot!")
+        status_arrow(f"Snapshot File: {target_file.name} ({size_mb:.1f} MB)")
         status_arrow(f"Target Database: {u}@{h}:{p}/{n}")
         echo()
-        ans = safe_input(f"  Apakah Anda yakin ingin memulihkan snapshot ini? Ketik 'yes' untuk melanjutkan: ").strip().lower()
+        ans = safe_input(f"  Are you sure you want to restore this snapshot? Type 'yes' to proceed: ").strip().lower()
         if ans not in ("yes", "y"):
-            echo(f"  {Y}Restore dibatalkan oleh pengguna.{NC}")
+            echo(f"  {Y}Restore cancelled by user.{NC}")
             return
 
     acquire_lock()
@@ -613,11 +613,11 @@ def cmd_restore(args: argparse.Namespace) -> None:
         psql = tools["psql"]
 
         # Step 1: Verify integrity of dump
-        echo(f"  {C}🔍{NC}  {B}Memeriksa integritas file snapshot...{NC}")
+        echo(f"  {C}🔍{NC}  {B}Verifying snapshot file integrity...{NC}")
         _, _, rc_check = run_cmd([pg_restore, "--list", str(target_file)], timeout=30)
         if rc_check != 0:
-            die(f"File snapshot '{target_file.name}' korup atau tidak valid.", EXIT_CONFIG)
-        status_ok("Integritas snapshot valid")
+            die(f"Snapshot file '{target_file.name}' is corrupt or invalid.", EXIT_CONFIG)
+        status_ok("Snapshot integrity valid")
 
         # Step 2: Terminate active connections to local DB
         status_warn("Menutup koneksi aktif ke database lokal...")

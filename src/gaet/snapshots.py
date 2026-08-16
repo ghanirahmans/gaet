@@ -65,13 +65,13 @@ def cmd_snapshots(args: argparse.Namespace) -> None:
     box_title("gaet snapshots")
 
     if not snapshots_data:
-        echo(f"  {Y}Belum ada snapshot backup lokal ditemukan di {BACKUP_DIR}.{NC}")
-        echo(f"  Jalankan: {C}gaet push{NC} untuk membuat snapshot pertama Anda.")
+        echo(f"  {Y}No local backup snapshots found in {BACKUP_DIR}.{NC}")
+        echo(f"  Run: {C}gaet push{NC} to create your first snapshot.")
         echo()
         return
 
-    box_section(f"Daftar Snapshot Lokal ({len(snapshots_data)} file, {total_mb:.1f} MB total)")
-    echo(f"  {B}{'No':<4} {'File Snapshot':<32} {'Ukuran':<10} {'Tanggal Dibuat':<20}{NC}")
+    box_section(f"Local Snapshots ({len(snapshots_data)} files, {total_mb:.1f} MB total)")
+    echo(f"  {B}{'No':<4} {'Snapshot File':<32} {'Size':<10} {'Created At':<20}{NC}")
     echo(f"  {D}{'─'*4} {'─'*32} {'─'*10} {'─'*20}{NC}")
 
     for idx, snap in enumerate(snapshots_data, 1):
@@ -79,8 +79,8 @@ def cmd_snapshots(args: argparse.Namespace) -> None:
         echo(f"  {C}[{idx}]{NC:<4} {snap['filename']:<32} {snap['size_mb']:<4.1f} MB   {snap['created_at']:<20}{latest_tag}")
 
     echo()
-    status_info(f"Retensi otomatis: {retention} hari")
-    status_info(f"Gunakan: {C}gaet restore <nama_file.dump>{NC} untuk memulihkan snapshot")
+    status_info(f"Auto-retention: {retention} days")
+    status_info(f"Run: {C}gaet restore <filename.dump>{NC} to restore a snapshot")
     echo()
 
 

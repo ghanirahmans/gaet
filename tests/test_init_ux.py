@@ -23,22 +23,22 @@ class TestExplainConnectionFailure(unittest.TestCase):
     def test_password_authentication_failed(self):
         err = "psql: error: connection to server at '127.0.0.1', port 5432 failed: FATAL: password authentication failed for user 'postgres'"
         explanation = _explain_connection_failure(err, "127.0.0.1", "5432", "postgres", "mydb")
-        self.assertIn("Password untuk user 'postgres' salah", explanation)
+        self.assertIn("Password for user 'postgres' is incorrect", explanation)
 
     def test_role_does_not_exist(self):
         err = "FATAL: role 'alice' does not exist"
         explanation = _explain_connection_failure(err, "127.0.0.1", "5432", "alice", "mydb")
-        self.assertIn("User 'alice' tidak ditemukan", explanation)
+        self.assertIn("User 'alice' does not exist", explanation)
 
     def test_database_does_not_exist(self):
         err = "FATAL: database 'unknown_db' does not exist"
         explanation = _explain_connection_failure(err, "127.0.0.1", "5432", "postgres", "unknown_db")
-        self.assertIn("Database 'unknown_db' tidak ditemukan", explanation)
+        self.assertIn("Database 'unknown_db' does not exist", explanation)
 
     def test_connection_refused(self):
         err = "could not connect to server: Connection refused"
         explanation = _explain_connection_failure(err, "127.0.0.1", "5432", "postgres", "mydb")
-        self.assertIn("PostgreSQL server tidak aktif", explanation)
+        self.assertIn("PostgreSQL server is down", explanation)
 
 
 class TestLocalDBMenu(unittest.TestCase):

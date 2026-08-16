@@ -76,18 +76,18 @@ def _explain_connection_failure(err: str, host: str, port: str, user: str, db: s
     """Translate psql stderr output into friendly, actionable human explanation."""
     err_lower = err.lower()
     if "no password supplied" in err_lower or "password authentication failed" in err_lower:
-        return f"Password untuk user '{user}' salah atau belum dimasukkan."
+        return f"Password for user '{user}' is incorrect or missing."
     elif "role" in err_lower and "does not exist" in err_lower:
-        return f"User '{user}' tidak ditemukan di sistem PostgreSQL ini."
+        return f"User '{user}' does not exist on this PostgreSQL system."
     elif "database" in err_lower and "does not exist" in err_lower:
-        return f"Database '{db}' tidak ditemukan. Buat dulu dengan: createdb -U {user} {db}"
+        return f"Database '{db}' does not exist. Create it first using: createdb -U {user} {db}"
     elif "could not connect to server" in err_lower or "connection refused" in err_lower or "name or service not known" in err_lower:
-        return f"PostgreSQL server tidak aktif atau host/port '{host}:{port}' tidak dapat dihubungi."
+        return f"PostgreSQL server is down or host/port '{host}:{port}' is unreachable."
     elif "peer authentication failed" in err_lower:
-        return f"Autentikasi akun OS gagal untuk user '{user}'. Coba tentukan password secara manual."
+        return f"OS user authentication failed for user '{user}'. Try specifying a password manually."
     elif err.strip():
         return err.strip()
-    return "Koneksi ke PostgreSQL gagal."
+    return "Connection to PostgreSQL failed."
 
 
 def _test_connection(psql: str, h: str, p: str, u: str, n: str, w: str) -> Tuple[bool, str]:
@@ -118,14 +118,14 @@ def _select_db_from_instance(inst: Dict[str, str]) -> str:
         default_idx = str(db_list.index(default_db) + 1)
 
     echo()
-    echo(f"  {B}Pilih database yang ingin di-gaet:{NC}")
+    echo(f"  {B}Select database to gaet:{NC}")
     for idx, dname in enumerate(db_list, 1):
         mark = f" {G}(default){NC}" if dname == default_db else ""
         echo(f"  {C}[{idx}]{NC}  {dname}{mark}")
-    echo(f"  {C}[M]{NC}  Ketik nama database lain")
+    echo(f"  {C}[M]{NC}  Type another database name")
     echo()
 
-    choice = safe_input(f"  Pilih database [1-{len(db_list)}] (default: [{default_idx}] {db_list[int(default_idx)-1]}): ").strip()
+    choice = safe_input(f"  Select database [1-{len(db_list)}] (default: [{default_idx}] {db_list[int(default_idx)-1]}): ").strip()
     if not choice:
         return db_list[int(default_idx) - 1]
     if choice.isdigit():
@@ -133,7 +133,7 @@ def _select_db_from_instance(inst: Dict[str, str]) -> str:
         if 0 <= d_idx < len(db_list):
             return db_list[d_idx]
     if choice.upper() == "M":
-        custom = safe_input("  Nama database: ").strip()
+        custom = safe_input("  Database name: ").strip()
         if custom:
             return custom
     return choice if choice else db_list[int(default_idx) - 1]
@@ -147,7 +147,7 @@ def _local_db_menu(detected, cur_host, cur_port, cur_user, cur_db, cur_pass) -> 
 
         num_detected = len(detected)
         if num_detected > 0:
-            echo(f"  {B}Ditemukan PostgreSQL di sistem ini:{NC}")
+            echo(f"  {B}Detected PostgreSQL instances:{NC}")
             for i, inst in enumerate(detected, 1):
                 host_display = inst['host']
                 if host_display.startswith('/'):
@@ -155,18 +155,18 @@ def _local_db_menu(detected, cur_host, cur_port, cur_user, cur_db, cur_pass) -> 
                 echo(f"  {C}[{i}]{NC}  {inst['user']}@{host_display}:{inst['port']}")
                 echo(f"       {D}Databases: {inst['databases']}{NC}")
             echo()
-            echo(f"  {B}Pilihan lain:{NC}")
+            echo(f"  {B}Other options:{NC}")
 
         if cur_host:
-            echo(f"  {C}[E]{NC}  Gunakan konfigurasi saat ini ({cur_user}@{cur_host}:{cur_port}/{cur_db})")
-        echo(f"  {C}[U]{NC}  Tempel URL koneksi (postgresql://user:pass@host:port/db)")
-        echo(f"  {C}[M]{NC}  Input manual (host, port, user, db, password)")
-        echo(f"  {C}[D]{NC}  Gunakan default (127.0.0.1:5432, user: postgres, db: postgres)")
-        echo(f"  {C}[Q]{NC}  Keluar dari setup wizard")
+            echo(f"  {C}[E]{NC}  Use current configuration ({cur_user}@{cur_host}:{cur_port}/{cur_db})")
+        echo(f"  {C}[U]{NC}  Paste connection URL (postgresql://user:pass@host:port/db)")
+        echo(f"  {C}[M]{NC}  Manual input (host, port, user, db, password)")
+        echo(f"  {C}[D]{NC}  Use default (127.0.0.1:5432, user: postgres, db: postgres)")
+        echo(f"  {C}[Q]{NC}  Quit setup wizard")
         echo()
 
         default_choice = "1" if num_detected > 0 else ("E" if cur_host else "D")
-        choice = safe_input(f"  Pilih [{default_choice}]: ").strip()
+        choice = safe_input(f"  Select option [{default_choice}]: ").strip()
         if not choice:
             choice = default_choice
 
@@ -181,18 +181,18 @@ def _local_db_menu(detected, cur_host, cur_port, cur_user, cur_db, cur_pass) -> 
                 n = _select_db_from_instance(inst)
                 w = ""
                 host_disp = f"socket:{h}" if h.startswith('/') else h
-                echo(f"  {G}✓{NC} Memilih: {u}@{host_disp}:{p}/{n}")
+                echo(f"  {G}✓{NC} Selected: {u}@{host_disp}:{p}/{n}")
                 return h, p, u, n, w
             else:
-                echo(f"  {R}Pilihan angka tidak valid (pilih 1-{num_detected}).{NC}")
+                echo(f"  {R}Invalid number option (choose 1-{num_detected}).{NC}")
                 continue
 
         ch = choice.upper()
         if ch == "Q":
-            echo(f"  {Y}Init dibatalkan.{NC}")
+            echo(f"  {Y}Init cancelled by user.{NC}")
             sys.exit(0)
         elif ch == "E" and cur_host:
-            echo(f"  {G}✓{NC} Menggunakan config saat ini: {cur_user}@{cur_host}:{cur_port}/{cur_db}")
+            echo(f"  {G}✓{NC} Using current config: {cur_user}@{cur_host}:{cur_port}/{cur_db}")
             return cur_host, cur_port, cur_user, cur_db, cur_pass
         elif ch == "U":
             return _url_input()
@@ -204,10 +204,10 @@ def _local_db_menu(detected, cur_host, cur_port, cur_user, cur_db, cur_pass) -> 
             u = cur_user or "postgres"
             n = cur_db or "postgres"
             w = cur_pass or ""
-            echo(f"  {G}✓{NC} Memilih default: {u}@{h}:{p}/{n}")
+            echo(f"  {G}✓{NC} Selected default: {u}@{h}:{p}/{n}")
             return h, p, u, n, w
         else:
-            echo(f"  {R}Pilihan '{choice}' tidak valid.{NC}")
+            echo(f"  {R}Invalid option '{choice}'.{NC}")
 
 
 def _url_input() -> Tuple[str, str, str, str, str]:
@@ -219,13 +219,13 @@ def _url_input() -> Tuple[str, str, str, str, str]:
         if parsed:
             return parsed["host"], parsed["port"], parsed["user"], parsed["db"], parsed["pass"]
         else:
-            echo(f"  {Y}URL tidak dapat diparse, fallback ke input manual.{NC}")
+            echo(f"  {Y}Could not parse URL, falling back to manual input.{NC}")
     return _manual_db_input()
 
 
 def _manual_db_input() -> Tuple[str, str, str, str, str]:
     """Manual field-by-field input with smart defaults."""
-    echo(f"  {B}Input Parameter Database Lokal:{NC}")
+    echo(f"  {B}Local Database Parameters Input:{NC}")
     h = safe_input(f"    Host [127.0.0.1]: ").strip() or "127.0.0.1"
     p = safe_input(f"    Port [5432]: ").strip() or "5432"
     u = safe_input(f"    User [postgres]: ").strip() or "postgres"
@@ -290,7 +290,7 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
     if preset_name:
         preset = PRESETS.get(preset_name.lower())
         if not preset:
-            die(f"Preset '{preset_name}' tidak ditemukan. Preset tersedia: {', '.join(PRESETS.keys())}")
+            die(f"Preset '{preset_name}' not found. Available presets: {', '.join(PRESETS.keys())}")
         echo(f"  {C}📋{NC}  Preset: {preset.get('description', preset_name)}")
 
     # Check PostgreSQL Client Tools
@@ -302,11 +302,11 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
         if path:
             status_ok(f"{name:12} {D}\"{path}\"{NC}")
         else:
-            status_fail(f"{name:12} tidak ditemukan di PATH")
+            status_fail(f"{name:12} not found in PATH")
             all_tools_ok = False
 
     if not all_tools_ok:
-        echo(f"  {Y}Peringatan: Pasang postgresql-client agar gaet dapat melakukan dump & restore.{NC}")
+        echo(f"  {Y}Warning: Install postgresql-client so gaet can perform dumps & restores.{NC}")
 
     GAET_DIR.mkdir(parents=True, exist_ok=True)
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
@@ -316,7 +316,7 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
         backup_path = GAET_DIR / f".env.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         try:
             shutil.copy2(str(ENV_FILE), str(backup_path))
-            status_info(f"Config lama disimpan ke: {backup_path.name}")
+            status_info(f"Existing config backed up to: {backup_path.name}")
         except OSError:
             pass
 
@@ -324,7 +324,7 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
     psql = tools.get("psql", "")
     detected = []
     if psql:
-        status_info("Memindai instansi PostgreSQL lokal...")
+        status_info("Scanning local PostgreSQL instances...")
         detected = detect_local_pg(psql)
 
     cur_host, cur_port, cur_user, cur_db, cur_pass = get_local_db(env)
@@ -345,7 +345,7 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
             echo(f"  {C}[0]{NC}  Default (127.0.0.1:5432)")
             echo()
 
-            choice = safe_input(f"  Pilih instansi [1]: ").strip() or "1"
+            choice = safe_input(f"  Select instance [1]: ").strip() or "1"
             if choice.isdigit() and 1 <= int(choice) <= len(detected):
                 inst = detected[int(choice) - 1]
                 h = inst["host"]
@@ -367,48 +367,48 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
     conn_ok = False
     if psql and h:
         host_disp = f"socket:{h}" if h.startswith('/') else f"{h}:{p}"
-        echo(f"  {C}💾{NC}  Menguji koneksi ke {u}@{host_disp}/{n}... ", end="")
+        echo(f"  {C}💾{NC}  Testing connection to {u}@{host_disp}/{n}... ", end="")
         ok, err_msg = _test_connection(psql, h, p, u, n, w)
         if ok:
             echo(f"{G}OK{NC}")
             conn_ok = True
         else:
-            echo(f"{R}GAGAL{NC}")
+            echo(f"{R}FAIL{NC}")
             explanation = _explain_connection_failure(err_msg, h, p, u, n)
-            echo(f"  {Y}└─ Penjelasan: {explanation}{NC}")
+            echo(f"  {Y}└─ Explanation: {explanation}{NC}")
 
             if sys.stdin.isatty():
-                retry = safe_input(f"  Perbaiki input koneksi lokal sekarang? [Y/n]: ").strip().lower()
+                retry = safe_input(f"  Fix local connection input now? [Y/n]: ").strip().lower()
                 if retry in ("", "y", "yes"):
                     h, p, u, n, w = _manual_db_input()
-                    echo(f"  {C}💾{NC}  Menguji ulang {u}@{h}:{p}/{n}... ", end="")
+                    echo(f"  {C}💾{NC}  Retesting {u}@{h}:{p}/{n}... ", end="")
                     ok2, err_msg2 = _test_connection(psql, h, p, u, n, w)
                     if ok2:
                         echo(f"{G}OK{NC}")
                         conn_ok = True
                     else:
-                        echo(f"{R}GAGAL{NC}")
-                        echo(f"  {Y}└─ Penjelasan: {_explain_connection_failure(err_msg2, h, p, u, n)}{NC}")
+                        echo(f"{R}FAIL{NC}")
+                        echo(f"  {Y}└─ Explanation: {_explain_connection_failure(err_msg2, h, p, u, n)}{NC}")
 
             if not conn_ok:
-                echo(f"  {Y}Peringatan: Konfigurasi tetap disimpan meski koneksi gagal.{NC}")
-                echo(f"  {D}Anda dapat memperbaikinya kapan saja via 'gaet set' atau 'gaet init'.{NC}")
+                echo(f"  {Y}Warning: Configuration saved despite connection failure.{NC}")
+                echo(f"  {D}You can fix it anytime via 'gaet set' or 'gaet init'.{NC}")
 
     # Step 2: Remote / Cloud Database Setup
     echo()
-    box_section("Step 2/3: Cloud / Remote Database (Opsional)")
-    echo(f"  {D}Masukkan URL koneksi PostgreSQL target di cloud (Supabase/Neon/RDS/VPS).{NC}")
-    echo(f"  {D}Kosongkan (tekan Enter) jika belum ingin dikonfigurasi.{NC}")
-    cur_remote_prompt = 'sudah set' if old_remote else 'kosong'
+    box_section("Step 2/3: Cloud / Remote Database (Optional)")
+    echo(f"  {D}Enter target cloud PostgreSQL connection URL (Supabase/Neon/RDS/VPS).{NC}")
+    echo(f"  {D}Leave blank (press Enter) if you don't want to configure it yet.{NC}")
+    cur_remote_prompt = 'already set' if old_remote else 'empty'
     remote_url = safe_input(f"  GAET_REMOTE_URL [{cur_remote_prompt}]: ").strip()
     if not remote_url:
         remote_url = old_remote
 
     # Step 3: Retention & Backup Settings
     echo()
-    box_section("Step 3/3: Pengaturan Backup & Retensi")
+    box_section("Step 3/3: Backup & Retention Settings")
     default_ret = env.get("GAET_RETENTION_DAYS", str(DEF_RETENTION_DAYS))
-    ret_inp = safe_input(f"  Retensi Simpan Backup (hari) [{default_ret}]: ").strip()
+    ret_inp = safe_input(f"  Backup Retention Period (days) [{default_ret}]: ").strip()
     ret = ret_inp or default_ret
 
     tables_line = ""
@@ -417,23 +417,23 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
 
     env_content = _build_env_content(
         h, p, u, n, w, remote_url, ret, tables_line=tables_line,
-        header="Konfigurasi Utama Gaet",
+        header="Gaet Main Configuration",
     )
 
     _write_env_file(env_content)
     echo()
-    status_ok(f"Konfigurasi berhasil disimpan ke: {ENV_FILE}")
+    status_ok(f"Configuration saved successfully to: {ENV_FILE}")
 
     if _ensure_git_workspace():
-        status_ok(f"Workspace gaet versi Git berhasil diaktifkan ({GAET_DIR})")
+        status_ok(f"Git-versioned gaet workspace activated ({GAET_DIR})")
 
     echo()
-    box_section("Ringkasan Inisialisasi")
+    box_section("Initialization Summary")
     env = load_env()
     tools = find_pg_tools(env)
     _print_summary(env, tools)
     echo()
-    status_ok("Gaet init selesai! Jalankan 'gaet status' untuk memeriksa sinkronisasi.")
+    status_ok("Gaet init complete! Run 'gaet status' to check synchronization.")
 
 
 def cmd_init(args: argparse.Namespace) -> None:
@@ -442,7 +442,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         _cmd_init_inner(args)
     except (KeyboardInterrupt, EOFError):
         echo()
-        echo(f"  {Y}gaet init dibatalkan oleh pengguna.{NC}")
+        echo(f"  {Y}gaet init cancelled by user.{NC}")
         sys.exit(0)
 
 
