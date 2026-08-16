@@ -38,7 +38,7 @@ def check_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
 
     env_dict = pg_env(u, w)
     out, _, rc = run_cmd(
-        [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+        [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
         env=env_dict,
         timeout=5,
     )
@@ -100,18 +100,20 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     local_ok = False
     local_size = ""
     if psql and h:
+        env_dict = pg_env(u, w)
         out, _, rc = run_cmd(
-            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
-            env={"PGPASSWORD": w}, timeout=5,
+            [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+            env=env_dict, timeout=5,
         )
         if rc == 0 and out.strip() == "1":
             local_ok = True
             size_out, _, _ = run_cmd(
-                [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
+                [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1)||' MB';"],
-                env={"PGPASSWORD": w}, timeout=5,
+                env=env_dict, timeout=5,
             )
             local_size = size_out.strip()
+        cleanup_pg_env(env_dict)
     result["checks"]["local_db"] = {
         "ok": local_ok,
         "host": h, "port": p, "user": u, "database": n,
@@ -128,20 +130,22 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     cloud_configured = bool(parsed)
     if parsed:
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
+        env_dict = pg_env(parsed["user"], parsed["pass"], ssl)
         out, _, rc = run_cmd(
-            [psql, "-h", parsed["host"], "-p", parsed["port"],
+            [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
              "-U", parsed["user"], "-d", parsed["db"], "-tAc", "SELECT 1;"],
-            env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=10,
+            env=env_dict, timeout=10,
         )
         if rc == 0 and out.strip() == "1":
             cloud_ok = True
             size_out, _, _ = run_cmd(
-                [psql, "-h", parsed["host"], "-p", parsed["port"],
+                [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
                  "-U", parsed["user"], "-d", parsed["db"], "-tAc",
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1)||' MB';"],
-                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl}, timeout=10,
+                env=env_dict, timeout=10,
             )
             cloud_size = size_out.strip()
+        cleanup_pg_env(env_dict)
     result["checks"]["cloud_db"] = {
         "ok": cloud_ok,
         "configured": cloud_configured,
@@ -403,23 +407,26 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, Any
     echo(f"  {C}💾{NC}  Local database ({h}:{p}/{n})... ", end="")
     psql = tools["psql"]
     if psql:
+        env_dict = pg_env(u, w)
         out, _, rc = run_cmd(
-            [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
-            env={"PGPASSWORD": w},
+            [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"],
+            env=env_dict,
             timeout=5,
         )
         if rc == 0 and out.strip() == "1":
             echo(f"{G}OK{NC}")
             size_out, _, _ = run_cmd(
-                [psql, "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
+                [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
-                env={"PGPASSWORD": w},
+                env=env_dict,
                 timeout=5,
             )
             status_arrow(f"Size: {size_out}")
         else:
             echo(f"{R}FAIL{NC}")
+            status_arrow(f"Tidak dapat terhubung ke {h}:{p}/{n} (jalankan 'gaet init' untuk perbarui)")
             result["ok"] = False
+        cleanup_pg_env(env_dict)
     else:
         echo(f"{R}FAIL{NC}")
         result["ok"] = False
@@ -437,28 +444,30 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, Any
         # Connection test
         echo(f"  {C}☁️{NC}   Koneksi cloud... ", end="")
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
+        env_dict = pg_env(parsed["user"], parsed["pass"], ssl)
         out, _, rc = run_cmd(
-            [psql, "-h", parsed["host"], "-p", parsed["port"],
+            [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
              "-U", parsed["user"], "-d", parsed["db"], "-tAc", "SELECT 1;"],
-            env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
+            env=env_dict,
             timeout=10,
         )
         if rc == 0 and out.strip() == "1":
             echo(f"{G}OK{NC}")
             size_out, _, _ = run_cmd(
-                [psql, "-h", parsed["host"], "-p", parsed["port"],
+                [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
                  "-U", parsed["user"], "-d", parsed["db"], "-tAc",
                  "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1) || ' MB';"],
-                env={"PGPASSWORD": parsed["pass"], "PGSSLMODE": ssl},
+                env=env_dict,
                 timeout=10,
             )
             status_arrow(f"Size: {size_out}")
         else:
             echo(f"{R}FAIL{NC}")
             result["ok"] = False
+        cleanup_pg_env(env_dict)
     else:
         echo(f"{Y}LEWAT{NC}")
-        status_arrow("Set GAET_REMOTE_URL di ~/.gaet/.env")
+        status_arrow(f"Set GAET_REMOTE_URL di {ENV_FILE}")
         result["checks"]["remote_db"] = {"configured": False, "reachable": False}
 
     # Backup dir
