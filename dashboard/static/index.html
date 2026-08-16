@@ -338,6 +338,30 @@
     .config-card-styled:hover { border-color: var(--border-accent); }
     .config-card-styled .key { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; margin-bottom: 4px; text-transform: uppercase; }
     .config-card-styled .val { font-family: var(--font-mono); font-size: 13px; color: var(--text-primary); word-break: break-all; }
+
+    /* Auto-Detect Styling */
+    .detected-box {
+      background: rgba(16, 185, 129, 0.06);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-bottom: 18px;
+    }
+    .detected-header { font-size: 12px; font-weight: 600; color: var(--green); display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .detected-list { display: flex; flex-direction: column; gap: 10px; }
+    .detected-instance { background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
+    .instance-title { font-size: 11px; font-weight: 700; font-family: var(--font-mono); color: var(--text-secondary); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .db-pills-container { display: flex; flex-wrap: wrap; gap: 6px; }
+    .db-pill {
+      font-size: 11px; font-family: var(--font-mono); font-weight: 600;
+      padding: 4px 10px; border-radius: 999px; cursor: pointer;
+      background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #60a5fa; transition: all 0.15s ease;
+    }
+    .db-pill:hover {
+      background: var(--accent); color: white; border-color: var(--accent-hover);
+      transform: translateY(-1px); box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    }
   </style>
 </head>
 <body>
@@ -598,12 +622,25 @@
               <div id="sec-local" class="settings-section active">
                 <div class="card-header-styled">
                   <div class="card-header-icon local">💾</div>
-                  <div>
+                  <div style="flex:1;">
                     <h3>Local PostgreSQL Database</h3>
                     <p>Source database that gaet will dump snapshots and sync from.</p>
                   </div>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="fetchAutoDetect(true)" id="detectBtn">
+                    <span>🔍 Auto-Detect DBs</span>
+                  </button>
                 </div>
                 <div class="card-body-styled">
+                  
+                  <!-- Auto-Detected Local Instances & Databases Box -->
+                  <div id="detectedBox" class="detected-box" style="display:none;">
+                    <div class="detected-header">
+                      <span>✨ Detected Running PostgreSQL Instances & Databases:</span>
+                      <small style="color:var(--text-muted);">Click any database tag below to auto-fill GAET_LOCAL_URL</small>
+                    </div>
+                    <div id="detectedList" class="detected-list"></div>
+                  </div>
+
                   <div class="form-group">
                     <label>GAET_LOCAL_URL <span class="label-badge badge-purple">Source DB</span></label>
                     <div class="input-group-styled">
@@ -1015,6 +1052,71 @@
       if (btn) btn.classList.add('active');
       
       if (sectionId === 'sec-diagnostics') fetchCheck();
+      if (sectionId === 'sec-local') fetchAutoDetect(false);
+    }
+
+    async function fetchAutoDetect(manualClick = false) {
+      const btn = document.getElementById('detectBtn');
+      if (btn && manualClick) {
+        btn.disabled = true;
+        btn.innerHTML = '<div class="spinner"></div> Scanning...';
+      }
+      try {
+        const r = await fetch('/api/detect');
+        const d = await r.json();
+        const box = document.getElementById('detectedBox');
+        const list = document.getElementById('detectedList');
+        if (!box || !list) return;
+
+        const instances = d.instances || [];
+        if (instances.length === 0) {
+          if (manualClick) showToast('No local running PostgreSQL instances detected', 'err');
+          box.style.display = 'none';
+          return;
+        }
+
+        box.style.display = 'block';
+        list.innerHTML = '';
+
+        instances.forEach(inst => {
+          const instDiv = document.createElement('div');
+          instDiv.className = 'detected-instance';
+          
+          const hostDisplay = inst.host.startsWith('/') ? `socket:${inst.host}` : inst.host;
+          
+          let dbsHtml = '';
+          (inst.databases || []).forEach(dbName => {
+            const url = `postgresql://${inst.user}@${inst.host}:${inst.port}/${dbName}`;
+            dbsHtml += `<span class="db-pill" onclick="selectDetectedDb('${url}', '${dbName}')" title="Click to use database ${dbName}">🗄️ ${dbName}</span>`;
+          });
+
+          instDiv.innerHTML = `
+            <div class="instance-title">
+              <span>🖥️ ${inst.user}@${hostDisplay}:${inst.port}</span>
+            </div>
+            <div class="db-pills-container">${dbsHtml}</div>
+          `;
+          list.appendChild(instDiv);
+        });
+
+        if (manualClick) showToast(`Detected ${instances.length} PostgreSQL instance(s)!`, 'ok');
+      } catch (e) {
+        console.error('Auto-detect error:', e);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>🔍 Auto-Detect DBs</span>';
+        }
+      }
+    }
+
+    function selectDetectedDb(url, dbName) {
+      const field = document.getElementById('cfgLocalUrl');
+      if (field) {
+        field.value = url;
+        field.focus();
+        showToast(`Selected database '${dbName}'! Click Save to apply.`, 'ok');
+      }
     }
 
     function applyPreset(fieldId, val) {
@@ -1118,6 +1220,8 @@
         document.getElementById('cfgTables').value = rawConfig.GAET_TABLES || '';
         document.getElementById('cfgPort').value = rawConfig.GAET_DASHBOARD_PORT || '9191';
         document.getElementById('cfgHost').value = rawConfig.GAET_DASHBOARD_HOST || '0.0.0.0';
+
+        fetchAutoDetect(false);
       } catch (e) {
         console.error('Config fetch error:', e);
       }
