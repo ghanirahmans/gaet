@@ -214,7 +214,7 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     else:
         echo(f"  All files and configurations removed.")
     
-    echo(f"  To reinstall: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash")
+    echo(f"  To reinstall: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.sh | bash")
     echo("")
 
 def _update_download(install_dir: Path, skip_build: bool = False) -> None:

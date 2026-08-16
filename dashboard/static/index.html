@@ -1259,7 +1259,8 @@
       <div style="padding: 16px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:12px; background:var(--bg-card);">
         <span style="font-size:18px;">🔍</span>
         <input type="text" id="cmdPaletteInput" placeholder="Type a command or action... (e.g. push, doctor, diff, logs)" 
-               onkeyup="filterCmdPalette(event)" 
+               onkeydown="handleCmdPaletteKeydown(event)" 
+               oninput="selectedCmdIndex=0; renderCmdPalette(this.value);" 
                style="flex:1; background:transparent; border:none; color:var(--text-primary); font-size:15px; font-family:var(--font-sans); outline:none;" />
         <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono); background:rgba(255,255,255,0.06); padding:3px 8px; border-radius:4px;">ESC to exit</span>
       </div>
@@ -2140,10 +2141,15 @@
         return;
       }
 
+      if (selectedCmdIndex >= filtered.length) {
+        selectedCmdIndex = Math.max(0, filtered.length - 1);
+      }
+
       container.innerHTML = filtered.map((item, idx) => `
         <div class="cmd-item" 
              onclick="COMMAND_ITEMS[${COMMAND_ITEMS.indexOf(item)}].action()"
-             style="padding:10px 14px; border-radius:var(--radius-sm); margin-bottom:4px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:${idx === selectedCmdIndex ? 'rgba(59, 151, 151, 0.15)' : 'transparent'}; border:1px solid ${idx === selectedCmdIndex ? 'var(--border-accent)' : 'transparent'}; transition:all 0.15s ease;">
+             onmouseenter="selectedCmdIndex=${idx}; renderCmdPalette(document.getElementById('cmdPaletteInput').value);"
+             style="padding:10px 14px; border-radius:var(--radius-sm); margin-bottom:4px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:${idx === selectedCmdIndex ? 'rgba(59, 151, 151, 0.2)' : 'transparent'}; border:1px solid ${idx === selectedCmdIndex ? 'var(--border-accent)' : 'transparent'}; transition:all 0.15s ease;">
           <div style="display:flex; align-items:center; gap:12px;">
             <span style="font-size:16px;">${item.icon}</span>
             <div>
@@ -2156,13 +2162,48 @@
       `).join('');
     }
 
-    function filterCmdPalette(e) {
-      if (e.key === 'Escape') {
-        toggleCommandPalette();
-        return;
-      }
+    function handleCmdPaletteKeydown(e) {
+      const modal = document.getElementById('cmdPaletteModal');
+      if (!modal || modal.style.display !== 'flex') return;
+
       const input = document.getElementById('cmdPaletteInput');
-      renderCmdPalette(input.value);
+      const q = input.value.toLowerCase().trim();
+      const filtered = COMMAND_ITEMS.filter(item => 
+        item.label.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q)
+      );
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (filtered.length > 0) {
+          selectedCmdIndex = (selectedCmdIndex + 1) % filtered.length;
+          renderCmdPalette(input.value);
+          scrollCmdItemIntoView();
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (filtered.length > 0) {
+          selectedCmdIndex = (selectedCmdIndex - 1 + filtered.length) % filtered.length;
+          renderCmdPalette(input.value);
+          scrollCmdItemIntoView();
+        }
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filtered.length > 0 && selectedCmdIndex < filtered.length) {
+          filtered[selectedCmdIndex].action();
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        toggleCommandPalette();
+      }
+    }
+
+    function scrollCmdItemIntoView() {
+      const container = document.getElementById('cmdPaletteResults');
+      if (!container) return;
+      const activeItem = container.children[selectedCmdIndex];
+      if (activeItem) {
+        activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
     }
 
     // Global Keyboard Shortcuts Navigation
