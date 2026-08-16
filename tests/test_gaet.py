@@ -15,6 +15,8 @@ from gaet import (
     get_local_db,
     _is_socket_host,
     _local_config_lines,
+    _socket_port,
+    _find_socket_paths,
 )
 
 
@@ -162,6 +164,27 @@ class TestLocalConfigLines(unittest.TestCase):
         self.assertTrue(_is_socket_host("/run/postgresql"))
         self.assertFalse(_is_socket_host("127.0.0.1"))
         self.assertFalse(_is_socket_host(""))
+
+
+class TestSocketAutoDetect(unittest.TestCase):
+    """Regression tests for the socket auto-detect fix (v2.0.1)."""
+
+    def test_socket_port_extracts_from_filename(self):
+        # Port lives in the filename, not the dir — the old code hardcoded
+        # "5432" and failed every socket on a non-default port.
+        self.assertEqual(_socket_port("/tmp/.s.PGSQL.5433"), "5433")
+        self.assertEqual(_socket_port("/run/postgresql/.s.PGSQL.5432"), "5432")
+
+    def test_socket_port_fallback(self):
+        self.assertEqual(_socket_port("/tmp/not-a-socket"), "5432")
+
+    def test_find_socket_paths_skips_lock_files(self):
+        # A directory can't be a real socket path list; assert the filter
+        # excludes *.lock when scanning real dirs.
+        paths = _find_socket_paths()
+        self.assertIsInstance(paths, list)
+        for p in paths:
+            self.assertNotIn(".lock", p)
 
 
 if __name__ == "__main__":

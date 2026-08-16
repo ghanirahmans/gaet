@@ -405,6 +405,45 @@ def get_local_db(env: Dict[str, str]) -> Tuple[str, str, str, str, str]:
     return DEF_LOCAL_HOST, DEF_LOCAL_PORT, DEF_LOCAL_USER, DEF_LOCAL_DB, DEF_LOCAL_PASS
 
 
+def _socket_port(sock_path: str) -> str:
+    """Extract the port from a PostgreSQL socket filename (.s.PGSQL.<port>).
+
+    The port lives in the file name, not in the directory — hardcoding
+    '5432' while probing a socket on another port fails every connection.
+    """
+    name = os.path.basename(sock_path)
+    if name.startswith(".s.PGSQL."):
+        port = name[len(".s.PGSQL."):]
+        if port.isdigit():
+            return port
+    return "5432"
+
+
+def _find_socket_paths() -> List[str]:
+    """Scan known socket directories for every .s.PGSQL.* file (any port)."""
+    paths: List[str] = []
+    socket_dirs = ["/run/postgresql", "/var/run/postgresql", "/tmp"]
+    if IS_WINDOWS:
+        # Common Windows PostgreSQL data directories
+        for prog_dir in ["C:/Program Files/PostgreSQL", "C:/Program Files (x86)/PostgreSQL"]:
+            if os.path.exists(prog_dir):
+                try:
+                    for version in os.listdir(prog_dir):
+                        data_dir = Path(prog_dir) / version / "data"
+                        if data_dir.is_dir():
+                            socket_dirs.append(str(data_dir))
+                except OSError:
+                    pass
+    for sdir in socket_dirs:
+        try:
+            for name in sorted(os.listdir(sdir)):
+                if name.startswith(".s.PGSQL.") and not name.endswith(".lock"):
+                    paths.append(os.path.join(sdir, name))
+        except OSError:
+            continue
+    return paths
+
+
 def detect_local_pg(psql_path: str) -> List[Dict[str, str]]:
     """
     Auto-detect running PostgreSQL instances on this machine.
@@ -415,59 +454,60 @@ def detect_local_pg(psql_path: str) -> List[Dict[str, str]]:
     if not psql_path:
         return results
 
-    # --- 1. Try Unix socket first (common on Linux) ---
-    socket_paths = [
-        "/run/postgresql/.s.PGSQL.5432",
-        "/var/run/postgresql/.s.PGSQL.5432",
-        "/tmp/.s.PGSQL.5432",
-    ]
-    # Add Windows socket paths if on Windows
-    if IS_WINDOWS:
-        # Common Windows PostgreSQL data directories
-        for prog_dir in ["C:/Program Files/PostgreSQL", "C:/Program Files (x86)/PostgreSQL"]:
-            if os.path.exists(prog_dir):
-                for version in os.listdir(prog_dir):
-                    data_dir = Path(prog_dir) / version / "data"
-                    if data_dir.exists():
-                        for port in ["5432", "5433", "5434"]:
-                            sock_path = data_dir / f".s.PGSQL.{port}"
-                            if sock_path.exists():
-                                socket_paths.append(str(sock_path))
-    for sock in socket_paths:
-        if os.path.exists(sock):
-            # Try common users (exclude os.getlogin() for Windows compat)
-            for user in ["postgres", "root"]:
-                out, _, rc = run_cmd(
-                    [psql_path, "-h", os.path.dirname(sock), "-p", "5432", "-U", user,
-                     "-d", "postgres", "-tAc", "SELECT current_database();"],
+    # Users to try: current OS user first (peer auth: OS user = DB role),
+    # then the conventional postgres/root accounts.
+    users_to_try = ["postgres", "root"]
+    try:
+        import getpass
+        cur = getpass.getuser()
+        if cur and cur not in users_to_try:
+            users_to_try.insert(0, cur)
+    except Exception:
+        pass
+
+    # --- 1. Try Unix sockets first (common on Linux) ---
+    # Scan every .s.PGSQL.* file so non-default ports (5433, 5434, ...)
+    # are detected too, and keep going after the first hit so multiple
+    # instances on different sockets are all reported.
+    seen_ports: set = set()
+    for sock in _find_socket_paths():
+        port = _socket_port(sock)
+        if port in seen_ports:
+            continue  # same port already found (multi-dir sockets)
+        host = os.path.dirname(sock)
+        for user in users_to_try:
+            out, _, rc = run_cmd(
+                [psql_path, "-h", host, "-p", port, "-U", user,
+                 "-d", "postgres", "-tAc", "SELECT current_database();"],
+                env={"PGPASSWORD": ""}, timeout=3,
+            )
+            if rc == 0 and out.strip():
+                db = out.strip()
+                # List all databases on this server
+                dbs_out, _, _ = run_cmd(
+                    [psql_path, "-h", host, "-p", port, "-U", user,
+                     "-d", "postgres", "-tAc",
+                     "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"],
                     env={"PGPASSWORD": ""}, timeout=3,
                 )
-                if rc == 0 and out.strip():
-                    db = out.strip()
-                    # List all databases on this server
-                    dbs_out, _, _ = run_cmd(
-                        [psql_path, "-h", os.path.dirname(sock), "-p", "5432", "-U", user,
-                         "-d", "postgres", "-tAc",
-                         "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"],
-                        env={"PGPASSWORD": ""}, timeout=3,
-                    )
-                    databases = [d.strip() for d in dbs_out.strip().split("\n") if d.strip()] if dbs_out.strip() else [db]
-                    results.append({
-                        "host": os.path.dirname(sock),  # socket directory
-                        "port": "5432",
-                        "user": user,
-                        "databases": ", ".join(databases),
-                        "default_db": db,
-                    })
-                    break  # Found on this socket
-            if results:
-                break  # Found at least one socket
+                databases = [d.strip() for d in dbs_out.strip().split("\n") if d.strip()] if dbs_out.strip() else [db]
+                results.append({
+                    "host": host,  # socket directory
+                    "port": port,
+                    "user": user,
+                    "databases": ", ".join(databases),
+                    "default_db": db,
+                })
+                seen_ports.add(port)
+                break  # Found a working user on this socket
 
-    # --- 2. Try TCP ports (fallback) ---
+    # --- 2. Try TCP ports (fallback) — skip ports found via socket so an
+    # instance that answered on its socket is not reported a second time.
     ports_to_try = ["5432", "5433", "5434", "5435", "5436"]
-    users_to_try = ["postgres", "root"]
 
     for port in ports_to_try:
+        if port in seen_ports:
+            continue  # already found via Unix socket
         for user in users_to_try:
             # Try connecting with no password (common for local dev)
             out, _, rc = run_cmd(

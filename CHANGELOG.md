@@ -10,10 +10,20 @@ All notable changes to gaet are documented here.
   history; scaffolding gets an initial commit so config evolution is traceable.
 - Socket-host configs (`/run/postgresql`, etc.) are stored as individual
   `GAET_LOCAL_DB_*` variables instead of an unparseable connection URL.
+- Auto-detect now scans every Unix socket file (`.s.PGSQL.*`) and tries the
+  current OS user first (peer auth), so instances on non-default ports and
+  user-owned roles are found — not just `postgres`/`root` on port 5432.
 
 ### Fixed
 - `gaet init` with a detected Unix socket wrote an invalid `GAET_LOCAL_URL`
   that could not be parsed back by `get_local_db` — now round-trips correctly.
+- Socket auto-detect hardcoded port `5432` and a fixed socket list, missing
+  instances on other ports (e.g. `5433` found in `/tmp`); port is now read
+  from the socket filename and all socket directories are scanned.
+- Socket auto-detect stopped after the first instance (`if results: break`),
+  hiding additional instances running on other sockets.
+- TCP fallback could report the same port twice (socket + TCP) — ports found
+  via socket are now skipped in the TCP pass.
 - `gaet log --follow` mixed cursors between `gaet.log` and `cron.log`
   (duplicate/missed lines) — each file now tracks its own position.
 - `gaet export` masked passwords as `***`, producing shell output that would
