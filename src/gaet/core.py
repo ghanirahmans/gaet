@@ -417,7 +417,7 @@ def _socket_port(sock_path: str) -> str:
 def _find_socket_paths() -> List[str]:
     """Scan known socket directories for every .s.PGSQL.* file (any port)."""
     paths: List[str] = []
-    socket_dirs = ["/run/postgresql", "/var/run/postgresql", "/tmp"]
+    socket_dirs = ["/run/postgresql", "/var/run/postgresql", "/tmp", "/private/tmp", str(HOME / ".pg0" / "sockets")]
     if IS_WINDOWS:
         # Common Windows PostgreSQL data directories
         for prog_dir in ["C:/Program Files/PostgreSQL", "C:/Program Files (x86)/PostgreSQL"]:
@@ -544,6 +544,39 @@ def find_pg_tools(env: Dict[str, str]) -> Dict[str, str]:
                                 psql = str(candidate)
                 except (OSError, IndexError):
                     pass
+
+    # macOS: common Homebrew & Postgres.app install paths
+    if IS_MACOS:
+        mac_dirs = [
+            Path("/opt/homebrew/bin"),
+            Path("/usr/local/bin"),
+            Path("/opt/homebrew/opt/libpq/bin"),
+            Path("/usr/local/opt/libpq/bin"),
+        ]
+        for base in [Path("/opt/homebrew/opt"), Path("/usr/local/opt")]:
+            if base.is_dir():
+                try:
+                    for d in base.glob("postgresql*"):
+                        if (d / "bin").is_dir():
+                            mac_dirs.append(d / "bin")
+                except OSError:
+                    pass
+        app_base = Path("/Applications/Postgres.app/Contents/Versions")
+        if app_base.is_dir():
+            try:
+                for v in sorted(app_base.glob("*"), reverse=True):
+                    if (v / "bin").is_dir():
+                        mac_dirs.append(v / "bin")
+            except OSError:
+                pass
+
+        for bin_dir in mac_dirs:
+            if not pg_dump and (bin_dir / "pg_dump").is_file():
+                pg_dump = str(bin_dir / "pg_dump")
+            if not pg_restore and (bin_dir / "pg_restore").is_file():
+                pg_restore = str(bin_dir / "pg_restore")
+            if not psql and (bin_dir / "psql").is_file():
+                psql = str(bin_dir / "psql")
 
     return {"pg_dump": pg_dump, "pg_restore": pg_restore, "psql": psql}
 
