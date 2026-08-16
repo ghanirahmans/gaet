@@ -181,12 +181,10 @@ def cmd_doctor(args: argparse.Namespace) -> None:
         "total_mb": round(backup_total_mb, 1),
     }
 
-    # 6. Auto-backup
+    # 6. Auto-backup (optional feature)
     prefix = get_env_str(env, "GAET_SERVICE_PREFIX", DEF_SERVICE_PREFIX)
     auto_active = scheduler_is_active(prefix)
-    result["checks"]["auto_backup"] = {"ok": auto_active, "active": auto_active}
-    if not auto_active:
-        issues += 1
+    result["checks"]["auto_backup"] = {"active": auto_active}
 
     result["ok"] = issues == 0
     result["issues"] = issues
