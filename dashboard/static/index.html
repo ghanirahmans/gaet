@@ -258,7 +258,8 @@
     .config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-top: 12px; }
     .config-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
     .config-card .key { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .config-card .val { font-family: var(--font-mono); font-size: 13px; color: var(--text-primary); word-break: break-all; }
+    .logo-img { height: 32px; width: auto; object-fit: contain; border-radius: 4px; }
+  </style>
 </head>
 <body>
   <div class="app-container">
@@ -266,7 +267,8 @@
     <header class="header">
       <div class="header-inner">
         <div class="logo">
-          <div class="logo-icon">⚡</div>
+          <img src="/gaet-logo.png" alt="gaet logo" class="logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+          <div class="logo-icon" style="display:none;">⚡</div>
           <div class="logo-text">
             <h1>gaet <span class="version-badge">v3.0.2</span></h1>
             <p>Database Backup & Sync Operations Hub</p>

@@ -15,17 +15,26 @@ def cmd_serve(args: argparse.Namespace) -> None:
     no_browser = getattr(args, "no_browser", False)
 
     box_title(f"{NAME} serve")
-    status_info(f"Starting dashboard on http://{host}:{port}...")
+    open_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+    url = f"http://{open_host}:{port}"
+    status_info(f"Starting dashboard on {url}...")
 
     # Import here to avoid circular imports
     from dashboard import server as srv
 
     if not no_browser:
+        import threading
+        import time
         import webbrowser
-        try:
-            webbrowser.open(f"http://{host}:{port}")
-        except Exception:
-            pass
+
+        def _open_browser():
+            time.sleep(0.5)
+            try:
+                webbrowser.open(url)
+            except Exception:
+                pass
+
+        threading.Thread(target=_open_browser, daemon=True).start()
 
     srv.serve(port=port, host=host)
 
