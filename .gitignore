@@ -28,6 +28,12 @@ __pycache__/
 *.swo
 *~
 
+# ─── Build artifacts ───────────────────────────────
+build/
+*.egg-info/
+dist/
+__pycache__/
+
 # ─── Hermes workspace (plans) ─────────────────────────
 .hermes/
 
