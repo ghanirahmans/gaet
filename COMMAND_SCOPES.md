@@ -32,6 +32,7 @@ Dokumen ini mendefinisikan secara ketat batasan (*scope*), tanggung jawab (*resp
 |---|---|---|---|---|---|
 | **`gaet push`** | Melakukan `pg_dump` DB lokal dan merestore ke Remote Cloud DB. | Data Sync (Mutate Remote) | **TIDAK** (Kecuali opsi `--auto`) | `EXIT_LOCAL_DOWN` (81) / `EXIT_CLOUD_DOWN` (82) | Abort seketika jika DB lokal/cloud tidak terhubung. **Tidak pernah** memicu wizard `init`. |
 | **`gaet fetch`** | Melakukan `pg_dump` Remote Cloud DB dan merestore ke DB Lokal (overwrite). | Data Sync (Mutate Local) | **YA** (Ketik `yes`) / `--yes` flag di CI | `EXIT_LOCAL_DOWN` (81) / `EXIT_CLOUD_DOWN` (82) | **Destruktif ke DB lokal**. Wajib ketik `yes` di TTY. Menolak eksekusi di non-TTY tanpa `--yes`. |
+| **`gaet restore`** | Memulihkan DB lokal dari snapshot file `.dump` lokal tertentu (default: latest). | Local Snapshot Restore | **YA** (Ketik `yes`) / `--yes` flag di CI | `EXIT_LOCAL_DOWN` (81) / `EXIT_CONFIG` (80) | **Destruktif ke DB lokal**. Rollback instan dari snapshot lokal tanpa perlu jaringan cloud. Wajib konfirmasi di TTY. |
 
 ---
 
