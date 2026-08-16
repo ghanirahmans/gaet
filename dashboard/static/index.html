@@ -617,6 +617,51 @@
       font-size: 12px; line-height: 1.5; padding: 14px; border-radius: var(--radius-sm);
       white-space: pre-wrap; word-break: break-all; margin: 0; border: 1px solid rgba(59, 151, 151, 0.2);
     }
+
+    /* ─── Comprehensive Responsive Breakpoints ───────────────────── */
+    
+    /* 1. Large Screen / Laptops (max-width: 1024px) */
+    @media (max-width: 1024px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-2 { grid-template-columns: 1fr; }
+      .header-inner { flex-wrap: wrap; gap: 14px; }
+      .nav-tabs { width: 100%; justify-content: flex-start; overflow-x: auto; padding-bottom: 4px; }
+    }
+
+    /* 2. Tablets (max-width: 768px) */
+    @media (max-width: 768px) {
+      .app-container { padding: 12px 14px 40px 14px; }
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-3 { grid-template-columns: 1fr; }
+      .settings-hero { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .settings-hero-actions { width: 100%; justify-content: flex-start; }
+      .settings-layout { grid-template-columns: 1fr; }
+      .settings-nav { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+      .settings-nav-btn { flex: 0 0 auto; min-width: 140px; }
+      .card-header-styled { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .settings-actions-footer { flex-direction: column; gap: 12px; align-items: stretch; text-align: center; }
+      .table-container { overflow-x: auto; }
+      .data-table th, .data-table td { padding: 10px 12px; font-size: 12px; }
+    }
+
+    /* 3. Mobile Devices (max-width: 480px) */
+    @media (max-width: 480px) {
+      .grid-4 { grid-template-columns: 1fr; }
+      .header-inner { flex-direction: column; align-items: stretch; gap: 12px; }
+      .logo { flex-direction: row; }
+      .header-actions { justify-content: space-between; width: 100%; }
+      .nav-tabs { width: 100%; display: flex; justify-content: space-between; overflow-x: auto; }
+      .tab-btn { flex: 1 0 auto; padding: 8px 10px; font-size: 11px; text-align: center; }
+      .metric-card { padding: 14px; }
+      .metric-card .value { font-size: 20px; }
+      .modal-backdrop { padding: 10px; }
+      .modal-content { max-width: 100% !important; border-radius: var(--radius-sm); }
+      .modal-body { padding: 14px; max-height: 380px; }
+      .modal-footer { flex-direction: column; gap: 8px; }
+      .modal-footer .btn { width: 100%; }
+      .toast { bottom: 14px; right: 14px; left: 14px; padding: 10px 14px; font-size: 12px; justify-content: center; }
+      .cmd-palette-modal { width: 94% !important; margin: 0 auto; }
+    }
   </style>
 </head>
 <body>

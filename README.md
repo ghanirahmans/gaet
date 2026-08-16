@@ -192,6 +192,10 @@ gaet completion fish > ~/.config/fish/completions/gaet.fish
   Git-style management of cloud database target URLs.
 - **`gaet export`**  
   Outputs active `.env` configuration as shell-formatted `export GAET_...` environment variables.
+- **`gaet completion [bash|zsh|fish|ps1]`**  
+  Generates shell auto-completion scripts for Bash, Zsh, Fish, or PowerShell.
+- **`gaet help [command]`**  
+  Displays detailed CLI documentation and usage examples for a specific subcommand.
 
 ### 5. Services & Modern Web Dashboard
 
