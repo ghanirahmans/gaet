@@ -459,6 +459,7 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, Any
         )
         if rc == 0 and out.strip() == "1":
             echo(f"{G}OK{NC}")
+            result["checks"]["remote_db"]["reachable"] = True
             size_out, _, _ = run_cmd(
                 [psql, "-w", "-h", parsed["host"], "-p", parsed["port"],
                  "-U", parsed["user"], "-d", parsed["db"], "-tAc",
@@ -469,6 +470,7 @@ def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, Any
             status_arrow(f"Size: {size_out}")
         else:
             echo(f"{R}FAIL{NC}")
+            result["checks"]["remote_db"]["reachable"] = False
             result["ok"] = False
         cleanup_pg_env(env_dict)
     else:
