@@ -19,10 +19,18 @@ import sys
 import textwrap
 
 from .core import (
+    B,
+    C,
+    D,
     DEF_AUTO_INTERVAL,
     ENV_FILE,
+    G,
     NAME,
+    NC,
+    R,
     VERSION,
+    W,
+    Y,
     _SUGGEST_NAMES,
     box_title,
     echo,
