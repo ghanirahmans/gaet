@@ -455,7 +455,12 @@
           <img src="/gaet-logo.png" alt="gaet logo" class="logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
           <div class="logo-icon" style="display:none;">⚡</div>
           <div class="logo-text">
-            <h1>gaet <span class="version-badge">v3.0.2</span></h1>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <h1>gaet <span class="version-badge">v3.0.2</span></h1>
+              <div id="headerStatusPill" class="live-pill pill-success" style="padding:2px 8px; font-size:10px;">
+                <span class="live-pulse"></span> <span id="headerStatusText">Checking...</span>
+              </div>
+            </div>
             <p>Database Backup & Sync Operations Hub</p>
           </div>
         </div>
@@ -472,9 +477,6 @@
           <button class="btn btn-secondary btn-sm" onclick="toggleCommandPalette()" title="Open Command Palette (Alt+K or Cmd+K)">
             <span style="font-family:var(--font-mono);font-size:11px;opacity:0.85;background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;margin-right:2px;">Alt+K</span> 🔍
           </button>
-          <div id="headerStatusPill" class="live-pill pill-success">
-            <span class="live-pulse"></span> <span id="headerStatusText">Checking...</span>
-          </div>
           <button class="btn btn-secondary btn-sm" onclick="runDoctorCheck()" title="Run full CLI system diagnostic">🩺 Doctor Check</button>
           <button class="btn btn-secondary btn-sm" id="refreshBtn" onclick="fetchFullStatus(true)">
             <span id="refreshIcon">⟳</span> Refresh
@@ -543,29 +545,20 @@
           </div>
         </div>
 
-        <!-- Quick Control Panel -->
+        <!-- Unified Table Schema Matrix & Operations Master Section -->
         <div class="section">
-          <div class="section-header">
-            <h2>⚡ Quick Operations</h2>
-          </div>
-          <div class="section-body" style="display:flex;gap:12px;flex-wrap:wrap;">
-            <button class="btn btn-primary" id="pushBtn" onclick="doAction('push', 'Pushing to Cloud...', '↑ Push to Cloud')">↑ Push to Cloud</button>
-            <button class="btn btn-secondary" id="fetchBtn" onclick="doAction('fetch', 'Fetching from Cloud...', '↓ Fetch from Cloud')">↓ Fetch from Cloud</button>
-            <button class="btn btn-warning" id="autoBtn" onclick="doAction('auto', 'Enabling Auto-Backup...', '⏰ Enable Auto-Backup (6h)')">⏰ Enable Auto-Backup</button>
-            <button class="btn btn-danger" id="stopBtn" onclick="doAction('stop', 'Stopping Scheduler...', '■ Stop Auto-Backup')" style="display:none;">■ Stop Auto-Backup</button>
-          </div>
-        </div>
-
-        <!-- Table Matrix Section -->
-        <div class="section">
-          <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div style="display:flex; align-items:center; gap:10px;">
               <h2 style="margin:0;">📊 Database Table Schema Matrix</h2>
               <span class="badge" id="syncBadge">—</span>
             </div>
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <button class="btn btn-primary btn-sm" id="pushBtn" onclick="doAction('push', 'Pushing to Cloud...', '↑ Push to Cloud')">↑ Push to Cloud</button>
+              <button class="btn btn-secondary btn-sm" id="fetchBtn" onclick="doAction('fetch', 'Fetching from Cloud...', '↓ Fetch from Cloud')">↓ Fetch from Cloud</button>
               <button class="btn btn-secondary btn-sm" onclick="runDiffAnalysis()" title="Run detailed gaet diff CLI comparison">🔍 Diff Analysis</button>
               <button class="btn btn-secondary btn-sm" onclick="doAction('push?dry_run=1', 'Simulating push...', '⚡ Dry Run')" title="Simulate push without modifying data">⚡ Dry Run</button>
+              <button class="btn btn-warning btn-sm" id="autoBtn" onclick="doAction('auto', 'Enabling Auto-Backup...', '⏰ Auto-Backup (6h)')">⏰ Auto-Backup</button>
+              <button class="btn btn-danger btn-sm" id="stopBtn" onclick="doAction('stop', 'Stopping Scheduler...', '■ Stop Auto-Backup')" style="display:none;">■ Stop Auto-Backup</button>
             </div>
           </div>
           <div class="section-body">
