@@ -6,7 +6,7 @@ import sys
 import time
 import tarfile
 from datetime import datetime
-from .core import C, D, DEF_SERVICE_PREFIX, G, GAET_DIR, GITHUB_API, GITHUB_RAW, HOME, IS_LINUX, IS_MACOS, IS_WINDOWS, NAME, NC, Path, Y, _gh_download, _raw_download, argparse, box_section, box_title, die, echo, get_env_str, load_env, run_cmd, safe_input, scheduler_disable, scheduler_is_active, shutil, status_arrow, status_fail, status_info, status_ok, status_warn, sys, time
+from .core import C, D, DEF_SERVICE_PREFIX, G, GAET_DIR, GITHUB_API, HOME, IS_LINUX, IS_MACOS, IS_WINDOWS, NAME, NC, Path, Y, _gh_download, argparse, box_section, box_title, die, echo, get_env_str, load_env, run_cmd, safe_input, scheduler_disable, scheduler_is_active, shutil, status_arrow, status_fail, status_info, status_ok, status_warn, sys, time
 from .scheduler import _svc_is_running, _svc_stop
 
 def cmd_install(args: argparse.Namespace) -> None:
@@ -218,18 +218,14 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     echo("")
 
 def _update_download(install_dir: Path, skip_build: bool = False) -> None:
-    """Update gaet by downloading files from GitHub (for curl-install users).
-
-    Uses raw.githubusercontent.com URLs (NOT api.github.com) so the 60 req/h
-    unauthenticated API rate limit does not break `gaet update` right after a
-    fresh install that already burned the quota.
-    """
+    """Update gaet by downloading files from GitHub (for curl-install users)."""
 
     status_info("Downloading latest gaet from GitHub...")
 
     files = [
         ("gaet.py", "gaet"),
     ]
+    # v3 src-layout: the shim needs the src/gaet package beside it.
     pkg_files = [
         "__init__.py", "__main__.py", "registry.py", "cli.py", "core.py",
         "detect.py", "init.py", "config.py", "status.py", "backup.py",
@@ -238,9 +234,9 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
     script_files = ["__init__.py", "status.py", "scheduler.py", "service_manager.py", "installer.py"]
 
     for src, dst in files:
-        url = f"{GITHUB_RAW}/{src}"
+        url = f"{GITHUB_API}/{src}?ref=master"
         try:
-            data = _raw_download(url)
+            data = _gh_download(url)
             dest_path = install_dir / dst
             dest_path.write_bytes(data)
             dest_path.chmod(0o755) if not IS_WINDOWS else None
@@ -248,51 +244,61 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
         except Exception as e:
             die(f"Failed to download {src}: {e}")
 
+    # Download the gaet package (src/gaet/*.py) into gaet_pkg/
+    # (a dir named `gaet/` beside the `gaet` binary is impossible on disk)
     pkg_dst = install_dir / "gaet_pkg" / "gaet"
     pkg_dst.mkdir(parents=True, exist_ok=True)
     for pf in pkg_files:
-        url = f"{GITHUB_RAW}/src/gaet/{pf}"
+        url = f"{GITHUB_API}/src/gaet/{pf}?ref=master"
         try:
-            data = _raw_download(url)
+            data = _gh_download(url)
             (pkg_dst / pf).write_bytes(data)
             status_ok(f"src/gaet/{pf} → {pkg_dst}/")
         except Exception as e:
             status_warn(f"Failed to download src/gaet/{pf}: {e}")
 
+    # Download scripts
     scripts_dst = install_dir / "scripts"
     scripts_dst.mkdir(parents=True, exist_ok=True)
     for sf in script_files:
-        url = f"{GITHUB_RAW}/scripts/{sf}"
+        url = f"{GITHUB_API}/scripts/{sf}?ref=master"
         try:
-            data = _raw_download(url)
+            data = _gh_download(url)
             (scripts_dst / sf).write_bytes(data)
             status_ok(f"scripts/{sf} → {scripts_dst}/")
         except Exception as e:
             status_warn(f"Failed to download scripts/{sf}: {e}")
 
+    # Download shell completions (gaet completion reads them from here)
     completions_dst = install_dir / "completions"
     completions_dst.mkdir(parents=True, exist_ok=True)
     for cf in ["gaet.bash", "gaet.zsh", "gaet.fish", "gaet.ps1"]:
-        url = f"{GITHUB_RAW}/completions/{cf}"
+        url = f"{GITHUB_API}/completions/{cf}?ref=master"
         try:
-            data = _raw_download(url)
+            data = _gh_download(url)
             (completions_dst / cf).write_bytes(data)
             status_ok(f"completions/{cf} -> {completions_dst}")
         except Exception:
             status_warn(f"Failed to download completions/{cf}")
 
+
+    # Download and build dashboard
     if not skip_build:
         try:
             dashboard_dst = install_dir / "dashboard"
+            # Pure Python HTTP server — no Node.js/npm build step required (v2.0.1+).
+            # server.py runs from ~/.local/bin/dashboard/ (the install dir),
+            # so it is downloaded there, NOT to ~/.gaet/dashboard.
             dash_files = [
                 "server.py",
                 "static/index.html",
                 "public/gaet-logo.png",
             ]
+
             for df in dash_files:
-                url = f"{GITHUB_RAW}/dashboard/{df}"
+                url = f"{GITHUB_API}/dashboard/{df}?ref=master"
                 try:
-                    data = _raw_download(url)
+                    data = _gh_download(url)
                     df_path = dashboard_dst / df
                     df_path.parent.mkdir(parents=True, exist_ok=True)
                     df_path.write_bytes(data)
