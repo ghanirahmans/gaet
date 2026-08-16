@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -221,8 +221,8 @@
         </div>
         <div class="section-body">
           <div class="actions">
-            <button class="btn btn-primary" id="pushBtn" onclick="doAction('push', 'Pushing...', 'Push')">↑ Push ke Cloud</button>
-            <button class="btn btn-secondary" id="fetchBtn" onclick="doAction('fetch', 'Fetching...', 'Fetch')">↓ Fetch dari Cloud</button>
+            <button class="btn btn-primary" id="pushBtn" onclick="doAction('push', 'Pushing...', 'Push')">↑ Push to Cloud</button>
+            <button class="btn btn-secondary" id="fetchBtn" onclick="doAction('fetch', 'Fetching...', 'Fetch')">↓ Fetch from Cloud</button>
             <button class="btn btn-danger" id="stopBtn" onclick="doAction('stop', 'Stopping...', 'Stop')" style="display:none;">■ Stop Auto-Backup</button>
             <button class="btn btn-secondary" id="autoBtn" onclick="doAction('auto', 'Enabling...', 'Auto')" style="display:none;">⏰ Enable Auto-Backup</button>
           </div>
@@ -282,10 +282,10 @@
       const d = Date.now() - ts * 1000;
       const h = Math.floor(d / 3600000);
       const m = Math.floor((d % 3600000) / 60000);
-      if (h > 24) return `${Math.floor(h / 24)}j lalu`;
-      if (h > 0) return `${h}j ${m}m lalu`;
-      if (m > 0) return `${m}m lalu`;
-      return 'baru saja';
+      if (h > 24) return `${Math.floor(h / 24)}d ago`;
+      if (h > 0) return `${h}h ${m}m ago`;
+      if (m > 0) return `${m}m ago`;
+      return 'just now';
     }
 
     function show(msg, type) {
@@ -334,7 +334,7 @@
       const progress = document.getElementById('syncProgress');
       progress.style.width = pct + '%';
       progress.className = `progress-fill ${pct === 100 ? 'full' : pct > 0 ? 'partial' : 'none'}`;
-      document.getElementById('syncText').textContent = `${syncedCount}/${tables.length} tabel sinkron (${pct}%)`;
+      document.getElementById('syncText').textContent = `${syncedCount}/${tables.length} tables in sync (${pct}%)`;
 
       // Badge
       const badge = document.getElementById('syncBadge');
@@ -346,7 +346,7 @@
       const cronCard = document.getElementById('cronCard');
       cronCard.className = `stat-card ${d.cron_active ? 'green' : 'yellow'}`;
       document.getElementById('cronIcon').className = `stat-icon ${d.cron_active ? 'green' : 'yellow'}`;
-      document.getElementById('cronSubtitle').textContent = d.cron_active ? 'Periodik' : 'Jalankan manual';
+      document.getElementById('cronSubtitle').textContent = d.cron_active ? 'Periodic' : 'Manual run';
 
       // Action buttons
       document.getElementById('stopBtn').style.display = d.cron_active ? 'inline-flex' : 'none';
@@ -381,11 +381,11 @@
         const url = action === 'auto' ? '/api/push?auto=1' : `/api/${action}`;
         const r = await fetch(url, { method: 'POST' });
         const d = await r.json();
-        if (d.ok) show(d.msg || 'Selesai!', 'ok');
-        else show(d.msg || 'Gagal', 'err');
+        if (d.ok) show(d.msg || 'Success!', 'ok');
+        else show(d.msg || 'Failed', 'err');
         await fetchStatus();
       } catch {
-        show('Gagal terhubung ke server', 'err');
+        show('Failed to connect to server', 'err');
       } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;

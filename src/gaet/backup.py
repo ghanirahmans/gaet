@@ -155,7 +155,7 @@ def cmd_push(args: argparse.Namespace) -> None:
             spinner.stop()
         if rc == 0 and Path(backup_file).is_file():
             size_mb = Path(backup_file).stat().st_size / (1024 * 1024)
-            echo(f"    {G}{ICON_OK}{NC}  Dump tersimpan {D}({size_mb:.1f} MB){NC}")
+            echo(f"    {G}{ICON_OK}{NC}  Dump saved {D}({size_mb:.1f} MB){NC}")
             result["dump"] = {"file": backup_file, "size_mb": round(size_mb, 1)}
             # Integrity check
             out2, err2, rc2 = run_cmd(
@@ -164,13 +164,13 @@ def cmd_push(args: argparse.Namespace) -> None:
             )
             if rc2 != 0:
                 Path(backup_file).unlink(missing_ok=True)
-                die("Dump korup — backup dibatalkan")
+                die("Corrupted dump file — backup cancelled")
         else:
             Path(backup_file).unlink(missing_ok=True)
-            die("Dump gagal")
+            die("Dump failed")
 
         # Step 2: Restore to cloud with timeout
-        echo(f"  {C}☁️{NC}   {B}Mensinkronkan ke cloud...{NC}")
+        echo(f"  {C}☁️{NC}   {B}Syncing to cloud...{NC}")
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
         # Drop existing objects first (handles partitioned tables; --clean can't)
         ok_reset, reset_err = _reset_target_objects(
@@ -178,11 +178,11 @@ def cmd_push(args: argparse.Namespace) -> None:
             parsed["db"], parsed["pass"], ssl,
         )
         if not ok_reset:
-            echo(f"    {R}{ICON_FAIL}{NC}  Gagal membersihkan cloud database")
+            echo(f"    {R}{ICON_FAIL}{NC}  Failed to clean cloud database")
             if reset_err:
                 echo(f"    {D}{reset_err[:200]}{NC}")
             result["sync"] = {"ok": False, "error": "reset"}
-            die("Sinkronisasi cloud gagal (reset target)", EXIT_CLOUD_DOWN)
+            die("Cloud synchronization failed (target reset error)", EXIT_CLOUD_DOWN)
         spinner = Spinner("Syncing to cloud").start()
         env_cloud = pg_env(parsed["user"], parsed["pass"], ssl)
         try:
@@ -198,25 +198,25 @@ def cmd_push(args: argparse.Namespace) -> None:
             cleanup_pg_env(env_cloud)
             spinner.stop()
         if rc3 == 0:
-            echo(f"    {G}{ICON_OK}{NC}  Sinkronisasi selesai!")
+            echo(f"    {G}{ICON_OK}{NC}  Synchronization complete!")
             result["sync"] = {"ok": True}
         elif rc3 == 2 or "connection" in (err3 or "").lower() or "ssl" in (err3 or "").lower():
             # Connection-level failure (server unreachable, SSL mismatch)
-            echo(f"    {R}{ICON_FAIL}{NC}  Gagal terhubung ke cloud database")
+            echo(f"    {R}{ICON_FAIL}{NC}  Failed to connect to cloud database")
             if err3:
                 first_err = err3.strip().splitlines()[-1] if err3.strip() else ""
                 echo(f"    {D}{first_err}{NC}")
-            echo(f"    {D}Periksa GAET_REMOTE_URL dan coba 'gaet check'{NC}")
+            echo(f"    {D}Check GAET_REMOTE_URL and run 'gaet check'{NC}")
             result["sync"] = {"ok": False, "error": "connection"}
-            die("Sinkronisasi cloud gagal (koneksi)", EXIT_CLOUD_DOWN)
+            die("Cloud synchronization failed (connection error)", EXIT_CLOUD_DOWN)
         else:
             # Restore ran but reported errors (e.g. missing objects)
-            echo(f"    {R}{ICON_FAIL}{NC}  Sinkronisasi gagal ({rc3})")
+            echo(f"    {R}{ICON_FAIL}{NC}  Synchronization failed ({rc3})")
             if err3:
                 for line in err3.strip().splitlines()[-3:]:
                     echo(f"    {D}{line}{NC}")
             result["sync"] = {"ok": False, "error": "restore"}
-            die("Sinkronisasi cloud gagal (restore error)", EXIT_CLOUD_DOWN)
+            die("Cloud synchronization failed (restore error)", EXIT_CLOUD_DOWN)
 
         # Step 3: Retention
         retention = get_env_int(env, "GAET_RETENTION_DAYS", DEF_RETENTION_DAYS)
@@ -362,16 +362,16 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             spinner.stop()
         if rc == 0 and Path(fetch_file).is_file():
             size_mb = Path(fetch_file).stat().st_size / (1024 * 1024)
-            echo(f"    {G}{ICON_OK}{NC}  Dump cloud tersimpan {D}({size_mb:.1f} MB){NC}")
+            echo(f"    {G}{ICON_OK}{NC}  Cloud dump saved {D}({size_mb:.1f} MB){NC}")
             result["dump"] = {"file": fetch_file, "size_mb": round(size_mb, 1)}
         else:
             Path(fetch_file).unlink(missing_ok=True)
-            die("Dump cloud gagal", EXIT_CLOUD_DOWN)
+            die("Cloud dump failed", EXIT_CLOUD_DOWN)
 
         # Step 2: Restore to local
         echo(f"  {C}💾{NC}  {B}Restoring to local database...{NC}")
         # Terminate connections first
-        status_warn("Menutup koneksi aktif ke database lokal...")
+        status_warn("Terminating active connections to local database...")
         env_local = pg_env(u, w)
         run_cmd(
             [psql, "-w", "-h", h, "-p", p, "-U", u, "-d", n, "-v", f"dbname={n}", "-tAc",
@@ -385,11 +385,11 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         ok_reset, reset_err = _reset_target_objects(psql, h, p, u, n, w)
         if not ok_reset:
             cleanup_pg_env(env_local)
-            echo(f"    {R}{ICON_FAIL}{NC}  Gagal membersihkan database lokal")
+            echo(f"    {R}{ICON_FAIL}{NC}  Failed to clean local database")
             if reset_err:
                 echo(f"    {D}{reset_err[:200]}{NC}")
             result["restore"] = {"ok": False, "error": "reset"}
-            die("Restore lokal gagal (reset target)")
+            die("Local restore failed (target reset error)")
 
         spinner = Spinner("Restoring to local database").start()
         try:
@@ -407,21 +407,21 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             result["restore"] = {"ok": True}
         elif rc3 == 2 or "connection" in (err3 or "").lower() or "ssl" in (err3 or "").lower():
             # Connection-level failure
-            echo(f"    {R}{ICON_FAIL}{NC}  Gagal terhubung ke database lokal")
+            echo(f"    {R}{ICON_FAIL}{NC}  Failed to connect to local database")
             if err3:
                 first_err = err3.strip().splitlines()[-1] if err3.strip() else ""
                 echo(f"    {D}{first_err}{NC}")
-            echo(f"    {D}Periksa GAET_LOCAL_DB_* dan coba 'gaet check'{NC}")
+            echo(f"    {D}Check GAET_LOCAL_DB_* and run 'gaet check'{NC}")
             result["restore"] = {"ok": False, "error": "connection"}
-            die("Restore lokal gagal (koneksi)", EXIT_LOCAL_DOWN)
+            die("Local restore failed (connection error)", EXIT_LOCAL_DOWN)
         else:
             # Restore ran but reported errors
-            echo(f"    {R}{ICON_FAIL}{NC}  Restore gagal ({rc3})")
+            echo(f"    {R}{ICON_FAIL}{NC}  Restore failed ({rc3})")
             if err3:
                 for line in err3.strip().splitlines()[-3:]:
                     echo(f"    {D}{line}{NC}")
             result["restore"] = {"ok": False, "error": "restore"}
-            die("Restore lokal gagal (restore error)")
+            die("Local restore failed (restore error)")
 
         Path(fetch_file).unlink(missing_ok=True)
         echo()
@@ -456,7 +456,7 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
         remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
         parsed = parse_remote_url(remote_url)
         if not parsed:
-            cronlog("❌ GAET_REMOTE_URL tidak dikonfigurasi")
+            cronlog("❌ GAET_REMOTE_URL is not configured")
             sys.exit(1)
         assert parsed is not None
 
@@ -465,7 +465,7 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
         pg_restore = tools["pg_restore"]
         ssl = get_env_str(env, "GAET_REMOTE_SSLMODE", DEF_REMOTE_SSLMODE)
 
-        cronlog("📦 [cron] Mulai auto-backup...")
+        cronlog("📦 [cron] Starting auto-backup...")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         cron_file = str(BACKUP_DIR / f"cron_{timestamp}.dump")
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
@@ -489,7 +489,7 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
             )
             if rc_check != 0:
                 Path(cron_file).unlink(missing_ok=True)
-                cronlog("❌ [cron] Dump korup — backup dibatalkan")
+                cronlog("❌ [cron] Corrupted dump file — backup cancelled")
                 return
 
             env_cloud = pg_env(parsed["user"], parsed["pass"], ssl)
@@ -508,7 +508,7 @@ def cmd_push_cron(env: Dict[str, str]) -> None:
                 size_mb = Path(cron_file).stat().st_size / (1024 * 1024)
                 cronlog(f"✅ [cron] Backup success ({size_mb:.1f} MB)")
             else:
-                cronlog("⚠️ [cron] Restore bermasalah")
+                cronlog("⚠️ [cron] Restore issue encountered")
         else:
             cronlog("❌ [cron] Local dump failed!")
 

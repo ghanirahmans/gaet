@@ -63,7 +63,7 @@ def main() -> None:
     try:
         _run_cli()
     except (KeyboardInterrupt, EOFError):
-        sys.stdout.write("\n  \033[36m[INFO]\033[0m  gaet: dibatalkan oleh pengguna.\n")
+        sys.stdout.write("\n  \033[36m[INFO]\033[0m  gaet: cancelled by user.\n")
         sys.stdout.flush()
         sys.exit(130)
     except SystemExit as e:
