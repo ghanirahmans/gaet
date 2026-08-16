@@ -663,15 +663,15 @@ def main_cli():
             Examples:
               python install.py              interactive
               python install.py --yes        auto-install missing deps
-              python install.py --skip-deps  hanya setup config & build
+              python install.py --skip-deps  setup config & build only
         """),
     )
-    parser.add_argument("--yes", "-y", action="store_true", help="Auto-approve semua (non-interactive)")
-    parser.add_argument("--skip-deps", action="store_true", help="Skip pengecekan dependencies")
-    parser.add_argument("--skip-build", action="store_true", help="Skip build dashboard")
-    parser.add_argument("--skip-config", action="store_true", help="Skip config wizard")
-    parser.add_argument("--skip-service", action="store_true", help="Skip dashboard service setup")
-    parser.add_argument("--interval", type=int, default=0, help="Set auto-backup interval (jam), 0 = skip")
+    parser.add_argument("--yes", "-y", action="store_true", help="Auto-approve all prompts (non-interactive mode)")
+    parser.add_argument("--skip-deps", action="store_true", help="Skip dependency checks")
+    parser.add_argument("--skip-build", action="store_true", help="Skip building web dashboard")
+    parser.add_argument("--skip-config", action="store_true", help="Skip setup configuration wizard")
+    parser.add_argument("--skip-service", action="store_true", help="Skip dashboard background service setup")
+    parser.add_argument("--interval", type=int, default=0, help="Set auto-backup interval in hours (0 = skip)")
     args = parser.parse_args()
 
     sys.exit(run(

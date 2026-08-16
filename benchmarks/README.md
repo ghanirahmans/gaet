@@ -11,7 +11,7 @@
 | **03 — Ultra-Complex** | 343 MB | 19 objects | 3.68 s | 41.1 MB (88%) | 6 ms | 6.61 s | **10.29 s** |
 | **04 — Production-like SaaS** | 1944 MB | 38 tables | 50.09 s | 359.6 MB (81.5%) | — | 58.24 s† | **91.06s** push / **80.49s** fetch |
 
-† `pg_restore` raw melaporkan error FK pada data benchmark (subset referensial tidak lengkap). Pipeline gaet memakai `--no-owner --no-acl` dan sukses penuh — 38 tabel tersinkron, row count local = cloud. Verify (`pg_restore --list`) berjalan sebagai bagian dari pipeline, tidak diukur terpisah.
+† Raw `pg_restore` reports FK errors on benchmark data (incomplete referential subset). The gaet pipeline uses `--no-owner --no-acl` and completes with 100% success — 38 tables synchronized, local row count = cloud. Verification (`pg_restore --list`) runs as part of the pipeline, not measured separately.
 
 > Every number is a **real measurement** on the hardware described below — not a theoretical estimate. Full reproduction steps included.
 

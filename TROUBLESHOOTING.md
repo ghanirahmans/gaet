@@ -167,7 +167,7 @@ lsof -i :9191
 gaet serve --port 8080
 ```
 
-### Dashboard shows "cloud tidak terjangkau"
+### Dashboard shows "cloud unreachable"
 
 **Cause:** Cloud database unreachable (paused instance, wrong URL, network issue).
 
@@ -208,7 +208,7 @@ export PGTMPDIR=/path/to/large/disk
 gaet push
 ```
 
-### `Gagal membersihkan cloud database`
+### `Failed to clean cloud database`
 
 **Cause:** Cloud database permissions issue or network timeout.
 
@@ -228,7 +228,7 @@ psql "$GAET_REMOTE_URL" -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activi
 
 ## Auto-Backup Issues
 
-### `Auto-backup timer... tidak aktif`
+### `Auto-backup timer... inactive`
 
 **Cause:** Auto-backup not enabled.
 

@@ -1,7 +1,7 @@
-"""status.py — Modul status untuk gaet.
+"""status.py — Status reporting module for gaet.
 
-Digunakan oleh `gaet status --json` dan dashboard.
-Membaca config dari ~/.gaet/.env.
+Used by `gaet status --json` and the web dashboard.
+Reads configuration from ~/.gaet/.env.
 
 Supports dynamic table discovery:
   - GAET_TABLES config (manual override)
@@ -227,7 +227,7 @@ def _cleanup_pgpass(env: Dict[str, str]) -> None:
 
 
 def get_table_counts(psql, host, port, user, db, passwd, tables, ssl_mode=None):
-    """Hitung semua tabel dalam 1 query."""
+    """Count all tables in 1 query."""
     if not tables:
         return {}
     safe_tables = [t for t in tables if _validate_table_name(t)]
@@ -257,7 +257,7 @@ def get_table_counts(psql, host, port, user, db, passwd, tables, ssl_mode=None):
 # ─── Cron/Scheduler Status ───────────────────────────────────────────
 
 def is_cron_active():
-    """Cek status cron/timer cross-platform."""
+    """Check cross-platform cron/timer status."""
     platform = sys.platform
     try:
         if platform.startswith("linux"):
@@ -278,12 +278,12 @@ def is_cron_active():
 # ─── Main Status ──────────────────────────────────────────────────────
 
 def get_status():
-    """Ambil status lengkap backup."""
+    """Retrieve full backup status."""
     cfg = get_config()
     psql = cfg["psql"]
     tables = get_tables(cfg)
 
-    # Cek koneksi lokal
+    # Check local connection
     lok_env = _pgpass_env(cfg["local_user"], cfg["local_pass"])
     ok, _, _ = sh([psql, "-h", cfg["local_host"], "-p", cfg["local_port"],
                     "-U", cfg["local_user"], "-d", cfg["local_name"],
@@ -302,7 +302,7 @@ def get_status():
             "error": f"Local DB unreachable ({cfg['local_host']}:{cfg['local_port']})"
         }
 
-    # Hitung tabel lokal + remote
+    # Count local + remote tables
     local_counts = get_table_counts(psql, cfg["local_host"], cfg["local_port"],
                                      cfg["local_user"], cfg["local_name"], cfg["local_pass"],
                                      tables)

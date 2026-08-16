@@ -99,21 +99,21 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if auto:
                 args.extend(["--auto", auto])
             rc, out, err = run_gaet(args)
-            msg = "Push ke cloud selesai!" if rc == 0 else f"Push gagal: {err}"
+            msg = "Cloud push complete!" if rc == 0 else f"Push failed: {err}"
             self.send_json(200, {"ok": rc == 0, "msg": msg})
             return
 
         # API endpoint: fetch
         if path == "/api/fetch":
             rc, out, err = run_gaet(["fetch", "--yes"])
-            msg = "Fetch dari cloud selesai!" if rc == 0 else f"Fetch gagal: {err}"
+            msg = "Cloud fetch complete!" if rc == 0 else f"Fetch failed: {err}"
             self.send_json(200, {"ok": rc == 0, "msg": msg})
             return
 
         # API endpoint: stop
         if path == "/api/stop":
             rc, out, err = run_gaet(["stop"])
-            msg = "Auto-backup dihentikan" if rc == 0 else f"Gagal stop: {err}"
+            msg = "Auto-backup stopped" if rc == 0 else f"Failed to stop: {err}"
             self.send_json(200, {"ok": rc == 0, "msg": msg})
             return
 

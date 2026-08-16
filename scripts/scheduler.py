@@ -59,11 +59,11 @@ def _log_path(prefix: str) -> Path:
     """
     Return the filesystem path for the backup log file.
 
-    Konsisten dengan konfigurasi gaet: semua log di ~/.gaet/backups/.
+    Consistent with gaet configuration: all logs stored in ~/.gaet/backups/.
     """
     base = HOME / ".gaet" / "backups"
     base.mkdir(parents=True, exist_ok=True)
-    return base / "cron.log"  # semuanya pakai 1 file cron.log
+    return base / "cron.log"  # uses unified cron.log file
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

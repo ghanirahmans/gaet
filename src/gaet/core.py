@@ -7,7 +7,7 @@ import difflib
 """
 gaet — Database Backup & Sync CLI (Cross-Platform)
 ===================================================
-Backup PostgreSQL lokal ke cloud (Supabase, Neon, RDS, VPS).
+Backup local PostgreSQL to cloud (Supabase, Neon, RDS, VPS).
 
 Usage:
   gaet init              Setup wizard
@@ -921,7 +921,7 @@ def status_arrow(msg: str) -> None:
 def draw_table(headers: str, rows: List[str]) -> None:
     """
     Draw a table similar to Bash version.
-    headers: colon-separated header names (e.g., "Tabel:Lokal:Cloud:Status")
+    headers: colon-separated header names (e.g., "Table:Local:Cloud:Status")
     rows: list of pipe-separated values (e.g., ["memory_units|150|150|✓"])
 
     In --plain mode (or piped), emit TSV instead of a boxed table.
@@ -1053,21 +1053,21 @@ def draw_colored_table(headers: str, rows: List[str], colors: Optional[List[str]
 def print_sync_summary(local_count: int, remote_count: int, synced: bool, table_count: int) -> None:
     """Print a compact sync summary after push/fetch."""
     echo()
-    box_section("Ringkasan")
+    box_section("Summary")
     if synced:
-        status_ok(f"Semua {table_count} tabel sinkron ({local_count} rows)")
+        status_ok(f"All {table_count} tables in sync ({local_count} rows)")
     else:
-        status_warn(f"Tabel tidak sinkron — {table_count} tabel diperiksa")
+        status_warn(f"Tables out of sync — {table_count} tables checked")
     status_arrow(f"Local: {local_count} rows")
     status_arrow(f"Cloud: {remote_count} rows")
 
 def print_push_summary(backup_file: str, size_mb: float, tables_synced: int) -> None:
     """Print summary after successful push."""
     echo()
-    box_section("Push Selesai")
+    box_section("Push Complete")
     status_ok(f"Backups stored: {backup_file} ({size_mb:.1f} MB)")
-    status_ok(f"Tabel sinkron: {tables_synced}")
-    status_arrow("Jalankan 'gaet status' untuk detail")
+    status_ok(f"Synced tables: {tables_synced}")
+    status_arrow("Run 'gaet status' for details")
 
 def run_cmd(
     cmd: List[str],

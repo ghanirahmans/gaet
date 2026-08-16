@@ -61,14 +61,14 @@ Expected output:
 🚀 Push: local → cloud
 == gaet push ==
   📦  Dumping local database...
-    OK  Dump tersimpan (37.7 MB)
-  ☁️   Mensinkronkan ke cloud...
-    OK  Sinkronisasi selesai!
+    [ OK ]  Dump saved (37.7 MB)
+  ☁️   Syncing to cloud...
+    [ OK ]  Synchronization complete!
 
--- Push Selesai --
-  OK  Backups stored: /home/user/.gaet/backups/gaet_20240815.dump (37.7 MB)
-  OK  Tabel sinkron: 19
-  >  Jalankan 'gaet status' untuk detail
+-- Push Complete --
+  [ OK ]  Backups stored: /home/user/.gaet/backups/gaet_20240815.dump (37.7 MB)
+  [ OK ]  Synced tables: 19
+  >  Run 'gaet status' for details
 [2024-08-15 10:30:00] ✅ Push complete
 ```
 
@@ -83,8 +83,8 @@ gaet status
 Shows per-table row counts and sync status. All tables should show `✓` (synced).
 
 ```
--- Sinkronisasi --
-Tabel	        Lokal	  Cloud	Status
+-- Sync Status --
+Table	        Local	  Cloud	Status
 api_keys	       5000	  5000	✓
 comments	   250000	250000	✓
 posts	           45000	 45000	✓
