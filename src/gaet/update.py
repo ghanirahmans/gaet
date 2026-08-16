@@ -136,8 +136,16 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     # Remove scripts directory
     scripts_dir = bin_dir / "scripts"
     if scripts_dir.exists():
-        shutil.rmtree(scripts_dir)
+        shutil.rmtree(scripts_dir, ignore_errors=True)
         echo(f"    {G}✓{NC} Dihapus: {scripts_dir}")
+    
+    # Remove the installed gaet package (v3 src-layout installs it under
+    # gaet_pkg/gaet; a directory named `gaet/` next to the `gaet` binary is
+    # impossible on disk, so the package dir lives in gaet_pkg/).
+    pkg_dir = bin_dir / "gaet_pkg"
+    if pkg_dir.exists():
+        shutil.rmtree(pkg_dir, ignore_errors=True)
+        echo(f"    {G}✓{NC} Dihapus: {pkg_dir}")
     
     # ── 4. Purge mode: remove service files + config ────────────────
     if purge:
