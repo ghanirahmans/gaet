@@ -311,7 +311,7 @@ def attempt_install(dep: DepInfo) -> bool:
     """Attempt to install a missing dependency."""
     pkg_mgr = detect_pkg_manager()
     if not pkg_mgr:
-        status_warn(f"Tidak ada package manager terdeteksi untuk install {dep.name}")
+        status_warn(f"No package manager detected to install {dep.name}")
         return False
 
     if dep.name.startswith("psql") or dep.name == "PostgreSQL client":
@@ -320,13 +320,13 @@ def attempt_install(dep: DepInfo) -> bool:
         cmd = install_node_cmd(pkg_mgr)
     elif dep.name == "npm":
         # npm comes with Node.js
-        status_info("npm akan terinstall otomatis bersama Node.js")
+        status_info("npm will be installed automatically with Node.js")
         return attempt_install(check_node())
     else:
         return False
 
     if not cmd:
-        status_warn(f"Tidak tahu cara install {dep.name} via {pkg_mgr}")
+        status_warn(f"Don't know how to install {dep.name} via {pkg_mgr}")
         return False
 
     print(f"    {D}→{NC}  {' '.join(cmd)}")
@@ -334,7 +334,7 @@ def attempt_install(dep: DepInfo) -> bool:
     success = rc == 0
 
     if success:
-        status_ok(f"{dep.name} berhasil diinstall")
+        status_ok(f"{dep.name} installed successfully")
         # Re-check
         if dep.name.startswith("psql"):
             result = check_psql()
@@ -345,7 +345,7 @@ def attempt_install(dep: DepInfo) -> bool:
         dep.found = result.found
         dep.version = result.version
     else:
-        status_fail(f"Gagal install {dep.name} (exit code {rc})")
+        status_fail(f"Failed to install {dep.name} (exit code {rc})")
 
     return success
 
@@ -354,22 +354,22 @@ def attempt_install(dep: DepInfo) -> bool:
 
 def setup_config() -> Dict[str, str]:
     """Interactive config wizard. Returns config dict."""
-    box_title("Konfigurasi Database")
+    box_title("Database Configuration")
 
-    echo(f"  {D}Database ini akan digunakan untuk backup.{NC}")
+    echo(f"  {D}This database will be used for backups.{NC}")
     echo()
 
-    host = prompt("Host PostgreSQL", "127.0.0.1")
+    host = prompt("PostgreSQL Host", "127.0.0.1")
     port = prompt("Port", "5432")
-    db = prompt("Nama database", "postgres")
+    db = prompt("Database name", "postgres")
     user = prompt("User", "postgres")
     passwd = prompt("Password")
 
-    interval = prompt("Interval backup otomatis (jam)", "6")
+    interval = prompt("Auto-backup interval (hours)", "6")
     remote_url = prompt("Remote storage URL (optional)", "")
 
     echo()
-    box_title("Ringkasan")
+    box_title("Summary")
 
     echo(f"""
   {B}Database:{NC}      {host}:{port}/{db} as {user}
@@ -377,8 +377,8 @@ def setup_config() -> Dict[str, str]:
   {B}Remote:{NC}        {remote_url or '(none)'}
 """)
 
-    if not yesno("Simpan konfigurasi ini?", True):
-        status_info("Dibatalkan")
+    if not yesno("Save this configuration?", True):
+        status_info("Cancelled")
         return {}
 
     GAET_DIR.mkdir(parents=True, exist_ok=True)
@@ -411,7 +411,7 @@ def setup_config() -> Dict[str, str]:
     fd = os.open(str(ENV_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, 'w') as f:
         f.write("\n".join(env_lines) + "\n")
-    status_ok(f"Konfigurasi tersimpan di {ENV_FILE}")
+    status_ok(f"Configuration saved to {ENV_FILE}")
 
     return config
 
@@ -436,13 +436,13 @@ def find_dashboard_dir() -> Optional[Path]:
 
 
 def build_dashboard(dashboard_dir: Path) -> bool:
-    """Dashboard menggunakan Python HTTP server (server.py), tidak perlu build."""
-    box_title("Setup Dashboard")
+    """Dashboard uses Python HTTP server (server.py), no build step required."""
+    box_title("Dashboard Setup")
 
     # Check if dashboard/server.py exists
     server_file = dashboard_dir / "server.py"
     if not server_file.exists():
-        status_fail("dashboard/server.py tidak ditemukan")
+        status_fail("dashboard/server.py not found")
         return False
 
     status_ok(f"Dashboard ready: {server_file}")
@@ -453,17 +453,17 @@ def build_dashboard(dashboard_dir: Path) -> bool:
 
 def setup_auto_backup(interval_hours: int) -> bool:
     """Enable auto-backup with given interval."""
-    box_title("Setup Auto-Backup")
+    box_title("Auto-Backup Setup")
 
     # Import scheduler (from scripts package)
     try:
         from scripts.scheduler import scheduler_enable, get_scheduler_name
         name = get_scheduler_name()
     except ImportError:
-        status_warn("Module scripts.scheduler tidak ditemukan. Auto-backup dilewati.")
+        status_warn("Module scripts.scheduler not found. Skipping auto-backup.")
         return False
 
-    status_info(f"Mengaktifkan auto-backup via {name} setiap {interval_hours} jam...")
+    status_info(f"Enabling auto-backup via {name} every {interval_hours} hours...")
 
     # Determine the CLI path for the scheduler
     gaet_script = Path(__file__).resolve().parent.parent / "gaet.py"
@@ -473,32 +473,32 @@ def setup_auto_backup(interval_hours: int) -> bool:
         cli_path = "gaet"
 
     scheduler_enable("gaet", interval_hours, cli_path)
-    status_ok(f"Auto-backup aktif setiap {interval_hours} jam")
+    status_ok(f"Auto-backup enabled every {interval_hours} hours")
     return True
 
 
 def setup_dashboard_service(dashboard_dir: Path) -> bool:
     """Enable dashboard service via service_manager."""
-    box_title("Setup Dashboard Service")
+    box_title("Dashboard Service Setup")
 
     # Import service_manager
     try:
         from scripts.service_manager import service_start, service_is_running
     except ImportError:
-        status_warn("Module scripts.service_manager tidak ditemukan. Service dilewati.")
+        status_warn("Module scripts.service_manager not found. Skipping service.")
         return False
 
     if service_is_running():
-        status_ok("Dashboard sudah berjalan")
+        status_ok("Dashboard is already running")
         return True
 
-    status_info("Memulai dashboard service...")
+    status_info("Starting dashboard service...")
     ok, msg = service_start(dashboard_dir=dashboard_dir)
     if ok:
-        status_ok("Dashboard service aktif")
+        status_ok("Dashboard service active")
         return True
     else:
-        status_warn(f"Gagal: {msg}")
+        status_warn(f"Failed: {msg}")
         return False
 
 
@@ -530,7 +530,7 @@ def run(
 
     # ── Step 1: Check deps ──────────────────────────────────────────
     if not skip_deps:
-        box_title("Cek Dependencies")
+        box_title("Check Dependencies")
 
         deps = check_all()
         all_ok = True
@@ -556,9 +556,9 @@ def run(
                     if attempt_install(dep):
                         continue
                     elif not dep.required:
-                        status_warn(f"{dep.name} tidak wajib, lanjut saja")
+                        status_warn(f"{dep.name} is optional, skipping")
                     else:
-                        status_fail(f"{dep.name} wajib tapi gagal diinstall")
+                        status_fail(f"{dep.name} is required but failed to install")
                         return 1
                 else:
                     needs_shell = True
@@ -566,14 +566,14 @@ def run(
         if not all_ok:
             echo()
             if needs_shell:
-                echo(f"  {Y}Beberapa dependencies tidak terinstall.{NC}")
-                echo(f"  {Y}Kamu bisa install manual atau jalankan ulang dengan --yes{NC}")
-                if not yesno("Lanjutkan?", False):
+                echo(f"  {Y}Some dependencies are missing.{NC}")
+                echo(f"  {Y}You can install them manually or re-run with --yes{NC}")
+                if not yesno("Continue?", False):
                     return 1
 
     # ── Step 2: Setup config ────────────────────────────────────────
     if not skip_config:
-        if ENV_FILE.exists() and (yes or not yesno("Konfigurasi ulang?", False)):
+        if ENV_FILE.exists() and (yes or not yesno("Reconfigure?", False)):
             config = _read_existing_config()
         elif yes:
             # --yes mode with no existing config: skip wizard
@@ -583,7 +583,7 @@ def run(
             config = setup_config()
 
         if not config and not yes:
-            status_warn("Konfigurasi tidak lengkap")
+            status_warn("Configuration incomplete")
             if not yes:
                 return 1
     else:
@@ -593,14 +593,14 @@ def run(
     dashboard_dir = find_dashboard_dir()
 
     if not dashboard_dir:
-        status_warn("Dashboard directory tidak ditemukan. Dashboard akan di-skip.")
-        echo(f"  {D}Cari di dalam folder proyek gaet atau set GAET_PROJECT_DIR{NC}")
+        status_warn("Dashboard directory not found. Skipping dashboard.")
+        echo(f"  {D}Look inside gaet project directory or set GAET_PROJECT_DIR{NC}")
     elif not skip_build:
         if not build_dashboard(dashboard_dir):
-            status_warn("Build dashboard gagal, lanjut tanpa dashboard")
+            status_warn("Dashboard setup failed, continuing without dashboard")
             dashboard_dir = None
     else:
-        echo(f"  {D}Build dashboard di-skip (--skip-build){NC}")
+        echo(f"  {D}Dashboard build skipped (--skip-build){NC}")
 
     # ── Step 4: Setup scheduler ─────────────────────────────────────
     if interval > 0:
@@ -612,18 +612,18 @@ def run(
 
     # ── Done ────────────────────────────────────────────────────────
     echo()
-    box_title("Instalasi Selesai!")
+    box_title("Installation Complete!")
 
     echo(f"""
-  {G}{ICON_OK}{NC}  gaet siap digunakan!
+  {G}{ICON_OK}{NC}  gaet is ready to use!
 
-  {B}Perintah:{NC}
-    python gaet.py --help      Bantuan
-    python gaet.py check       Cek koneksi database
-    python gaet.py push        Backup manual
+  {B}Commands:{NC}
+    python gaet.py --help      Help
+    python gaet.py check       Check database connection
+    python gaet.py push        Manual backup
     python gaet.py push --auto Auto-backup
-    python gaet.py serve       Dashboard web
-    python gaet.py stop        Hentikan service
+    python gaet.py serve       Web dashboard
+    python gaet.py stop        Stop services
 
   {D}Config:{NC}      {ENV_FILE}
   {D}Dashboard:{NC}   http://localhost:9191

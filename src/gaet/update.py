@@ -58,26 +58,26 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     box_title(f"{NAME} uninstall ({mode})")
     
     if save:
-        echo(f"  {Y}⚠  Config akan disimpan ke archive sebelum dihapus.{NC}")
+        echo(f"  {Y}⚠  Config will be archived before removal.{NC}")
         echo("")
     else:
-        echo(f"  {Y}⚠  PURGE: menghapus gaet, package, config, dan backup.{NC}")
+        echo(f"  {Y}⚠  PURGE: removing gaet CLI, packages, configuration, and backups.{NC}")
         echo("")
-        confirm = safe_input(f"  Ketik 'yes' untuk konfirmasi: ").strip().lower()
+        confirm = safe_input(f"  Type 'yes' to confirm: ").strip().lower()
         if confirm != "yes":
-            echo(f"  {G}Dibatalkan.{NC}")
+            echo(f"  {G}Cancelled.{NC}")
             return
     
     # ── 1. Stop services ──────────────────────────────────────────────
-    echo(f"  {C}▸{NC} Menghentikan service...")
+    echo(f"  {C}▸{NC} Stopping background services...")
     
     # Stop scheduler
     try:
         if scheduler_is_active(DEF_SERVICE_PREFIX):
             scheduler_disable(DEF_SERVICE_PREFIX)
-            echo(f"    {G}✓{NC} Scheduler dihentikan")
+            echo(f"    {G}✓{NC} Scheduler stopped")
         else:
-            echo(f"    {D}  Scheduler tidak aktif{NC}")
+            echo(f"    {D}  Scheduler not active{NC}")
     except Exception as e:
         echo(f"    {Y}⚠  Scheduler error: {e}{NC}")
     
@@ -86,16 +86,16 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
         if _svc_is_running():
             ok, msg = _svc_stop()
             if ok:
-                echo(f"    {G}✓{NC} Dashboard dihentikan")
+                echo(f"    {G}✓{NC} Dashboard stopped")
             else:
-                echo(f"    {Y}⚠  Dashboard gagal dihentikan: {msg}{NC}")
+                echo(f"    {Y}⚠  Failed to stop dashboard: {msg}{NC}")
         else:
-            echo(f"    {D}  Dashboard tidak aktif{NC}")
+            echo(f"    {D}  Dashboard not active{NC}")
     except Exception as e:
         echo(f"    {Y}⚠  Dashboard error: {e}{NC}")
     
     # ── 2. Disable services ──────────────────────────────────────────
-    echo(f"  {C}▸{NC} Menonaktifkan service...")
+    echo(f"  {C}▸{NC} Disabling services...")
     
     if IS_LINUX:
         # Disable systemd services
@@ -105,10 +105,10 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
             svc = f"{prefix}-backup.service"
             
             run_cmd(["systemctl", "--user", "disable", "--now", timer], timeout=10)
-            echo(f"    {G}✓{NC} Timer dinonaktifkan: {timer}")
+            echo(f"    {G}✓{NC} Timer disabled: {timer}")
             
             run_cmd(["systemctl", "--user", "disable", "--now", svc], timeout=10)
-            echo(f"    {G}✓{NC} Service dinonaktifkan: {svc}")
+            echo(f"    {G}✓{NC} Service disabled: {svc}")
         except Exception as e:
             echo(f"    {Y}⚠  Disable error: {e}{NC}")
     
@@ -131,12 +131,12 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
             _, _, rc = run_cmd(["schtasks", "/Query", "/TN", f"{DEF_SERVICE_PREFIX}-backup"], timeout=10)
             if rc == 0:
                 run_cmd(["schtasks", "/Delete", "/TN", f"{DEF_SERVICE_PREFIX}-backup", "/F"], timeout=10)
-                echo(f"    {G}✓{NC} Task Scheduler dihapus")
+                echo(f"    {G}✓{NC} Task Scheduler removed")
         except Exception as e:
             echo(f"    {Y}⚠  Task removal error: {e}{NC}")
     
     # ── 3. Remove CLI and scripts ────────────────────────────────────
-    echo(f"  {C}▸{NC} Menghapus gaet CLI...")
+    echo(f"  {C}▸{NC} Removing gaet CLI...")
     
     bin_dir = Path.home() / ".local" / "bin"
     
@@ -144,13 +144,13 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     gaet_bin = bin_dir / "gaet"
     if gaet_bin.exists():
         gaet_bin.unlink()
-        echo(f"    {G}✓{NC} Dihapus: {gaet_bin}")
+        echo(f"    {G}✓{NC} Removed: {gaet_bin}")
     
     # Remove scripts directory
     scripts_dir = bin_dir / "scripts"
     if scripts_dir.exists():
         shutil.rmtree(scripts_dir, ignore_errors=True)
-        echo(f"    {G}✓{NC} Dihapus: {scripts_dir}")
+        echo(f"    {G}✓{NC} Removed: {scripts_dir}")
     
     # Remove the installed gaet package (v3 src-layout installs it under
     # gaet_pkg/gaet; a directory named `gaet/` next to the `gaet` binary is
@@ -158,11 +158,11 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     pkg_dir = bin_dir / "gaet_pkg"
     if pkg_dir.exists():
         shutil.rmtree(pkg_dir, ignore_errors=True)
-        echo(f"    {G}✓{NC} Dihapus: {pkg_dir}")
+        echo(f"    {G}✓{NC} Removed: {pkg_dir}")
     
     # ── 4. Purge mode: remove service files + config ────────────────
     if purge:
-        echo(f"  {C}▸{NC} Menghapus service files...")
+        echo(f"  {C}▸{NC} Removing service files...")
         
         prefix = DEF_SERVICE_PREFIX
         if IS_LINUX:
@@ -173,7 +173,7 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
                 unit_path = systemd_dir / pattern
                 if unit_path.exists():
                     unit_path.unlink()
-                    echo(f"    {G}✓{NC} Dihapus: {unit_path}")
+                    echo(f"    {G}✓{NC} Removed: {unit_path}")
             
             # Reload systemd daemon
             try:
@@ -184,13 +184,13 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
         
         elif IS_MACOS:
             # Plists already removed in step 2 (unload + unlink)
-            echo(f"    {D}  Plist sudah dihapus{NC}")
+            echo(f"    {D}  Plists removed{NC}")
         
         elif IS_WINDOWS:
             # Tasks already removed in step 2
-            echo(f"    {D}  Task sudah dihapus{NC}")
+            echo(f"    {D}  Tasks removed{NC}")
         
-        echo(f"  {C}▸{NC} Menghapus config dan data...")
+        echo(f"  {C}▸{NC} Removing configuration and data...")
         
         config_dir = GAET_DIR
         if config_dir.exists():
@@ -199,22 +199,22 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
                 backup_path = HOME / f".gaet.backup.{ts}.tar.gz"
                 with tarfile.open(backup_path, "w:gz") as tar:
                     tar.add(str(config_dir), arcname=".gaet")
-                echo(f"    {G}✓{NC} Config di-archive ke: {backup_path}")
+                echo(f"    {G}✓{NC} Config archived to: {backup_path}")
             shutil.rmtree(config_dir, ignore_errors=True)
-            echo(f"    {G}✓{NC} Dihapus: {config_dir}")
+            echo(f"    {G}✓{NC} Removed: {config_dir}")
         else:
-            echo(f"    {D}  Config directory tidak ditemukan{NC}")
+            echo(f"    {D}  Config directory not found{NC}")
     
     # ── 5. Summary ───────────────────────────────────────────────────
     echo()
-    echo(f"  {G}✓ Uninstall selesai ({mode} mode){NC}")
+    echo(f"  {G}✓ Uninstall complete ({mode} mode){NC}")
     echo()
     if save and backup_path:
-        echo(f"  Config di-archive di: {backup_path.name} (restore: gaet init)")
+        echo(f"  Config archived at: {backup_path.name} (restore: gaet init)")
     else:
-        echo(f"  Semua sudah dihapus.")
+        echo(f"  All files and configurations removed.")
     
-    echo(f"  Untuk reinstall: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash")
+    echo(f"  To reinstall: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash")
     echo("")
 
 def _update_download(install_dir: Path, skip_build: bool = False) -> None:

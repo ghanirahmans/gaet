@@ -590,9 +590,9 @@ def cmd_status(args: argparse.Namespace) -> None:
             )
             status_arrow(f"Size: {size_out}")
         else:
-            echo(f"    {Y}tidak tersedia{NC}")
+            echo(f"    {Y}unavailable{NC}")
     else:
-        echo(f"    {Y}tidak tersedia{NC}")
+        echo(f"    {Y}unavailable{NC}")
 
     # Cloud
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or get_env_str(env, "GAET_SUPABASE_URL") or ""
@@ -623,14 +623,14 @@ def cmd_status(args: argparse.Namespace) -> None:
             )
             status_arrow(f"Size: {size_out}")
         else:
-            echo(f"  {Y}tidak terjangkau{NC}")
-            echo(f"  {D}Cek koneksi: gaet check{NC}")
-            echo(f"  {D}Backup pertama: gaet push{NC}")
+            echo(f"  {Y}unreachable{NC}")
+            echo(f"  {D}Check connection: gaet check{NC}")
+            echo(f"  {D}First backup: gaet push{NC}")
 
     # Sync status with colored table
     if tables_def and psql:
         echo()
-        box_section("Sinkronisasi")
+        box_section("Synchronization")
 
         # Get counts for each table
         rows = []
@@ -693,27 +693,27 @@ def cmd_status(args: argparse.Namespace) -> None:
                     colors.append(G if synced else R)
 
             except Exception as e:
-                status_warn(f"Gagal query tabel: {e}")
+                status_warn(f"Table query failed: {e}")
 
         # Show max 10 tables, with "more" indicator
         display_rows = rows[:10]
         display_colors = colors[:10]
         if len(rows) > 10:
-            display_rows.append(f"... +{len(rows) - 10} lainnya|||")
+            display_rows.append(f"... +{len(rows) - 10} more|||")
             display_colors.append(D)
 
-        draw_colored_table("Tabel:Lokal:Cloud:Status", display_rows, display_colors)
+        draw_colored_table("Table:Local:Cloud:Status", display_rows, display_colors)
 
         # Sync summary
         total_tables = len(tables_def)
         sync_pct = (synced_count / total_tables * 100) if total_tables > 0 else 0
         echo()
         if not parsed or not remote_reachable:
-            status_warn(f"Tersinkron: ?/{total_tables} tabel — cloud tidak terjangkau")
+            status_warn(f"Synced: ?/{total_tables} tables — cloud database unreachable")
         elif sync_pct == 100:
-            status_ok(f"Tersinkron: {synced_count}/{total_tables} tabel ({sync_pct:.0f}%)")
+            status_ok(f"Synced: {synced_count}/{total_tables} tables ({sync_pct:.0f}%)")
         else:
-            status_warn(f"Tersinkron: {synced_count}/{total_tables} tabel ({sync_pct:.0f}%)")
+            status_warn(f"Synced: {synced_count}/{total_tables} tables ({sync_pct:.0f}%)")
 
     # Auto-backup
     echo()
