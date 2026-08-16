@@ -37,7 +37,7 @@ def detect_local_pg(psql_path: str) -> List[Dict[str, str]]:
         host = os.path.dirname(sock)
         for user in users_to_try:
             out, _, rc = run_cmd(
-                [psql_path, "-h", host, "-p", port, "-U", user,
+                [psql_path, "-w", "-h", host, "-p", port, "-U", user,
                  "-d", "postgres", "-tAc", "SELECT current_database();"],
                 env={"PGPASSWORD": ""}, timeout=3,
             )
@@ -45,7 +45,7 @@ def detect_local_pg(psql_path: str) -> List[Dict[str, str]]:
                 db = out.strip()
                 # List all databases on this server
                 dbs_out, _, _ = run_cmd(
-                    [psql_path, "-h", host, "-p", port, "-U", user,
+                    [psql_path, "-w", "-h", host, "-p", port, "-U", user,
                      "-d", "postgres", "-tAc",
                      "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"],
                     env={"PGPASSWORD": ""}, timeout=3,
@@ -71,7 +71,7 @@ def detect_local_pg(psql_path: str) -> List[Dict[str, str]]:
         for user in users_to_try:
             # Try connecting with no password (common for local dev)
             out, _, rc = run_cmd(
-                [psql_path, "-h", "127.0.0.1", "-p", port, "-U", user,
+                [psql_path, "-w", "-h", "127.0.0.1", "-p", port, "-U", user,
                  "-d", "postgres", "-tAc",
                  "SELECT current_database();"],
                 env={"PGPASSWORD": ""},
@@ -81,7 +81,7 @@ def detect_local_pg(psql_path: str) -> List[Dict[str, str]]:
                 db = out.strip()
                 # List all databases on this server
                 dbs_out, _, _ = run_cmd(
-                    [psql_path, "-h", "127.0.0.1", "-p", port, "-U", user,
+                    [psql_path, "-w", "-h", "127.0.0.1", "-p", port, "-U", user,
                      "-d", "postgres", "-tAc",
                      "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"],
                     env={"PGPASSWORD": ""}, timeout=3,

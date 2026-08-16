@@ -2209,11 +2209,15 @@
     // Global Keyboard Shortcuts Navigation
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        const modal = document.getElementById('cmdPaletteModal');
-        if (modal && modal.style.display === 'flex') {
-          toggleCommandPalette();
-          return;
-        }
+        const activeModals = document.querySelectorAll('.modal-backdrop');
+        let closedAny = false;
+        activeModals.forEach(m => {
+          if (m.style.display && m.style.display !== 'none') {
+            m.style.display = 'none';
+            closedAny = true;
+          }
+        });
+        if (closedAny) return;
       }
 
       if ((e.altKey || e.metaKey) && e.key.toLowerCase() === 'k') {
