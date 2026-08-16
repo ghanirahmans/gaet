@@ -90,6 +90,22 @@ for f in status.py scheduler.py service_manager.py installer.py __init__.py; do
 done
 echo "  Scripts downloaded ($SCRIPTS_OK/5)"
 
+# ── 5a. Download shell completions ────────────────────────────────────────
+echo -n "  Downloading completions..."
+COMP_DIR="$GAET_DIR/completions"
+mkdir -p "$COMP_DIR"
+COMP_OK=0
+for f in gaet.bash gaet.zsh gaet.fish gaet.ps1; do
+    url="https://raw.githubusercontent.com/ghanirahmans/gaet/master/completions/$f"
+    if curl -fsSL "$url" -o "$COMP_DIR/$f" 2>/dev/null; then
+        COMP_OK=$((COMP_OK+1))
+    else
+        echo ""
+        echo "  ⚠  Failed to download completions/$f"
+    fi
+done
+echo " OK ($COMP_OK files)"
+
 # ── 5b. Download dashboard ────────────────────────────────────────────────
 # gaet serve imports `dashboard.server`, which must live in the install dir
 # (~/.local/bin/dashboard/) so it is importable from the gaet entry script

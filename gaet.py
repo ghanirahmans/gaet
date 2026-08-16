@@ -3721,6 +3721,19 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
         except Exception as e:
             status_warn(f"Failed to download scripts/{sf}: {e}")
 
+    # Download shell completions (gaet completion reads them from here)
+    completions_dst = install_dir / "completions"
+    completions_dst.mkdir(parents=True, exist_ok=True)
+    for cf in ["gaet.bash", "gaet.zsh", "gaet.fish", "gaet.ps1"]:
+        url = f"{GITHUB_API}/completions/{cf}?ref=master"
+        try:
+            data = _gh_download(url)
+            (completions_dst / cf).write_bytes(data)
+            status_ok(f"completions/{cf} -> {completions_dst}")
+        except Exception:
+            status_warn(f"Failed to download completions/{cf}")
+
+
     # Download and build dashboard
     if not skip_build:
         try:
