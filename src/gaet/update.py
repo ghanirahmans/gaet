@@ -418,38 +418,39 @@ def cmd_update(args: argparse.Namespace) -> None:
             shutil.copy2(str(f), str(scripts_dst / f.name))
         status_ok(f"scripts -> {scripts_dst}/")
     
-    # Copy dashboard if exists and rebuild
+    # Copy dashboard if exists
     dashboard_src = project_dir / "dashboard"
-    if dashboard_src.is_dir() and not args.skip_build:
-        echo()
-        box_section("Building dashboard")
-        node = shutil.which("node")
-        npm = shutil.which("npm")
-        if node and npm:
-            status_info("Installing dependencies...")
-            run_cmd([npm, "install"], cwd=str(dashboard_src), timeout=120)
-            status_info("Building...")
-            run_cmd([npm, "run", "build"], cwd=str(dashboard_src), timeout=120)
-            status_ok("Dashboard built")
-            
-            # Restart dashboard service if running
-            try:
-                from scripts.service_manager import service_is_running, service_start, service_stop
-                if service_is_running():
-                    status_info("Restarting dashboard service...")
-                    service_stop()
-                    time.sleep(1)
-                    port = int(get_env_str(load_env(), "GAET_DASHBOARD_PORT", "9191"))
-                    host = get_env_str(load_env(), "GAET_DASHBOARD_HOST", "0.0.0.0")
-                    ok, msg = service_start(dashboard_dir=dashboard_src, port=port, host=host, foreground=False)
-                    if ok:
-                        status_ok("Dashboard service restarted")
-                    else:
-                        status_warn(f"Restart failed: {msg}")
-            except Exception:
-                pass
-        else:
-            status_warn("Node.js/npm not found — skipping dashboard build")
+    if dashboard_src.is_dir():
+        dashboard_dst = install_dir / "dashboard"
+        dashboard_dst.mkdir(parents=True, exist_ok=True)
+        (dashboard_dst / "static").mkdir(parents=True, exist_ok=True)
+        (dashboard_dst / "public").mkdir(parents=True, exist_ok=True)
+
+        if (dashboard_src / "server.py").is_file():
+            shutil.copy2(str(dashboard_src / "server.py"), str(dashboard_dst / "server.py"))
+        if (dashboard_src / "static" / "index.html").is_file():
+            shutil.copy2(str(dashboard_src / "static" / "index.html"), str(dashboard_dst / "static" / "index.html"))
+        if (dashboard_src / "public" / "gaet-logo.png").is_file():
+            shutil.copy2(str(dashboard_src / "public" / "gaet-logo.png"), str(dashboard_dst / "public" / "gaet-logo.png"))
+        
+        status_ok(f"dashboard -> {dashboard_dst}")
+
+        # Restart dashboard service if running
+        try:
+            from scripts.service_manager import service_is_running, service_start, service_stop
+            if service_is_running():
+                status_info("Restarting dashboard service...")
+                service_stop()
+                time.sleep(1)
+                port = int(get_env_str(load_env(), "GAET_DASHBOARD_PORT", "9191"))
+                host = get_env_str(load_env(), "GAET_DASHBOARD_HOST", "0.0.0.0")
+                ok, msg = service_start(dashboard_dir=dashboard_dst, port=port, host=host, foreground=False)
+                if ok:
+                    status_ok("Dashboard service restarted")
+                else:
+                    status_warn(f"Restart failed: {msg}")
+        except Exception:
+            pass
     
     # Show version
     echo()
