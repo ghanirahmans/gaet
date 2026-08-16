@@ -1350,9 +1350,25 @@
 
     function toggleMasking() {
       isMaskedView = !isMaskedView;
-      document.getElementById('maskBtnIcon').textContent = isMaskedView ? '👁️' : '🙈';
-      document.getElementById('maskBtnText').textContent = isMaskedView ? 'Show Passwords' : 'Hide Passwords';
+      const maskIcon = document.getElementById('maskBtnIcon');
+      const maskText = document.getElementById('maskBtnText');
+      if (maskIcon) maskIcon.textContent = isMaskedView ? '👁️' : '🙈';
+      if (maskText) maskText.textContent = isMaskedView ? 'Show Passwords' : 'Hide Passwords';
+
+      // Toggle input field types for connection URLs
+      ['cfgLocalUrl', 'cfgRemoteUrl'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+          input.type = isMaskedView ? 'password' : 'text';
+          const btn = input.nextElementSibling;
+          if (btn && btn.classList.contains('btn-icon-inside')) {
+            btn.textContent = isMaskedView ? '👁️' : '🙈';
+          }
+        }
+      });
+
       renderConfigGrid();
+      showToast(isMaskedView ? 'Passwords masked (Hidden)' : 'Passwords unmasked (Visible)', 'ok');
     }
 
     function toggleInputVisibility(inputId, btn) {
