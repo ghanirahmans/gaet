@@ -1797,8 +1797,10 @@ def cmd_init(args: argparse.Namespace) -> None:
     box_title(f"{NAME} init")
 
     # Non-interactive mode: use defaults and skip prompts
-    # Also detect constrained environments (CI, Hermes, scripts)
-    is_interactive = sys.stdin.isatty() and not os.environ.get("HERMES_SESSION") and not os.environ.get("CI")
+    # Detect constrained environments: no TTY, CI, or Hermes desktop app
+    _is_hermes = any(k.startswith("HERMES_") for k in os.environ.keys())
+    _is_ci = os.environ.get("CI") == "true" or os.environ.get("CONTAINER") == "1"
+    is_interactive = sys.stdin.isatty() and not _is_hermes and not _is_ci
     if not is_interactive:
         echo(f"  {Y}⚠ Non-interactive mode detected — using defaults.{NC}")
         echo()
