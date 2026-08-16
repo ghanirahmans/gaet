@@ -8,9 +8,12 @@ set -eo pipefail
 
 GAET_DIR="$HOME/.local/bin"
 GAET_CONFIG="$HOME/.gaet"
-# Raw content URLs (NOT api.github.com — avoids the 60 req/h API rate limit for
-# anonymous users). Files are fetched directly from the repo's default branch.
-RAW_BASE="https://raw.githubusercontent.com/ghanirahmans/gaet/master"
+# Resolve commit SHA dynamically to bypass GitHub raw CDN 5-minute cache
+COMMIT_SHA=$(curl -fsSL https://api.github.com/repos/ghanirahmans/gaet/commits/master 2>/dev/null | grep '"sha"' | head -n1 | cut -d'"' -f4 || true)
+if [ -z "$COMMIT_SHA" ]; then
+    COMMIT_SHA="master"
+fi
+RAW_BASE="https://raw.githubusercontent.com/ghanirahmans/gaet/$COMMIT_SHA"
 
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║  gaet — Database Backup & Sync CLI                   ║"
