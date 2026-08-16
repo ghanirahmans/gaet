@@ -164,7 +164,7 @@ def discover_tables(psql, host, port, user, db, passwd) -> List[str]:
         "ORDER BY table_name"
     )
     env = _pgpass_env(user or "", passwd or "")
-    out, _, rc = sh([psql, "-h", host, "-p", port, "-U", user, "-d", db,
+    out, _, rc = sh([psql, "-w", "-h", host, "-p", port, "-U", user, "-d", db,
                       "-tAc", query], env=env, timeout=10)
     _cleanup_pgpass(env)
     if rc == 0 and out.strip():
@@ -243,7 +243,7 @@ def get_table_counts(psql, host, port, user, db, passwd, tables, ssl_mode=None):
     env = _pgpass_env(user, passwd)
     if ssl_mode:
         env["PGSSLMODE"] = ssl_mode
-    cmd = [psql, "-h", host, "-p", port, "-U", user, "-d", db, "-tAc", union]
+    cmd = [psql, "-w", "-h", host, "-p", port, "-U", user, "-d", db, "-tAc", union]
     out, _, rc = sh(cmd, env=env, timeout=30)
     _cleanup_pgpass(env)
     counts = {}
@@ -289,7 +289,7 @@ def get_status():
 
     # Check local connection
     lok_env = _pgpass_env(cfg["local_user"], cfg["local_pass"])
-    ok, _, _ = sh([psql, "-h", cfg["local_host"], "-p", cfg["local_port"],
+    ok, _, _ = sh([psql, "-w", "-h", cfg["local_host"], "-p", cfg["local_port"],
                     "-U", cfg["local_user"], "-d", cfg["local_name"],
                     "-tAc", "SELECT 1"], env=lok_env, timeout=5)
     _cleanup_pgpass(lok_env)
@@ -349,7 +349,7 @@ def get_status():
     # DB sizes
     lok_env = _pgpass_env(cfg["local_user"], cfg["local_pass"])
     local_size = "?"
-    out, _, _ = sh([psql, "-h", cfg["local_host"], "-p", cfg["local_port"],
+    out, _, _ = sh([psql, "-w", "-h", cfg["local_host"], "-p", cfg["local_port"],
                      "-U", cfg["local_user"], "-d", cfg["local_name"], "-tAc",
                      "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1)"],
                     env=lok_env)
@@ -363,7 +363,7 @@ def get_status():
         env_rm = _pgpass_env(user, pw)
         if not host.startswith("/"):
             env_rm["PGSSLMODE"] = "require"
-        out, _, _ = sh([psql, "-h", host, "-p", port, "-U", user, "-d", db, "-tAc",
+        out, _, _ = sh([psql, "-w", "-h", host, "-p", port, "-U", user, "-d", db, "-tAc",
                          "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1)"],
                         env=env_rm, timeout=15)
         _cleanup_pgpass(env_rm)
