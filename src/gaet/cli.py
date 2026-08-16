@@ -38,11 +38,13 @@ from .export import cmd_export  # noqa: F401  (registry side-effect import)
 from .init import cmd_init  # noqa: F401
 from .config import cmd_get, cmd_set  # noqa: F401
 from .status import cmd_check, cmd_completion, cmd_diff, cmd_doctor, cmd_status  # noqa: F401
-from .backup import cmd_fetch, cmd_push, cmd_push_cron  # noqa: F401
+from .backup import cmd_fetch, cmd_push, cmd_push_cron, cmd_restore  # noqa: F401
 from .scheduler import cmd_auto_on, cmd_stop_auto  # noqa: F401
 from .log import cmd_log  # noqa: F401
 from .serve import cmd_serve  # noqa: F401
 from .update import cmd_install, cmd_uninstall, cmd_update  # noqa: F401
+from .remote import cmd_remote  # noqa: F401
+from .snapshots import cmd_snapshots  # noqa: F401
 
 
 def main() -> None:

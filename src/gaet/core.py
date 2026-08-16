@@ -653,6 +653,30 @@ def _write_env_file(content: str) -> None:
     with os.fdopen(fd, "w") as f:
         f.write(content)
 
+
+def set_env_key(key: str, value: str) -> None:
+    """Set or update a single KEY=value in ~/.gaet/.env safely preserving 0600 permissions."""
+    GAET_DIR.mkdir(parents=True, exist_ok=True)
+    lines = []
+    found = False
+
+    if ENV_FILE.is_file():
+        with open(str(ENV_FILE), "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                original_line = line.rstrip("\n")
+                m = re.match(r"^(?:export\s+)?([^=]+)=", original_line)
+                if m and m.group(1).strip() == key:
+                    if value != "":
+                        lines.append(f"export {key}={value}\n")
+                    found = True
+                else:
+                    lines.append(original_line + "\n")
+
+    if not found and value != "":
+        lines.append(f"export {key}={value}\n")
+
+    _write_env_file("".join(lines))
+
 def _ensure_git_workspace() -> bool:
     """Make ~/.gaet a versioned workspace the way `git init` sets up a repo.
 

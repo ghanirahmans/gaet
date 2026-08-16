@@ -45,6 +45,7 @@ Dokumen ini mendefinisikan secara ketat batasan (*scope*), tanggung jawab (*resp
 | **`gaet diff`** | Perbandingan jumlah baris (*row count*) per tabel antara DB Lokal dan Cloud DB. | Read-Only Comparison | **TIDAK** (100% Non-interaktif) | Non-zero jika koneksi gagal | Membandingkan statistik tabel secara aman tanpa mengubah data. |
 | **`gaet doctor`** | Pengecekan kesehatan sistem mendalam (OS, izin folder, koneksi, dependensi). | Read-Only Diagnostic | **TIDAK** (100% Non-interaktif) | Mengembalikan jumlah isu | Memberikan laporan teknis komprehensif untuk penyelesaian masalah. |
 | **`gaet log`** | Menampilkan daftar dan histori file `.dump` yang tersimpan di direktori backup. | Read-Only History | **TIDAK** (100% Non-interaktif) | `0` | Menampilkan daftar file backup di folder `backups/`. |
+| **`gaet snapshots`** | Menampilkan daftar seluruh snapshot backup `.dump` lokal secara terstruktur. | Read-Only Snapshots | **TIDAK** (100% Non-interaktif) | `0` | Menampilkan tabel snapshot lokal, tanggal buat, ukuran, dan retensi. |
 
 ---
 
@@ -54,6 +55,7 @@ Dokumen ini mendefinisikan secara ketat batasan (*scope*), tanggung jawab (*resp
 |---|---|---|---|---|---|
 | **`gaet get`** | Membaca dan mencetak nilai variabel spesifik atau seluruh isi `.env`. | Config Read | **TIDAK** (100% Non-interaktif) | `0` (atau `1` jika key tak ada) | 100% read-only ke file `.env`. |
 | **`gaet set`** | Mengubah atau menambah nilai variabel `KEY=VALUE` spesifik di file `.env`. | Config Write | **TIDAK** (100% Non-interaktif) | `0` / `1` (Format salah) | Mengubah key spesifik secara presisi tanpa panggil wizard `init`. |
+| **`gaet remote`** | Manajemen Remote Cloud DB (`show`, `set-url`, `remove`) ala Git. | Config / Remote Mgmt | **TIDAK** (100% Non-interaktif) | `0` / Non-zero jika URL invalid | Memeriksa dan mengatur Remote Cloud Database URL dengan mudah. |
 | **`gaet export`** | Mengekspor konfigurasi `.env` dalam format variabel shell (`export GAET_...`). | Config Export | **TIDAK** (100% Non-interaktif) | `0` | Memudahkan penggunaan konfigurasi di script bash/zsh. |
 | **`gaet completion`**| Menghasilkan kode auto-completion untuk shell (bash, zsh, fish). | Shell Tool | **TIDAK** (100% Non-interaktif) | `0` | Hanya mencetak script penyelesaian otomatis terminal. |
 | **`gaet help`** | Menampilkan panduan bantuan teknis untuk perintah spesifik. | Information | **TIDAK** (100% Non-interaktif) | `0` | Mencetak manual penggunaan perintah. |
