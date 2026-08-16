@@ -250,15 +250,94 @@
     
     .empty-state { text-align: center; padding: 36px 16px; color: var(--text-muted); }
     
-    /* Input Groups & Config Cards */
-    .input-group { display: flex; gap: 8px; width: 100%; }
-    .input-group .form-control { flex: 1; }
-    .input-group .btn-icon { padding: 8px 12px; font-size: 14px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; }
-    .input-group .btn-icon:hover { border-color: var(--border-accent); color: var(--text-primary); }
-    .config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-top: 12px; }
-    .config-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
-    .config-card .key { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
     .logo-img { height: 32px; width: auto; object-fit: contain; border-radius: 4px; }
+    
+    /* Settings Hero Header */
+    .settings-hero {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.8));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+      backdrop-filter: blur(12px);
+    }
+    .settings-hero-title { display: flex; align-items: center; gap: 16px; }
+    .hero-icon { font-size: 24px; width: 44px; height: 44px; background: rgba(59, 130, 246, 0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--accent); }
+    .settings-hero h2 { font-size: 17px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+    .hero-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+    .settings-hero-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .env-badge { font-family: var(--font-mono); font-size: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border); padding: 5px 12px; border-radius: 999px; display: flex; align-items: center; gap: 8px; }
+    .badge-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .badge-dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+    /* Settings 2-Column Layout */
+    .settings-layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; align-items: start; }
+    @media (max-width: 860px) { .settings-layout { grid-template-columns: 1fr; } }
+    
+    /* Sidebar Navigation Pills */
+    .settings-nav { display: flex; flex-direction: column; gap: 6px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; backdrop-filter: blur(12px); }
+    .settings-nav-btn {
+      display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+      border-radius: var(--radius-sm); border: 1px solid transparent;
+      background: transparent; color: var(--text-secondary);
+      font-size: 13px; text-align: left; cursor: pointer;
+      transition: all 0.2s ease; width: 100%;
+    }
+    .settings-nav-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    .settings-nav-btn.active { background: rgba(59, 130, 246, 0.12); border-color: var(--border-accent); color: var(--text-primary); font-weight: 600; }
+    .settings-nav-btn .nav-icon { font-size: 16px; width: 22px; text-align: center; }
+    .settings-nav-btn .nav-label { display: flex; flex-direction: column; }
+    .settings-nav-btn .nav-label small { font-size: 11px; color: var(--text-muted); font-weight: 400; }
+    
+    /* Settings Pane Sections */
+    .settings-pane { width: 100%; }
+    .settings-section { display: none; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; backdrop-filter: blur(12px); animation: fadeIn 0.2s ease; }
+    .settings-section.active { display: block; }
+    
+    .card-header-styled { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 14px; background: rgba(255, 255, 255, 0.015); }
+    .card-header-icon { font-size: 20px; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .card-header-icon.local { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .card-header-icon.cloud { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .card-header-icon.retention { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+    .card-header-icon.server { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+    .card-header-icon.diag { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+    .card-header-icon.active { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+    
+    .card-header-styled h3 { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+    .card-header-styled p { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+    
+    .card-body-styled { padding: 24px; }
+    
+    /* Styled Input Controls */
+    .input-group-styled { position: relative; width: 100%; display: flex; align-items: center; }
+    .form-control-styled {
+      width: 100%; padding: 10px 44px 10px 14px; border-radius: var(--radius-sm);
+      background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border);
+      color: var(--text-primary); font-family: var(--font-mono); font-size: 13px;
+      transition: all 0.2s ease;
+    }
+    .form-control-styled:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); background: rgba(15, 23, 42, 0.85); }
+    .btn-icon-inside { position: absolute; right: 8px; background: transparent; border: none; font-size: 15px; cursor: pointer; color: var(--text-secondary); padding: 6px; border-radius: 4px; transition: color 0.2s ease; }
+    .btn-icon-inside:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.08); }
+    
+    .label-badge { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-family: var(--font-sans); text-transform: uppercase; font-weight: 700; margin-left: 6px; background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); }
+    
+    /* Quick Preset Bar */
+    .quick-preset-bar { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .preset-title { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+    .btn-preset { font-size: 11px; font-family: var(--font-mono); padding: 4px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; transition: all 0.15s ease; }
+    .btn-preset:hover { background: rgba(59, 130, 246, 0.15); border-color: var(--border-accent); color: var(--accent); }
+    
+    /* Footer Action Bar */
+    .settings-actions-footer { margin-top: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(12px); }
+    
+    /* Styled Active Grid */
+    .config-grid-styled { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .config-card-styled { background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; transition: border-color 0.2s ease; }
+    .config-card-styled:hover { border-color: var(--border-accent); }
+    .config-card-styled .key { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; margin-bottom: 4px; text-transform: uppercase; }
+    .config-card-styled .val { font-family: var(--font-mono); font-size: 13px; color: var(--text-primary); word-break: break-all; }
   </style>
 </head>
 <body>
@@ -438,126 +517,237 @@
         </div>
       </div>
 
-      <!-- TAB 4: SETTINGS & DIAGNOSTICS -->
+      <!-- TAB 4: SETTINGS & CONTROL CENTER -->
       <div id="tab-settings" class="tab-content">
-        <!-- Active Configuration Read-Only Summary -->
-        <div class="section">
-          <div class="section-header">
+        <!-- Settings Header Banner -->
+        <div class="settings-hero">
+          <div class="settings-hero-title">
+            <div class="hero-icon">⚙️</div>
             <div>
-              <h2>⚙️ Active Configuration Summary</h2>
-              <p style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="envFilePath">Path: ~/.gaet/.env</p>
+              <h2>Environment & Operations Control Center</h2>
+              <p class="hero-subtitle">Manage database connection strings, retention windows, and system diagnostics.</p>
+            </div>
+          </div>
+          <div class="settings-hero-actions">
+            <div class="env-badge" id="envFilePathBadge">
+              <span class="badge-dot green"></span>
+              <code id="envFilePathText">~/.gaet/.env</code>
             </div>
             <button class="btn btn-secondary btn-sm" id="toggleMaskBtn" onclick="toggleMasking()">
               <span id="maskBtnIcon">👁️</span> <span id="maskBtnText">Show Passwords</span>
             </button>
-          </div>
-          <div class="section-body">
-            <div id="configGrid" class="config-grid">
-              <div class="empty-state">Loading active configuration...</div>
-            </div>
+            <button class="btn btn-secondary btn-sm" onclick="copyEnvTemplate()" title="Copy masked .env template">
+              📋 Copy Config
+            </button>
           </div>
         </div>
 
-        <!-- Comprehensive Configuration Form Editor -->
-        <div class="section">
-          <div class="section-header">
-            <h2>✏️ Edit & Update Configuration</h2>
+        <!-- Master-Detail 2-Column Settings Layout -->
+        <div class="settings-layout">
+          <!-- Sidebar Nav Pills -->
+          <div class="settings-nav">
+            <button class="settings-nav-btn active" onclick="switchSettingsSection('sec-local', this)">
+              <span class="nav-icon">💾</span>
+              <div class="nav-label">
+                <span>Local Database</span>
+                <small id="navLocalStatus">GAET_LOCAL_URL</small>
+              </div>
+            </button>
+            <button class="settings-nav-btn" onclick="switchSettingsSection('sec-cloud', this)">
+              <span class="nav-icon">☁️</span>
+              <div class="nav-label">
+                <span>Cloud Target</span>
+                <small id="navCloudStatus">GAET_REMOTE_URL</small>
+              </div>
+            </button>
+            <button class="settings-nav-btn" onclick="switchSettingsSection('sec-retention', this)">
+              <span class="nav-icon">⏰</span>
+              <div class="nav-label">
+                <span>Retention & Scope</span>
+                <small id="navRetentionStatus">7 Days Auto-Purge</small>
+              </div>
+            </button>
+            <button class="settings-nav-btn" onclick="switchSettingsSection('sec-server', this)">
+              <span class="nav-icon">🖥️</span>
+              <div class="nav-label">
+                <span>Dashboard Server</span>
+                <small id="navServerStatus">Port & Host</small>
+              </div>
+            </button>
+            <button class="settings-nav-btn" onclick="switchSettingsSection('sec-diagnostics', this)">
+              <span class="nav-icon">🔧</span>
+              <div class="nav-label">
+                <span>Diagnostics</span>
+                <small id="navCheckStatus">PostgreSQL & DB</small>
+              </div>
+            </button>
+            <button class="settings-nav-btn" onclick="switchSettingsSection('sec-active', this)">
+              <span class="nav-icon">📋</span>
+              <div class="nav-label">
+                <span>Raw .env Grid</span>
+                <small>Parsed variables</small>
+              </div>
+            </button>
           </div>
-          <div class="section-body">
+
+          <!-- Settings Main Content Pane -->
+          <div class="settings-pane">
             <form id="configForm" onsubmit="saveConfig(event)">
-              <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:24px;">
-                
-                <!-- Group 1: Local DB -->
-                <div style="background:var(--bg-secondary);padding:20px;border-radius:var(--radius-sm);border:1px solid var(--border);">
-                  <h3 style="font-size:14px;color:var(--text-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
-                    <span>💾 Local Database Connection</span>
-                  </h3>
-                  <div class="form-group">
-                    <label>GAET_LOCAL_URL</label>
-                    <div class="input-group">
-                      <input type="password" class="form-control" id="cfgLocalUrl" placeholder="postgresql://postgres:pass@127.0.0.1:5432/postgres" />
-                      <button type="button" class="btn-icon" onclick="toggleInputVisibility('cfgLocalUrl', this)" title="Show/Hide Password">👁️</button>
-                    </div>
-                    <div class="form-hint">Local PostgreSQL connection string.</div>
+              
+              <!-- SECTION 1: LOCAL DB -->
+              <div id="sec-local" class="settings-section active">
+                <div class="card-header-styled">
+                  <div class="card-header-icon local">💾</div>
+                  <div>
+                    <h3>Local PostgreSQL Database</h3>
+                    <p>Source database that gaet will dump snapshots and sync from.</p>
                   </div>
                 </div>
-
-                <!-- Group 2: Cloud DB -->
-                <div style="background:var(--bg-secondary);padding:20px;border-radius:var(--radius-sm);border:1px solid var(--border);">
-                  <h3 style="font-size:14px;color:var(--text-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
-                    <span>☁️ Cloud Database Target</span>
-                  </h3>
+                <div class="card-body-styled">
                   <div class="form-group">
-                    <label>GAET_REMOTE_URL</label>
-                    <div class="input-group">
-                      <input type="password" class="form-control" id="cfgRemoteUrl" placeholder="postgresql://user:pass@ep-xyz.supabase.com:5432/postgres" />
-                      <button type="button" class="btn-icon" onclick="toggleInputVisibility('cfgRemoteUrl', this)" title="Show/Hide Password">👁️</button>
+                    <label>GAET_LOCAL_URL <span class="label-badge badge-purple">Source DB</span></label>
+                    <div class="input-group-styled">
+                      <input type="password" class="form-control-styled" id="cfgLocalUrl" placeholder="postgresql://postgres:password@127.0.0.1:5432/postgres" />
+                      <button type="button" class="btn-icon-inside" onclick="toggleInputVisibility('cfgLocalUrl', this)" title="Show/Hide Password">👁️</button>
                     </div>
-                    <div class="form-hint">Remote target connection string.</div>
+                    <div class="form-hint">Local PostgreSQL connection string. Format: <code>postgresql://[user]:[pass]@[host]:[port]/[dbname]</code></div>
                   </div>
+
+                  <div class="quick-preset-bar">
+                    <span class="preset-title">⚡ Quick Connection Presets:</span>
+                    <button type="button" class="btn-preset" onclick="applyPreset('cfgLocalUrl', 'postgresql://postgres:@127.0.0.1:5432/postgres')">Localhost (5432)</button>
+                    <button type="button" class="btn-preset" onclick="applyPreset('cfgLocalUrl', 'postgresql://postgres:@localhost:5432/postgres')">Local Socket</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SECTION 2: CLOUD DB -->
+              <div id="sec-cloud" class="settings-section">
+                <div class="card-header-styled">
+                  <div class="card-header-icon cloud">☁️</div>
+                  <div>
+                    <h3>Cloud Target Database</h3>
+                    <p>Destination database for remote backups and schema synchronization.</p>
+                  </div>
+                </div>
+                <div class="card-body-styled">
+                  <div class="form-group">
+                    <label>GAET_REMOTE_URL <span class="label-badge badge-purple">Target DB</span></label>
+                    <div class="input-group-styled">
+                      <input type="password" class="form-control-styled" id="cfgRemoteUrl" placeholder="postgresql://user:pass@ep-xyz.supabase.com:5432/postgres" />
+                      <button type="button" class="btn-icon-inside" onclick="toggleInputVisibility('cfgRemoteUrl', this)" title="Show/Hide Password">👁️</button>
+                    </div>
+                    <div class="form-hint">Target PostgreSQL cloud instance (e.g. Supabase, Neon, AWS RDS, GCP CloudSQL).</div>
+                  </div>
+
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>GAET_REMOTE_SSLMODE</label>
-                    <select class="form-control" id="cfgSslMode">
-                      <option value="require">require (default, recommended)</option>
-                      <option value="prefer">prefer</option>
-                      <option value="disable">disable</option>
-                      <option value="allow">allow</option>
+                    <label>GAET_REMOTE_SSLMODE <span class="label-badge">SSL Security</span></label>
+                    <select class="form-control-styled" id="cfgSslMode" style="padding-right:14px;">
+                      <option value="require">require — Enforce SSL encryption (Recommended for Cloud)</option>
+                      <option value="prefer">prefer — Try SSL first, fallback to unencrypted</option>
+                      <option value="disable">disable — No SSL encryption (Local network only)</option>
+                      <option value="allow">allow — Try plain connection first, then SSL</option>
                     </select>
-                    <div class="form-hint">SSL connection enforcement for cloud database.</div>
+                    <div class="form-hint">Controls SSL certificate validation and transport layer security.</div>
+                  </div>
+
+                  <div class="quick-preset-bar">
+                    <span class="preset-title">☁️ Common Provider Hints:</span>
+                    <button type="button" class="btn-preset" onclick="applyPreset('cfgRemoteUrl', 'postgresql://postgres.[ref]:[pass]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres')">Supabase Pooler</button>
+                    <button type="button" class="btn-preset" onclick="applyPreset('cfgRemoteUrl', 'postgresql://user:[pass]@ep-cool-db.neon.tech/neondb?sslmode=require')">Neon Postgres</button>
                   </div>
                 </div>
+              </div>
 
-                <!-- Group 3: Retention & Filter Rules -->
-                <div style="background:var(--bg-secondary);padding:20px;border-radius:var(--radius-sm);border:1px solid var(--border);">
-                  <h3 style="font-size:14px;color:var(--text-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
-                    <span>⏰ Retention & Filter Rules</span>
-                  </h3>
+              <!-- SECTION 3: RETENTION & FILTERS -->
+              <div id="sec-retention" class="settings-section">
+                <div class="card-header-styled">
+                  <div class="card-header-icon retention">⏰</div>
+                  <div>
+                    <h3>Snapshot Retention & Table Scope</h3>
+                    <p>Configure snapshot auto-purging policy and table discovery filters.</p>
+                  </div>
+                </div>
+                <div class="card-body-styled">
                   <div class="form-group">
-                    <label>GAET_RETENTION_DAYS</label>
-                    <input type="number" class="form-control" id="cfgRetention" placeholder="7" min="1" max="365" />
-                    <div class="form-hint">Number of days to keep dump files before auto-purging.</div>
+                    <label>GAET_RETENTION_DAYS <span class="label-badge badge-warning">Retention Policy</span></label>
+                    <input type="number" class="form-control-styled" id="cfgRetention" placeholder="7" min="1" max="365" />
+                    <div class="form-hint">Number of days local <code>.dump</code> snapshot files are preserved before auto-purging.</div>
                   </div>
+
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>GAET_TABLES (Optional)</label>
-                    <input type="text" class="form-control" id="cfgTables" placeholder="Auto-discover (or e.g. users,orders)" />
-                    <div class="form-hint">Leave blank for auto-discovery of all public tables.</div>
+                    <label>GAET_TABLES <span class="label-badge">Scope Filter</span></label>
+                    <input type="text" class="form-control-styled" id="cfgTables" placeholder="Leave empty for auto-discovery of all public tables" />
+                    <div class="form-hint">Comma-separated list of table names (e.g. <code>users, orders, payments</code>). Leave blank to auto-discover all tables in <code>public</code> schema.</div>
                   </div>
                 </div>
+              </div>
 
-                <!-- Group 4: Dashboard & Daemon -->
-                <div style="background:var(--bg-secondary);padding:20px;border-radius:var(--radius-sm);border:1px solid var(--border);">
-                  <h3 style="font-size:14px;color:var(--text-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
-                    <span>🖥️ Dashboard & Daemon Settings</span>
-                  </h3>
+              <!-- SECTION 4: SERVER & DAEMON -->
+              <div id="sec-server" class="settings-section">
+                <div class="card-header-styled">
+                  <div class="card-header-icon server">🖥️</div>
+                  <div>
+                    <h3>Dashboard Host & Service Settings</h3>
+                    <p>Web server listening interface and background service prefix.</p>
+                  </div>
+                </div>
+                <div class="card-body-styled">
                   <div class="form-group">
                     <label>GAET_DASHBOARD_PORT</label>
-                    <input type="number" class="form-control" id="cfgPort" placeholder="9191" />
-                    <div class="form-hint">Web dashboard HTTP listening port.</div>
+                    <input type="number" class="form-control-styled" id="cfgPort" placeholder="9191" />
+                    <div class="form-hint">HTTP listener port for this web interface (Default: <code>9191</code>).</div>
                   </div>
+
                   <div class="form-group" style="margin-bottom:0;">
                     <label>GAET_DASHBOARD_HOST</label>
-                    <input type="text" class="form-control" id="cfgHost" placeholder="0.0.0.0" />
-                    <div class="form-hint">Interface binding host (0.0.0.0 or 127.0.0.1).</div>
+                    <input type="text" class="form-control-styled" id="cfgHost" placeholder="0.0.0.0" />
+                    <div class="form-hint">Binding interface address (<code>0.0.0.0</code> for all interfaces, <code>127.0.0.1</code> for localhost only).</div>
                   </div>
                 </div>
-
               </div>
 
-              <div style="margin-top:24px;display:flex;justify-content:flex-end;">
-                <button type="submit" class="btn btn-primary" id="saveConfigBtn">Save & Apply Configuration</button>
+              <!-- SECTION 5: DIAGNOSTICS CHECK -->
+              <div id="sec-diagnostics" class="settings-section">
+                <div class="card-header-styled">
+                  <div class="card-header-icon diag">🔧</div>
+                  <div style="flex:1;">
+                    <h3>System Diagnostic & Health Check</h3>
+                    <p>Verify PostgreSQL binary tools, network connectivity, and file permissions.</p>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="fetchCheck()">Run Diagnostics</button>
+                </div>
+                <div class="card-body-styled" id="checkBody">
+                  <div class="empty-state">Click 'Run Diagnostics' to inspect system status.</div>
+                </div>
+              </div>
+
+              <!-- SECTION 6: ACTIVE VARS GRID -->
+              <div id="sec-active" class="settings-section">
+                <div class="card-header-styled">
+                  <div class="card-header-icon active">📋</div>
+                  <div>
+                    <h3>Active Environment Variables</h3>
+                    <p>Parsed key-value list currently loaded from <code>~/.gaet/.env</code>.</p>
+                  </div>
+                </div>
+                <div class="card-body-styled">
+                  <div id="configGrid" class="config-grid-styled">
+                    <div class="empty-state">Loading configuration variables...</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Footer -->
+              <div class="settings-actions-footer">
+                <div style="font-size:12px;color:var(--text-muted);">
+                  Configuration updates are written directly to <code>~/.gaet/.env</code>.
+                </div>
+                <button type="submit" class="btn btn-primary" id="saveConfigBtn">
+                  <span>💾 Save & Apply Configuration</span>
+                </button>
               </div>
             </form>
-          </div>
-        </div>
-
-        <!-- Diagnostic Checklist -->
-        <div class="section">
-          <div class="section-header">
-            <h2>🔧 System Diagnostics Check</h2>
-            <button class="btn btn-secondary btn-sm" onclick="fetchCheck()">Run Diagnostic</button>
-          </div>
-          <div class="section-body" id="checkBody">
-            <div class="empty-state">Click 'Run Diagnostic' to check PostgreSQL tools & connections.</div>
           </div>
         </div>
       </div>
@@ -816,6 +1006,44 @@
     let maskedConfig = {};
     let isMaskedView = true;
 
+    function switchSettingsSection(sectionId, btn) {
+      document.querySelectorAll('.settings-section').forEach(sec => sec.classList.remove('active'));
+      document.querySelectorAll('.settings-nav-btn').forEach(b => b.classList.remove('active'));
+      
+      const target = document.getElementById(sectionId);
+      if (target) target.classList.add('active');
+      if (btn) btn.classList.add('active');
+      
+      if (sectionId === 'sec-diagnostics') fetchCheck();
+    }
+
+    function applyPreset(fieldId, val) {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        field.value = val;
+        field.focus();
+        showToast('Preset applied! Click Save to apply.', 'ok');
+      }
+    }
+
+    function copyEnvTemplate() {
+      const keys = Object.keys(rawConfig);
+      if (keys.length === 0) {
+        showToast('No active configuration to copy', 'err');
+        return;
+      }
+      const lines = ["# gaet configuration (.env)"];
+      keys.forEach(k => {
+        const val = maskedConfig[k] || rawConfig[k] || '';
+        lines.push(`${k}=${val}`);
+      });
+      navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        showToast('Masked .env template copied to clipboard!', 'ok');
+      }).catch(() => {
+        showToast('Failed to copy to clipboard', 'err');
+      });
+    }
+
     function toggleMasking() {
       isMaskedView = !isMaskedView;
       document.getElementById('maskBtnIcon').textContent = isMaskedView ? '👁️' : '🙈';
@@ -836,6 +1064,7 @@
 
     function renderConfigGrid() {
       const grid = document.getElementById('configGrid');
+      if (!grid) return;
       const cfg = isMaskedView ? maskedConfig : rawConfig;
       const keys = Object.keys(rawConfig);
       
@@ -848,7 +1077,7 @@
       keys.forEach(k => {
         const val = cfg[k] ?? rawConfig[k] ?? '';
         const card = document.createElement('div');
-        card.className = 'config-card';
+        card.className = 'config-card-styled';
         card.innerHTML = `
           <div class="key">${k}</div>
           <div class="val">${val || '<span style="color:var(--text-muted)">Not set</span>'}</div>
@@ -865,10 +1094,21 @@
         maskedConfig = d.masked_config || rawConfig;
         
         if (d.env_file) {
-          document.getElementById('envFilePath').textContent = `Path: ${d.env_file}`;
+          const badgeText = document.getElementById('envFilePathText');
+          if (badgeText) badgeText.textContent = d.env_file;
         }
         
         renderConfigGrid();
+
+        // Update nav subtitles dynamically
+        const localSub = document.getElementById('navLocalStatus');
+        if (localSub && rawConfig.GAET_LOCAL_URL) {
+          localSub.textContent = '✓ Configured';
+        }
+        const cloudSub = document.getElementById('navCloudStatus');
+        if (cloudSub && rawConfig.GAET_REMOTE_URL) {
+          cloudSub.textContent = '✓ Configured';
+        }
 
         // Populate Form Fields
         document.getElementById('cfgLocalUrl').value = rawConfig.GAET_LOCAL_URL || '';
