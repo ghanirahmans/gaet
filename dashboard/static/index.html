@@ -469,6 +469,9 @@
         </nav>
 
         <div class="header-actions">
+          <button class="btn btn-secondary btn-sm" onclick="toggleCommandPalette()" title="Open Command Palette (Alt+K or Cmd+K)">
+            <span style="font-family:var(--font-mono);font-size:11px;opacity:0.85;background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;margin-right:2px;">Alt+K</span> 🔍
+          </button>
           <div id="headerStatusPill" class="live-pill pill-success">
             <span class="live-pulse"></span> <span id="headerStatusText">Checking...</span>
           </div>
@@ -566,6 +569,15 @@
             </div>
           </div>
           <div class="section-body">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px; flex-wrap:wrap;">
+              <div style="position:relative; flex:1; max-width:360px;">
+                <input type="text" id="tableSearchInput" placeholder="🔍 Search tables..." onkeyup="filterTableMatrix()" 
+                       class="form-control-styled" style="padding: 7px 12px; font-size:12px;" />
+              </div>
+              <div style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);" id="tableCountSummary">
+                Search & filter active tables
+              </div>
+            </div>
             <div class="table-container">
               <table class="data-table">
                 <thead>
@@ -631,7 +643,13 @@
                   </div>
                   <span style="font-size:12px;color:var(--text-muted);font-family:var(--font-mono);">~/.gaet/backups/cron.log</span>
                 </div>
-                <div style="display:flex;gap:8px;align-items:center;">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <div style="display:flex;gap:4px;" id="logFilterGroup">
+                    <button class="btn btn-secondary btn-xs" style="background:var(--accent);color:white;" onclick="setLogFilter('all', this)">All</button>
+                    <button class="btn btn-secondary btn-xs" onclick="setLogFilter('info', this)">Info</button>
+                    <button class="btn btn-secondary btn-xs" onclick="setLogFilter('warn', this)">Warn</button>
+                    <button class="btn btn-secondary btn-xs" onclick="setLogFilter('fail', this)">Err</button>
+                  </div>
                   <button class="btn btn-secondary btn-xs" onclick="copyLogTerminal()" title="Copy all log lines to clipboard">📋 Copy Logs</button>
                   <button class="btn btn-secondary btn-xs" onclick="fetchLogs()" title="Refresh log entries">⟳ Refresh</button>
                 </div>
@@ -950,6 +968,22 @@
     </div>
   </div>
 
+  <!-- Command Palette Modal -->
+  <div id="cmdPaletteModal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this) toggleCommandPalette()">
+    <div class="modal-content" style="max-width: 620px; background:var(--bg-secondary); border: 1px solid var(--border-accent);">
+      <div style="padding: 16px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:12px; background:var(--bg-card);">
+        <span style="font-size:18px;">🔍</span>
+        <input type="text" id="cmdPaletteInput" placeholder="Type a command or action... (e.g. push, doctor, diff, logs)" 
+               onkeyup="filterCmdPalette(event)" 
+               style="flex:1; background:transparent; border:none; color:var(--text-primary); font-size:15px; font-family:var(--font-sans); outline:none;" />
+        <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono); background:rgba(255,255,255,0.06); padding:3px 8px; border-radius:4px;">ESC to exit</span>
+      </div>
+      <div class="modal-body" style="padding: 10px; max-height: 380px;" id="cmdPaletteResults">
+        <!-- Command items dynamically populated -->
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast" style="display:none;"></div>
 
   <script>
@@ -1202,7 +1236,17 @@
         const r = await fetch('/api/logs');
         const d = await r.json();
         const body = document.getElementById('terminalBody');
-        body.textContent = (d.logs || []).join('');
+        let lines = d.logs || [];
+        if (activeLogFilter !== 'all') {
+          lines = lines.filter(l => {
+            const low = l.toLowerCase();
+            if (activeLogFilter === 'info') return low.includes('[info]') || low.includes('info:');
+            if (activeLogFilter === 'warn') return low.includes('[warn]') || low.includes('warn:');
+            if (activeLogFilter === 'fail') return low.includes('[err') || low.includes('fail') || low.includes('error');
+            return true;
+          });
+        }
+        body.textContent = lines.join('') || '(No matching log entries for selected filter)';
         body.scrollTop = body.scrollHeight;
       } catch (e) {
         console.error('Logs fetch error:', e);
@@ -1606,8 +1650,132 @@
       });
     }
 
-    // Global Alt Keyboard Shortcuts Navigation
+    // Instant Table Schema Matrix Search
+    function filterTableMatrix() {
+      const input = document.getElementById('tableSearchInput');
+      const summary = document.getElementById('tableCountSummary');
+      if (!input) return;
+      const query = input.value.toLowerCase().trim();
+      const rows = document.querySelectorAll('#tableBody tr');
+      let visible = 0;
+      let total = 0;
+      rows.forEach(row => {
+        if (row.cells.length < 2) return;
+        total++;
+        const tableName = row.cells[0]?.textContent?.toLowerCase() || '';
+        if (tableName.includes(query)) {
+          row.style.display = '';
+          visible++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+      if (summary) {
+        summary.textContent = query ? `Showing ${visible} of ${total} tables` : `Showing all ${total} tables`;
+      }
+    }
+
+    // Log Level Filter
+    let activeLogFilter = 'all';
+
+    function setLogFilter(filterType, btnElem) {
+      activeLogFilter = filterType;
+      const groupBtns = document.querySelectorAll('#logFilterGroup button');
+      groupBtns.forEach(b => {
+        b.style.background = 'var(--bg-card)';
+        b.style.color = 'var(--text-primary)';
+      });
+      if (btnElem) {
+        btnElem.style.background = 'var(--accent)';
+        btnElem.style.color = 'white';
+      }
+      fetchLogs();
+    }
+
+    // Command Palette Logic
+    const COMMAND_ITEMS = [
+      { label: '↑ Push to Cloud Database', desc: 'Sync local database state to remote target', icon: '↑', action: () => { toggleCommandPalette(); doAction('push', 'Pushing to Cloud...', '↑ Push to Cloud'); } },
+      { label: '↓ Fetch from Cloud Database', desc: 'Pull remote database state to local PostgreSQL', icon: '↓', action: () => { toggleCommandPalette(); doAction('fetch', 'Fetching from Cloud...', '↓ Fetch from Cloud'); } },
+      { label: '🩺 Run Doctor System Diagnostic', desc: 'Verify CLI tools, database reachability & scheduler', icon: '🩺', action: () => { toggleCommandPalette(); runDoctorCheck(); } },
+      { label: '🔍 Run Schema Diff Analysis', desc: 'Compare table structures and row count differences', icon: '🔍', action: () => { toggleCommandPalette(); runDiffAnalysis(); } },
+      { label: '⚡ Dry Run Cloud Push', desc: 'Simulate cloud sync without making permanent changes', icon: '⚡', action: () => { toggleCommandPalette(); doAction('push?dry_run=1', 'Simulating push...', '⚡ Dry Run'); } },
+      { label: '📋 Export Environment Variables', desc: 'View and copy export GAET_LOCAL_URL shell statements', icon: '📋', action: () => { toggleCommandPalette(); openExportModal(); } },
+      { label: '👁️ Toggle Sensitive Passwords', desc: 'Show/Mask passwords across forms and active config grid', icon: '👁️', action: () => { toggleCommandPalette(); toggleMasking(); } },
+      { label: '📊 Switch to Overview Tab', desc: 'View stat cards and database schema matrix', icon: '📊', action: () => { toggleCommandPalette(); switchTab('overview'); } },
+      { label: '💾 Switch to Snapshots Tab', desc: 'Manage local database backup snapshots', icon: '💾', action: () => { toggleCommandPalette(); switchTab('snapshots'); } },
+      { label: '🖥️ Switch to Real-Time Logs Tab', desc: 'View live execution output from gaet CLI', icon: '🖥️', action: () => { toggleCommandPalette(); switchTab('logs'); } },
+      { label: '⚙️ Switch to Settings Tab', desc: 'Configure database URIs and scheduler retention', icon: '⚙️', action: () => { toggleCommandPalette(); switchTab('settings'); } },
+    ];
+
+    let selectedCmdIndex = 0;
+
+    function toggleCommandPalette() {
+      const modal = document.getElementById('cmdPaletteModal');
+      if (!modal) return;
+      if (modal.style.display === 'flex') {
+        modal.style.display = 'none';
+      } else {
+        modal.style.display = 'flex';
+        const input = document.getElementById('cmdPaletteInput');
+        input.value = '';
+        selectedCmdIndex = 0;
+        renderCmdPalette('');
+        setTimeout(() => input.focus(), 50);
+      }
+    }
+
+    function renderCmdPalette(filterText) {
+      const container = document.getElementById('cmdPaletteResults');
+      if (!container) return;
+      const q = filterText.toLowerCase().trim();
+      const filtered = COMMAND_ITEMS.filter(item => 
+        item.label.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q)
+      );
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">No commands found matching "' + filterText + '"</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map((item, idx) => `
+        <div class="cmd-item" 
+             onclick="COMMAND_ITEMS[${COMMAND_ITEMS.indexOf(item)}].action()"
+             style="padding:10px 14px; border-radius:var(--radius-sm); margin-bottom:4px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:${idx === selectedCmdIndex ? 'rgba(59, 151, 151, 0.15)' : 'transparent'}; border:1px solid ${idx === selectedCmdIndex ? 'var(--border-accent)' : 'transparent'}; transition:all 0.15s ease;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-size:16px;">${item.icon}</span>
+            <div>
+              <div style="font-size:13px; font-weight:600; color:var(--text-primary);">${item.label}</div>
+              <div style="font-size:11px; color:var(--text-muted);">${item.desc}</div>
+            </div>
+          </div>
+          <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">↵ Execute</span>
+        </div>
+      `).join('');
+    }
+
+    function filterCmdPalette(e) {
+      if (e.key === 'Escape') {
+        toggleCommandPalette();
+        return;
+      }
+      const input = document.getElementById('cmdPaletteInput');
+      renderCmdPalette(input.value);
+    }
+
+    // Global Keyboard Shortcuts Navigation (Alt / Cmd)
     document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('cmdPaletteModal');
+        if (modal && modal.style.display === 'flex') {
+          toggleCommandPalette();
+          return;
+        }
+      }
+      if ((e.altKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        toggleCommandPalette();
+        return;
+      }
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
       if (e.altKey && e.key === '1') switchTab('overview');
       if (e.altKey && e.key === '2') switchTab('snapshots');
