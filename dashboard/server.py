@@ -50,6 +50,35 @@ def mask_password_url(url_str: str) -> str:
     return re.sub(r'(://[^:]+:)[^@]+(@)', r'\1••••••••\2', url_str)
 
 
+def get_detected_instances() -> list[dict]:
+    """Auto-detect running local PostgreSQL instances."""
+    try:
+        sys_path = str(ROOT / "src")
+        if sys_path not in sys.path:
+            sys.path.insert(0, sys_path)
+        from gaet.detect import detect_local_pg
+        from gaet.core import find_pg_tools, load_env
+        env = load_env()
+        tools = find_pg_tools(env)
+        psql = tools.get("psql", "")
+        if not psql:
+            return []
+        raw_list = detect_local_pg(psql)
+        formatted = []
+        for inst in raw_list:
+            dbs = [d.strip() for d in inst.get("databases", "").split(",") if d.strip()]
+            formatted.append({
+                "host": inst.get("host", "127.0.0.1"),
+                "port": inst.get("port", "5432"),
+                "user": inst.get("user", "postgres"),
+                "default_db": inst.get("default_db", "postgres"),
+                "databases": dbs
+            })
+        return formatted
+    except Exception:
+        return []
+
+
 class DashboardHandler(BaseHTTPRequestHandler):
     """Handle API requests and serve static files."""
 
@@ -96,6 +125,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     self.send_json(500, {"error": "Invalid JSON output from gaet check"})
             else:
                 self.send_json(500, {"error": err or "Failed to perform diagnostic check"})
+            return
+
+        # ── API Endpoint: Detect Local PostgreSQL ───────────────────────────
+        if path == "/api/detect":
+            instances = get_detected_instances()
+            self.send_json(200, {"ok": True, "instances": instances})
             return
 
         # ── API Endpoint: Snapshots ──────────────────────────────────────────
