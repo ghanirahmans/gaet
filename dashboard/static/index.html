@@ -1412,9 +1412,6 @@
           <td style="text-align:center;">
             <div style="display:inline-flex; gap:6px; align-items:center;">
               <button class="btn btn-secondary btn-xs" onclick="inspectTable('${t.table}', ${t.local || 0}, ${t.supabase || 0})" title="Inspect table details">🔍 Inspect</button>
-              ${isOk 
-                ? `<span style="color:var(--text-muted);font-size:11px;">✓ Synced</span>`
-                : `<button class="btn btn-primary btn-xs" onclick="doAction('push?table=' + encodeURIComponent('${t.table}'), 'Syncing ${t.table}...', '↑ Sync Table')" title="Sync local changes for table ${t.table} only">↑ Sync Table</button>`}
             </div>
           </td>
         `;
@@ -1942,7 +1939,7 @@
         </div>
         <div style="display:flex; gap:10px; justify-content:flex-end;">
           <button class="btn btn-secondary btn-sm" onclick="closeModal('tableModal'); runDiffAnalysis();">🔍 Detailed Diff</button>
-          <button class="btn btn-primary btn-sm" onclick="closeModal('tableModal'); doAction('push?table=' + encodeURIComponent('${name}'), 'Syncing table ${name}...', '↑ Sync Table');">↑ Sync Table (${name})</button>
+          <button class="btn btn-secondary btn-sm" onclick="closeModal('tableModal')">Close</button>
         </div>
       `;
 
