@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![Platform: Linux | macOS | Windows](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-supported-brightgreen.svg)]()
-[![v2.0.1](https://img.shields.io/badge/v2.0.1-blue?label=release)](CHANGELOG.md)
+[![v3.0.0](https://img.shields.io/badge/v3.0.0-blue?label=release)](CHANGELOG.md)
 
 Backup PostgreSQL to any cloud instance. Zero external dependencies. Cross-platform support.
 
@@ -78,7 +78,7 @@ python gaet.py --help
 
 ```bash
 gaet --version
-# Output: gaet v2.0.1
+# Output: gaet v3.0.0
 
 gaet doctor
 # Comprehensive health check

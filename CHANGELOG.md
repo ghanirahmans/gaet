@@ -2,6 +2,48 @@
 
 All notable changes to gaet are documented here.
 
+## [3.0.0] — 2026-08-16
+
+### Changed
+- **Structural refactor:** the monolithic `gaet.py` (≈4.3k lines, single file)
+  is split into an importable `gaet/` package:
+
+  ```
+  gaet/
+  ├── __init__.py   # re-exports every command/helper (backward compatible)
+  ├── __main__.py   # python -m gaet
+  ├── registry.py   # the command registry (add a command = one @command)
+  ├── cli.py        # argparse setup + dispatch (built from the registry)
+  ├── core.py       # constants, logging, env, I/O, config building
+  ├── detect.py     # PostgreSQL instance detection (socket + TCP)
+  ├── init.py       # interactive setup wizard
+  ├── config.py     # gaet get / gaet set
+  ├── status.py     # check / status / diff / doctor / completion
+  ├── backup.py     # push / fetch
+  ├── scheduler.py  # auto-backup on/stop
+  ├── log.py        # backup log viewer
+  ├── serve.py      # web dashboard launcher
+  ├── export.py     # shell-compatible config export
+  └── update.py     # install / update / uninstall
+  ```
+
+- `command_map` dispatch replaced by a **command registry** (`gaet/registry.py`):
+  every subcommand registers itself via `@command(...)`; argparse, `gaet help`,
+  `gaet help --json` introspection, and dispatch all derive from the same
+  registry — adding a new command is one decorated function, nothing else.
+- `gaet.py` at repo root is now a thin entry shim (kept so the installer's
+  single-file curl flow keeps working unchanged).
+- `pyproject.toml`: `py-modules = ["gaet"]` → `packages = ["gaet"]`
+  (the importable package layout).
+
+### Notes
+- Zero user-facing behavior changes: same commands, same flags, same output.
+- `python3 gaet.py <cmd>` and `python3 -m gaet <cmd>` both work; installed
+  `gaet` binary unchanged.
+- Verified: 25 unit tests green (unchanged, still import `gaet` by name),
+  plus fresh-install E2E (interactive `init` via PTY, `check`, `status`,
+  `diff`, `export`, `help --json`, `completion`, `serve` API).
+
 ## [2.0.1] — 2026-08-16
 
 ### Added

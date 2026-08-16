@@ -28,6 +28,9 @@ __pycache__/
 *.swo
 *~
 
+# ─── Hermes workspace (plans) ─────────────────────────
+.hermes/
+
 # ─── Audit files ─────────────────────────────────────
 AUDIT_*.md
 AUDIT_*.txt
