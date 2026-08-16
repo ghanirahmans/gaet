@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # ============================================================================
 # gaet — One-liner installer
-# Usage: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+# Usage:        curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+# Reinstall:    curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 # ============================================================================
 set -eo pipefail
 
 GAET_DIR="$HOME/.local/bin"
 GAET_CONFIG="$HOME/.gaet"
-API_BASE="https://api.github.com/repos/ghanirahmans/gaet/contents"
+# Raw content URLs (NOT api.github.com — avoids the 60 req/h API rate limit for
+# anonymous users). Files are fetched directly from the repo's default branch.
+RAW_BASE="https://raw.githubusercontent.com/ghanirahmans/gaet/master"
 
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║  gaet — Database Backup & Sync CLI                  ║"
@@ -55,50 +58,54 @@ else
     echo "     Windows:       https://www.postgresql.org/download/"
 fi
 
+# ── Helper: download one file with 2 retries ───────────────────────────────
+# Uses raw.githubusercontent.com (no API rate limit). Retries twice on failure
+# to smooth over transient CDN flakes.
+dl() {
+    local url="$1"; local dst="$2"
+    local i
+    for i in 1 2 3; do
+        if curl -fsSL "$url" -o "$dst" 2>/dev/null; then
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
+
 # ── 3. Create directories ─────────────────────────────────────────────────
 mkdir -p "$GAET_DIR"
 mkdir -p "$GAET_CONFIG"
 
 # ── 4. Download gaet CLI ──────────────────────────────────────────────────
 echo -n "  Downloading gaet..."
-# Use GitHub API to bypass raw CDN cache
-api_json=$(curl -sSL "$API_BASE/gaet.py?ref=master")
-# Validate API response
-if echo "$api_json" | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if 'content' in d else 1)" 2>/dev/null; then
-    echo "$api_json" | "$PYTHON" -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" > "$GAET_DIR/gaet"
+# Shim (entry point)
+if dl "$RAW_BASE/gaet.py" "$GAET_DIR/gaet"; then
     chmod +x "$GAET_DIR/gaet"
-    # v3 layout: gaet.py is a shim importing the src/gaet package.
-    # Download the package into gaet_pkg/ (a dir named `gaet/` next to the
-    # `gaet` binary is impossible — file and dir can't share a name).
-    PKG_OK=0
-    for f in __init__.py __main__.py registry.py cli.py core.py detect.py init.py \
-             config.py status.py backup.py scheduler.py log.py serve.py export.py update.py; do
-        pkg_json=$(curl -sSL "$API_BASE/src/gaet/$f?ref=master")
-        if echo "$pkg_json" | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if 'content' in d else 1)" 2>/dev/null; then
-            mkdir -p "$GAET_DIR/gaet_pkg/gaet"
-            echo "$pkg_json" | "$PYTHON" -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" > "$GAET_DIR/gaet_pkg/gaet/$f"
-            PKG_OK=$((PKG_OK+1))
-        fi
-    done
-    echo " OK (cli + $PKG_OK package files)"
 else
-    err_msg=$(echo "$api_json" | "$PYTHON" -c "import json,sys; print(json.load(sys.stdin).get('message','API error'))" 2>/dev/null || echo "unknown error")
     echo " FAILED"
-    echo "  ✗ GitHub API: $err_msg"
+    echo "  ✗ Could not download shim: $RAW_BASE/gaet.py"
     exit 1
 fi
+# v3 src-layout: package lives in src/gaet. Download into gaet_pkg/gaet/ —
+# a dir named gaet/ next to the gaet binary is impossible on disk (file/dir
+# name clash), so the package dir is nested under gaet_pkg/.
+PKG_FILES="__init__.py __main__.py registry.py cli.py core.py detect.py init.py config.py status.py backup.py scheduler.py log.py serve.py export.py update.py"
+PKG_OK=0
+mkdir -p "$GAET_DIR/gaet_pkg/gaet"
+for f in $PKG_FILES; do
+    if dl "$RAW_BASE/src/gaet/$f" "$GAET_DIR/gaet_pkg/gaet/$f"; then
+        PKG_OK=$((PKG_OK + 1))
+    fi
+done
+echo " OK (cli + $PKG_OK package files)"
 
 # ── 5. Download scripts ───────────────────────────────────────────────────
 mkdir -p "$GAET_DIR/scripts"
 SCRIPTS_OK=0
 for f in status.py scheduler.py service_manager.py installer.py __init__.py; do
-    api_json=$(curl -sSL "$API_BASE/scripts/$f?ref=master")
-    if echo "$api_json" | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if 'content' in d else 1)" 2>/dev/null; then
-        echo "$api_json" | "$PYTHON" -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" > "$GAET_DIR/scripts/$f"
-        SCRIPTS_OK=$((SCRIPTS_OK+1))
-    else
-        err_msg=$(echo "$api_json" | "$PYTHON" -c "import json,sys; print(json.load(sys.stdin).get('message','API error'))" 2>/dev/null || echo "unknown error")
-        echo "  ⚠  Failed to download scripts/$f: $err_msg"
+    if dl "$RAW_BASE/scripts/$f" "$GAET_DIR/scripts/$f"; then
+        SCRIPTS_OK=$((SCRIPTS_OK + 1))
     fi
 done
 echo "  Scripts downloaded ($SCRIPTS_OK/5)"
@@ -109,12 +116,8 @@ COMP_DIR="$GAET_DIR/completions"
 mkdir -p "$COMP_DIR"
 COMP_OK=0
 for f in gaet.bash gaet.zsh gaet.fish gaet.ps1; do
-    url="https://raw.githubusercontent.com/ghanirahmans/gaet/master/completions/$f"
-    if curl -fsSL "$url" -o "$COMP_DIR/$f" 2>/dev/null; then
-        COMP_OK=$((COMP_OK+1))
-    else
-        echo ""
-        echo "  ⚠  Failed to download completions/$f"
+    if dl "$RAW_BASE/completions/$f" "$COMP_DIR/$f"; then
+        COMP_OK=$((COMP_OK + 1))
     fi
 done
 echo " OK ($COMP_OK files)"
@@ -122,29 +125,19 @@ echo " OK ($COMP_OK files)"
 # ── 5b. Download dashboard ────────────────────────────────────────────────
 # gaet serve imports `dashboard.server`, which must live in the install dir
 # (~/.local/bin/dashboard/) so it is importable from the gaet entry script
-# (sys.path[0] = ~/.local/bin). This mirrors _update_download() in gaet.py.
+# (sys.path[0] = ~/.local/bin).
 echo -n "  Downloading dashboard..."
 DASH_DIR="$GAET_DIR/dashboard"
-mkdir -p "$DASH_DIR/static" "$DASH_DIR/public"
 DASH_OK=0
+mkdir -p "$DASH_DIR/static" "$DASH_DIR/public"
 # Pure Python HTTP server — no Node.js/npm build step required (v2.0.1+).
 # Only files that exist in the repo are downloaded (index.html is
 # self-contained: <style> + <script> inline, no external CSS/JS).
 for f in server.py static/index.html public/gaet-logo.png; do
-    url="https://raw.githubusercontent.com/ghanirahmans/gaet/master/dashboard/$f"
-    if curl -fsSL "$url" -o "$DASH_DIR/$f" 2>/dev/null; then
-        DASH_OK=$((DASH_OK+1))
-    else
-        echo ""
-        echo "  ⚠  Failed to download dashboard/$f"
+    if dl "$RAW_BASE/dashboard/$f" "$DASH_DIR/$f"; then
+        DASH_OK=$((DASH_OK + 1))
     fi
 done
-if [ "$DASH_OK" -gt 0 ]; then
-    echo " OK ($DASH_OK files)"
-else
-    echo " SKIPPED (dashboard needs 'gaet update')"
-fi
-# gaet-logo.png is already handled in the loop above.
 if [ "$DASH_OK" -gt 0 ]; then
     echo " OK ($DASH_OK files)"
 else
@@ -184,7 +177,6 @@ fi
 echo ""
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        # Windows: PATH uses ;
         if echo "$PATH" | tr ';' '\n' | grep -qF "$GAET_DIR"; then
             echo "  ✓ ~/.local/bin is in PATH"
         else
@@ -192,7 +184,6 @@ case "$(uname -s)" in
             echo "     Add this to your shell profile:"
             echo '     export PATH="$HOME/.local/bin:$PATH"'
         fi
-        # Windows: add .exe for better compatibility
         if [ ! -f "$GAET_DIR/gaet.exe" ]; then
             cp "$GAET_DIR/gaet" "$GAET_DIR/gaet.exe" 2>/dev/null || true
         fi
