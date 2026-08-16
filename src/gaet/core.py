@@ -547,7 +547,7 @@ def find_pg_tools(env: Dict[str, str]) -> Dict[str, str]:
 
     return {"pg_dump": pg_dump, "pg_restore": pg_restore, "psql": psql}
 
-def echo(msg: str = "", end: str = "\n") -> None:
+def echo(msg: str = "", end: str = "\n", flush: bool = False) -> None:
     """Print with our formatting conventions.
 
     Respects --quiet: when QUIET is set, non-essential output is suppressed
@@ -557,7 +557,7 @@ def echo(msg: str = "", end: str = "\n") -> None:
     if QUIET:
         return
     try:
-        print(msg, end=end, flush=True)
+        print(msg, end=end, flush=flush)
     except BrokenPipeError:
         # Silently ignore broken pipe (e.g., `gaet status | head`)
         pass
