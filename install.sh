@@ -13,7 +13,7 @@ GAET_CONFIG="$HOME/.gaet"
 RAW_BASE="https://raw.githubusercontent.com/ghanirahmans/gaet/master"
 
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║  gaet — Database Backup & Sync CLI                  ║"
+echo "║  gaet — Database Backup & Sync CLI                   ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 
@@ -90,7 +90,7 @@ fi
 # v3 src-layout: package lives in src/gaet. Download into gaet_pkg/gaet/ —
 # a dir named gaet/ next to the gaet binary is impossible on disk (file/dir
 # name clash), so the package dir is nested under gaet_pkg/.
-PKG_FILES="__init__.py __main__.py registry.py cli.py core.py detect.py init.py config.py status.py backup.py scheduler.py log.py serve.py export.py update.py"
+PKG_FILES="__init__.py __main__.py registry.py cli.py core.py detect.py init.py config.py status.py backup.py scheduler.py log.py serve.py export.py update.py remote.py snapshots.py"
 PKG_OK=0
 mkdir -p "$GAET_DIR/gaet_pkg/gaet"
 for f in $PKG_FILES; do
