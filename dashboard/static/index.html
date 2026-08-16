@@ -1084,14 +1084,14 @@
     <footer style="border-top:1px solid var(--border); background:rgba(11, 15, 23, 0.85); backdrop-filter:blur(12px); padding:12px 24px; font-size:12px; color:var(--text-muted); font-family:var(--font-mono); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:32px;">
       <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
         <span style="font-weight:600; color:var(--text-secondary);">gaet v3.0.2</span>
-        <span><code style="color:var(--accent);">Alt+1</code> Overview</span>
-        <span><code style="color:var(--accent);">Alt+2</code> Snapshots</span>
-        <span><code style="color:var(--accent);">Alt+3</code> Logs</span>
-        <span><code style="color:var(--accent);">Alt+4</code> Settings</span>
+        <span><code style="color:var(--accent);">1</code> / <code style="color:var(--accent);">Alt+O</code> Overview</span>
+        <span><code style="color:var(--accent);">2</code> / <code style="color:var(--accent);">Alt+S</code> Snapshots</span>
+        <span><code style="color:var(--accent);">3</code> / <code style="color:var(--accent);">Alt+L</code> Logs</span>
+        <span><code style="color:var(--accent);">4</code> / <code style="color:var(--accent);">Alt+E</code> Settings</span>
       </div>
       <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
         <span><code style="color:var(--accent);">Alt+K</code> Command Palette</span>
-        <span><code style="color:var(--text-secondary);">Alt+D</code> Doctor Diagnostic</span>
+        <span><code style="color:var(--text-secondary);">Alt+D</code> Doctor</span>
         <span><code style="color:var(--text-secondary);">Alt+R</code> Refresh</span>
       </div>
     </footer>
@@ -2010,7 +2010,7 @@
       renderCmdPalette(input.value);
     }
 
-    // Global Keyboard Shortcuts Navigation (Alt / Cmd)
+    // Global Keyboard Shortcuts Navigation
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         const modal = document.getElementById('cmdPaletteModal');
@@ -2019,18 +2019,36 @@
           return;
         }
       }
+
       if ((e.altKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         toggleCommandPalette();
         return;
       }
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-      if (e.altKey && e.key === '1') switchTab('overview');
-      if (e.altKey && e.key === '2') switchTab('snapshots');
-      if (e.altKey && e.key === '3') switchTab('logs');
-      if (e.altKey && e.key === '4') switchTab('settings');
-      if (e.altKey && e.key.toLowerCase() === 'd') runDoctorCheck();
-      if (e.altKey && e.key.toLowerCase() === 'r') fetchFullStatus(true);
+
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable) return;
+
+      const k = e.key.toLowerCase();
+
+      if ((e.altKey && (k === '1' || k === 'o')) || k === '1') {
+        e.preventDefault();
+        switchTab('overview');
+      } else if ((e.altKey && (k === '2' || k === 's')) || k === '2') {
+        e.preventDefault();
+        switchTab('snapshots');
+      } else if ((e.altKey && (k === '3' || k === 'l')) || k === '3') {
+        e.preventDefault();
+        switchTab('logs');
+      } else if ((e.altKey && (k === '4' || k === 'e')) || k === '4') {
+        e.preventDefault();
+        switchTab('settings');
+      } else if (e.altKey && k === 'd') {
+        e.preventDefault();
+        runDoctorCheck();
+      } else if (e.altKey && k === 'r') {
+        e.preventDefault();
+        fetchFullStatus(true);
+      }
     });
 
     // Auto-poll status
