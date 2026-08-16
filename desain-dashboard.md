@@ -127,16 +127,16 @@ The visual identity of Gaet is **Operations-First, High-Density, and Terminal-In
 | **Card Surface** | `rgba(17, 24, 39, 0.7)` | `rgba(255, 255, 255, 0.9)` | Cards, tables, modal containers |
 | **Card Hover Surface** | `rgba(31, 41, 55, 0.8)` | `#ffffff` | Elevated interactive cards |
 | **Border Neutral** | `rgba(255, 255, 255, 0.08)` | `rgba(0, 0, 0, 0.08)` | Dividers, card outlines |
-| **Border Accent** | `rgba(59, 130, 246, 0.3)` | `rgba(37, 99, 235, 0.3)` | Active states, primary focus |
+| **Border Accent** | `rgba(59, 151, 151, 0.35)` | `rgba(59, 151, 151, 0.4)` | Active states, primary focus |
 | **Text Primary** | `#f3f4f6` | `#0f172a` | Primary titles, table headers |
 | **Text Secondary** | `#9ca3af` | `#475569` | Subtitles, labels, descriptions |
 | **Text Muted** | `#6b7280` | `#94a3b8` | Metadata, disabled text, hints |
-| **Primary Accent** | `#3b82f6` | `#2563eb` | Primary buttons, active tabs |
-| **Accent Hover** | `#2563eb` | `#1d4ed8` | Primary button hover |
+| **Primary Accent (Logo Teal)** | `#3b9797` | `#2b7a7a` | Primary buttons, active tabs, main accents |
+| **Accent Hover** | `#2b7a7a` | `#1e5959` | Primary button hover |
+| **Accent Crimson (Logo Crimson)** | `#ae2448` (`rgba(174,36,72,0.15)`) | `#901b39` (`rgba(144,27,57,0.1)`) | Logo secondary gradient, cloud badges |
 | **Status Green (Success)**| `#10b981` (`rgba(16,185,129,0.12)`) | `#059669` (`rgba(5,150,105,0.1)`) | Synced state, success toasts |
 | **Status Red (Danger)** | `#ef4444` (`rgba(239,68,68,0.12)`) | `#dc2626` (`rgba(220,38,38,0.1)`) | Out of sync, delete actions, errors |
 | **Status Yellow (Warning)**| `#f59e0b` (`rgba(245,158,11,0.12)`) | `#d97706` (`rgba(217,119,6,0.1)`) | Unreachable DB, warnings |
-| **Status Purple (Accent)** | `#8b5cf6` (`rgba(139,92,246,0.12)`) | `#7c3aed` (`rgba(124,58,237,0.1)`) | Database tag badges, source labels |
 
 ---
 

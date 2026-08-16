@@ -14,20 +14,26 @@
       --bg-card: rgba(17, 24, 39, 0.7);
       --bg-card-hover: rgba(31, 41, 55, 0.8);
       --border: rgba(255, 255, 255, 0.08);
-      --border-accent: rgba(59, 130, 246, 0.3);
+      --border-accent: rgba(59, 151, 151, 0.35);
       --text-primary: #f3f4f6;
       --text-secondary: #9ca3af;
       --text-muted: #6b7280;
-      --accent: #3b82f6;
-      --accent-hover: #2563eb;
+      
+      /* Logo-Matched Colors */
+      --accent: #3b9797;               /* Logo Primary Teal */
+      --accent-hover: #2b7a7a;
+      --crimson: #ae2448;              /* Logo Accent Crimson */
+      --crimson-hover: #8e1e3b;
+      --crimson-bg: rgba(174, 36, 72, 0.15);
+      
       --green: #10b981;
       --green-bg: rgba(16, 185, 129, 0.12);
       --red: #ef4444;
       --red-bg: rgba(239, 68, 68, 0.12);
       --yellow: #f59e0b;
       --yellow-bg: rgba(245, 158, 11, 0.12);
-      --purple: #8b5cf6;
-      --purple-bg: rgba(139, 92, 246, 0.12);
+      --purple: #ae2448;               /* Mapped to Logo Crimson */
+      --purple-bg: rgba(174, 36, 72, 0.15);
       --radius: 12px;
       --radius-sm: 8px;
       --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -39,20 +45,16 @@
       --bg-card: rgba(255, 255, 255, 0.9);
       --bg-card-hover: #ffffff;
       --border: rgba(0, 0, 0, 0.08);
-      --border-accent: rgba(37, 99, 235, 0.3);
+      --border-accent: rgba(59, 151, 151, 0.4);
       --text-primary: #0f172a;
       --text-secondary: #475569;
       --text-muted: #94a3b8;
-      --accent: #2563eb;
-      --accent-hover: #1d4ed8;
-      --green: #059669;
-      --green-bg: rgba(5, 150, 105, 0.1);
-      --red: #dc2626;
-      --red-bg: rgba(220, 38, 38, 0.1);
-      --yellow: #d97706;
-      --yellow-bg: rgba(217, 119, 6, 0.1);
-      --purple: #7c3aed;
-      --purple-bg: rgba(124, 58, 237, 0.1);
+      --accent: #2b7a7a;
+      --accent-hover: #1e5959;
+      --crimson: #901b39;
+      --crimson-bg: rgba(144, 27, 57, 0.1);
+      --purple: #901b39;
+      --purple-bg: rgba(144, 27, 57, 0.1);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -81,14 +83,14 @@
     .logo { display: flex; align-items: center; gap: 12px; }
     .logo-icon {
       width: 40px; height: 40px;
-      background: linear-gradient(135deg, var(--accent), var(--purple));
+      background: linear-gradient(135deg, var(--accent), var(--crimson));
       border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
       color: white; font-weight: 800; font-size: 18px;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      box-shadow: 0 4px 14px rgba(59, 151, 151, 0.35);
     }
     .logo-text h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
-    .logo-text .version-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(59, 130, 246, 0.15); color: var(--accent); border: 1px solid var(--border-accent); }
+    .logo-text .version-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(59, 151, 151, 0.15); color: var(--accent); border: 1px solid var(--border-accent); }
     .logo-text p { font-size: 12px; color: var(--text-secondary); }
     
     /* Nav Tabs */
@@ -101,7 +103,7 @@
       display: flex; align-items: center; gap: 6px;
     }
     .tab-btn:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.04); }
-    .tab-btn.active { color: var(--text-primary); background: var(--bg-card); border-color: var(--border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); }
+    .tab-btn.active { color: var(--text-primary); background: var(--bg-card); border-color: var(--border-accent); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); }
     
     .header-actions { display: flex; gap: 8px; align-items: center; }
     .btn {
@@ -110,8 +112,8 @@
       font-size: 13px; font-weight: 600;
       border: 1px solid transparent; cursor: pointer; transition: all 0.2s ease;
     }
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+    .btn-primary { background: linear-gradient(135deg, #3b9797, #2b7a7a); color: white; }
+    .btn-primary:hover { background: linear-gradient(135deg, #46a7a7, #338888); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(59, 151, 151, 0.35); }
     .btn-secondary { background: var(--bg-card); color: var(--text-primary); border-color: var(--border); }
     .btn-secondary:hover { background: var(--bg-card-hover); border-color: var(--text-muted); }
     .btn-danger { background: var(--red-bg); color: var(--red); border-color: rgba(239, 68, 68, 0.3); }
