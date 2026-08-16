@@ -193,12 +193,21 @@ gaet completion fish > ~/.config/fish/completions/gaet.fish
 - **`gaet export`**  
   Outputs active `.env` configuration as shell-formatted `export GAET_...` environment variables.
 
-### 5. Services & Monitoring
+### 5. Services & Modern Web Dashboard
 
 - **`gaet serve [--port PORT] [--host HOST]`**  
   Launches the lightweight zero-dependency web monitoring dashboard at `http://127.0.0.1:9191`.
 - **`gaet stop`**  
   Stops active web dashboard servers and background cron/systemd automated backup tasks.
+
+#### 🎛️ Operations Dashboard Highlights (`gaet serve`)
+- **Theme Parity**: Modern glassmorphic aesthetic with seamless Dark Mode and Light Mode switching.
+- **Keyboard Ergonomics**:
+  - `1` – `4` or `Alt+O` / `Alt+S` / `Alt+L` / `Alt+E` : Instant tab navigation (`Overview`, `Snapshots`, `Logs`, `Settings`).
+  - `Alt+K` : Global Command Palette hub.
+  - `Esc` : Exit active modals or search overlays.
+- **Snapshot Restore Modal**: Interactive one-click database restore confirmation (`restoreModal`) with file size validation and overwrite safety alerts.
+- **Health & Storage Meter**: Real-time total snapshot volume counter (MB), table schema integrity coverage, and quick auto-backup timer toggle.
 
 ---
 

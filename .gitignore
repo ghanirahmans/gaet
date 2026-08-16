@@ -1,49 +1,55 @@
+# ─── Environment & Secrets ─────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Database Dumps, Backups & Logs ────────────────────
+*.dump
+*.sql
+*.sql.gz
+backups/
+.gaet/
+logs/
+*.log
+
 # ─── Node / Dashboard ──────────────────────────────────
 node_modules/
 .next/
 *.tsbuildinfo
 next-env.d.ts
 
-# ─── Systemd user service copies ──────────────────────
+# ─── Systemd & Services ────────────────────────────────
 systemd/
 
-# ─── Environment / Config ─────────────────────────────
-.env
-!.env.example
+# ─── Scratch & Local Testing ───────────────────────────
+scratch/
+.pytest_cache/
+.hermes/
+.skills
+generate_data.sql
 
-# ─── OS ───────────────────────────────────────────────
-.DS_Store
-Thumbs.db
-nul
-
-# ─── Python ───────────────────────────────────────────
+# ─── Python & Build ────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
+build/
+*.egg-info/
+dist/
 
-# ─── Editor ───────────────────────────────────────────
+# ─── OS & Editors ──────────────────────────────────────
+.DS_Store
+Thumbs.db
+nul
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# ─── Build artifacts ───────────────────────────────
-build/
-*.egg-info/
-dist/
-__pycache__/
-
-# ─── Hermes workspace (plans) ─────────────────────────
-.hermes/
-
-# ─── Audit files ─────────────────────────────────────
+# ─── Audit & Dev Scratchpads ───────────────────────────
 AUDIT_*.md
 AUDIT_*.txt
 UX_AUDIT_*.md
 UX_FIXES_*.md
 CONSISTENCY_*.md
 README_AUDIT.md
-.env.dev
-generate_data.sql
-.skills
