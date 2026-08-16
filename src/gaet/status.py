@@ -8,7 +8,7 @@ import sys
 import time
 from typing import Any, Dict, Tuple
 from pathlib import Path
-from .core import Any, B, BACKUP_DIR, C, D, DEF_REMOTE_SSLMODE, DEF_SERVICE_PREFIX, Dict, ENV_FILE, EXIT_CONFIG, EXIT_LOCAL_DOWN, EXIT_TOOLS, G, ICON_FAIL, ICON_OK, ICON_WARN, NAME, NC, R, Tuple, Y, _validate_table_name, argparse, box_section, box_title, cleanup_pg_env, datetime, die, draw_colored_table, echo, find_pg_tools, get_env_str, get_local_db, get_tables, json, load_env, parse_remote_url, pg_env, re, run_cmd, scheduler_is_active, set_output_modes, status_arrow, status_fail, status_ok, status_warn, sys, time
+from .core import Any, B, BACKUP_DIR, C, D, DEF_REMOTE_SSLMODE, DEF_SERVICE_PREFIX, Dict, ENV_FILE, EXIT_CONFIG, EXIT_LOCAL_DOWN, EXIT_TOOLS, G, ICON_FAIL, ICON_OK, ICON_WARN, NAME, NC, R, Tuple, Y, _validate_table_name, argparse, box_section, box_title, cleanup_pg_env, datetime, die, draw_colored_table, echo, find_pg_tools, get_env_str, get_local_db, get_tables, json, load_env, parse_remote_url, pg_env, print_docs_footer, re, run_cmd, scheduler_is_active, set_output_modes, status_arrow, status_fail, status_ok, status_warn, sys, time
 
 def check_tools(env: Dict[str, str]) -> None:
     """Verify all PostgreSQL tools are found."""
@@ -253,6 +253,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
         echo(f"  {G}{ICON_OK}{NC}  All checks passed!")
     else:
         echo(f"  {Y}{ICON_WARN}{NC}  {issues} issue(s) found")
+    print_docs_footer()
 
 def cmd_diff(args: argparse.Namespace) -> None:
     """Compare local vs cloud database tables and row counts."""
@@ -380,6 +381,7 @@ def cmd_diff(args: argparse.Namespace) -> None:
 
     echo()
     echo(f"  {D}{synced}/{len(all_tables)} tables in sync{NC}")
+    print_docs_footer()
 
 def cmd_check_inner(env: Dict[str, str], tools: Dict[str, str]) -> Dict[str, Any]:
     """Inner check — reused by init and check command.
@@ -522,6 +524,7 @@ def cmd_check(args: argparse.Namespace) -> None:
         # Machine-readable: emit JSON to stdout, exit non-zero if not ok
         print(json.dumps(result, indent=2))
         sys.exit(0 if result["ok"] else 1)
+    print_docs_footer()
 
 def cmd_status(args: argparse.Namespace) -> None:
     """Show sync status."""

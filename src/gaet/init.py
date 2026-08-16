@@ -40,6 +40,7 @@ from .core import (
     os,
     parse_remote_url,
     pg_env,
+    print_docs_footer,
     R,
     run_cmd,
     safe_getpass,
@@ -434,6 +435,7 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
     _print_summary(env, tools)
     echo()
     status_ok("Gaet init complete! Run 'gaet status' to check synchronization.")
+    print_docs_footer()
 
 
 def cmd_init(args: argparse.Namespace) -> None:
