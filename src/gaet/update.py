@@ -360,11 +360,18 @@ def cmd_update(args: argparse.Namespace) -> None:
         die(f"Fetch failed: {err}")
     status_ok("Fetch complete")
     
+    # Detect active branch (main, lts/v1.0, etc.)
+    branch_out, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "--abbrev-ref", "HEAD"], timeout=5)
+    branch = branch_out.strip() if branch_out.strip() and branch_out.strip() != "HEAD" else "main"
+
     # Check current vs remote
     out_local, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "HEAD"], timeout=5)
-    out_remote, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", "origin/master"], timeout=5)
+    out_remote, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", f"origin/{branch}"], timeout=5)
+    if not out_remote.strip():
+        branch = "main"
+        out_remote, _, _ = run_cmd([git, "-C", str(project_dir), "rev-parse", f"origin/{branch}"], timeout=5)
     
-    is_up_to_date = out_local.strip() == out_remote.strip()
+    is_up_to_date = out_local.strip() == out_remote.strip() and bool(out_remote.strip())
     
     if not is_up_to_date:
         # Show what will be updated
@@ -378,7 +385,7 @@ def cmd_update(args: argparse.Namespace) -> None:
         # Pull
         echo()
         box_section("Pulling update")
-        out, err, rc = run_cmd([git, "-C", str(project_dir), "pull", "origin", "master"], timeout=30)
+        out, err, rc = run_cmd([git, "-C", str(project_dir), "pull", "origin", branch], timeout=30)
         if rc != 0:
             die(f"Pull failed: {err}")
         status_ok("Pull complete")
