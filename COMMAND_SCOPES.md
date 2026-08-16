@@ -1,78 +1,78 @@
 # Gaet CLI — Architecture & Comprehensive Command Scope Specification
 
-Dokumen ini mendefinisikan secara ketat batasan (*scope*), tanggung jawab (*responsibility*), dan perilaku input/output dari **seluruh 18 perintah CLI `gaet` (v3.0.x)** untuk menjamin transparansi, keandalan, dan konsistensi standar *Git-style*.
+This document strictly defines the scope, responsibilities, input/output behaviors, and boundaries for **all 18 CLI commands in `gaet`** to ensure total transparency, reliability, and consistent *Git-style* command-line aesthetics.
 
 ---
 
-## 📐 4 Pilar Utama Arsitektur Command Gaet
+## 📐 4 Core Pillars of Gaet Command Architecture
 
-1. **Single Responsibility Principle (SRP)**: Setiap perintah hanya menangani 1 tugas spesifik. `check` tidak boleh menjalankan wizard `init`, `push` tidak boleh meminta input setup, dst.
-2. **Zero Surprises (Git Parity)**: Perintah *read-only* (`status`, `check`, `diff`, `doctor`, `log`, `get`, `export`) **DILARANG HARAM** meminta input interaktif, mengubah file `.env`, atau menggantung terminal.
-3. **Graceful Failures**: Jika terjadi kegagalan (seperti koneksi DB mati atau password salah), CLI harus langsung *exit* seketika (< 0.1 detik) dengan kode kesalahan yang tepat dan pesan manusiawi.
-4. **Safety Guards**: Perintah destruktif yang mengubah data (`fetch` menimpa DB lokal, `uninstall` menghapus file) **WAJIB** meminta konfirmasi manual atau menuntut flag `--yes` jika dijalankan non-interaktif.
+1. **Single Responsibility Principle (SRP)**: Each command handles exactly one specific task. `check` never runs the `init` wizard, `push` never prompts for interactive setup, etc.
+2. **Zero Surprises (Git Parity)**: Read-only commands (`status`, `check`, `diff`, `doctor`, `log`, `snapshots`, `get`, `export`) are **STRICTLY NON-INTERACTIVE**. They never prompt for input, modify `.env` files, or hang the terminal.
+3. **Graceful Failures**: If an error occurs (such as database connection failure or invalid credentials), the CLI terminates immediately (< 0.1s) with appropriate exit codes and human-readable explanation badges.
+4. **Safety Guards**: Destructive operations (`fetch` overwriting local database, `restore` dropping tables, `uninstall` purging system files) **MUST** require explicit interactive confirmation or demand the `--yes` flag in non-TTY / CI environments.
 
 ---
 
-## 📋 Matriks Spesifikasi Scope Lengkap (18 Perintah)
+## 📋 Comprehensive Command Scope Matrix (18 Commands)
 
-### 🚀 Kategori 1: Setup & Lifecycle (Inisialisasi & Pengelolaan Aplikasi)
+### 🚀 Category 1: Setup & Lifecycle
 
-| Command | Scope & Tanggung Jawab | Sifat Perintah | Input Interaktif? | Ekspektasi Saat Gagal / Exit Code | Batasan Ketat (*Strict Boundaries*) |
+| Command | Scope & Responsibility | Command Type | Interactive Input? | Failure & Exit Code Expectation | Strict Boundaries |
 |---|---|---|---|---|---|
-| **`gaet init`** | Setup wizard interaktif, inisialisasi `.env`, dan pembentukan workspace git (`~/.gaet` atau `GAET_DIR`). | Setup / Wizard | **YA** (Flat Numbered Menu 1-2-U-M-D-Q) | Non-zero jika dibatalkan (Ctrl+C) / Error IO | **Satu-satunya** perintah yang berhak menjalankan setup wizard interaktif dan membuat file `.env` baru. |
-| **`gaet install`** | Memasang executable `gaet` dan symlink ke PATH sistem (`/usr/local/bin`). | System Install | **TIDAK** (Kecuali butuh `sudo`) | Non-zero jika izin ditolak | Tidak pernah menyentuh koneksi database. Hanya mengurus binary/PATH. |
-| **`gaet update`** | Memperbarui kode sumber/paket `gaet` ke versi terbaru dari git/PyPI. | System Update | **TIDAK** | Non-zero jika jaringan/git gagal | Hanya memperbarui paket CLI `gaet`, tidak mengubah isi file `.env`. |
-| **`gaet uninstall`** | Menghapus binary `gaet`, symlink, timer auto-backup, dan direktori konfigurasi. | Destructive System | **YA** (Konfirmasi `y/N`) / `--yes` flag | Non-zero jika dibatalkan | Meminta konfirmasi tegas sebelum menghapus file/konfigurasi sistem. |
+| **`gaet init`** | Interactive setup wizard, `.env` file initialization, and git-versioned workspace setup (`~/.gaet` or `GAET_DIR`). | Setup / Wizard | **YES** (Numbered selection menu) | Non-zero on user cancel (Ctrl+C) / IO error | **Only** command allowed to execute interactive wizard prompts and write new `.env` templates. |
+| **`gaet install`** | Installs `gaet` executable binary and symlinks to system PATH (`/usr/local/bin`). | System Install | **NO** (Unless sudo required) | Non-zero if permission denied | Never touches database connections. Handles binary installation only. |
+| **`gaet update`** | Updates `gaet` CLI source code/package to latest version from GitHub/PyPI. | System Update | **NO** | Non-zero if git/network fails | Updates CLI code only; never mutates `.env` variables. |
+| **`gaet uninstall`**| Removes `gaet` binary, symlinks, auto-backup timers, and config directory. | Destructive System | **YES** (`y/N` prompt) / `--yes` flag | Non-zero if cancelled | Requires explicit confirmation before removing files/services. |
 
 ---
 
-### 🔄 Kategori 2: Data Synchronization (Sinkronisasi Database)
+### 🔄 Category 2: Data Synchronization
 
-| Command | Scope & Tanggung Jawab | Sifat Perintah | Input Interaktif? | Ekspektasi Saat Gagal / Exit Code | Batasan Ketat (*Strict Boundaries*) |
+| Command | Scope & Responsibility | Command Type | Interactive Input? | Failure & Exit Code Expectation | Strict Boundaries |
 |---|---|---|---|---|---|
-| **`gaet push`** | Melakukan `pg_dump` DB lokal dan merestore ke Remote Cloud DB. | Data Sync (Mutate Remote) | **TIDAK** (Kecuali opsi `--auto`) | `EXIT_LOCAL_DOWN` (81) / `EXIT_CLOUD_DOWN` (82) | Abort seketika jika DB lokal/cloud tidak terhubung. **Tidak pernah** memicu wizard `init`. |
-| **`gaet fetch`** | Melakukan `pg_dump` Remote Cloud DB dan merestore ke DB Lokal (overwrite). | Data Sync (Mutate Local) | **YA** (Ketik `yes`) / `--yes` flag di CI | `EXIT_LOCAL_DOWN` (81) / `EXIT_CLOUD_DOWN` (82) | **Destruktif ke DB lokal**. Wajib ketik `yes` di TTY. Menolak eksekusi di non-TTY tanpa `--yes`. |
-| **`gaet restore`** | Memulihkan DB lokal dari snapshot file `.dump` lokal tertentu (default: latest). | Local Snapshot Restore | **YA** (Ketik `yes`) / `--yes` flag di CI | `EXIT_LOCAL_DOWN` (81) / `EXIT_CONFIG` (80) | **Destruktif ke DB lokal**. Rollback instan dari snapshot lokal tanpa perlu jaringan cloud. Wajib konfirmasi di TTY. |
+| **`gaet push`** | Executes `pg_dump` on local DB and restores to Remote Cloud DB. | Data Sync (Mutate Remote) | **NO** (Except `--auto` option) | `EXIT_LOCAL_DOWN` (81) / `EXIT_CLOUD_DOWN` (82) | Aborts immediately if local/cloud DB is unreachable. **Never** triggers `init` wizard. |
+| **`gaet fetch`** | Executes `pg_dump` on Remote Cloud DB and restores to Local DB (overwrites!). | Data Sync (Mutate Local) | **YES** (Type `yes`) / `--yes` in CI | `EXIT_LOCAL_DOWN` (81) / `EXIT_CLOUD_DOWN` (82) | **Destructive to local DB**. Requires `yes` in TTY. Rejects execution in non-TTY without `--yes`. |
+| **`gaet restore`** | Restores local DB from a specific local snapshot `.dump` file (default: latest). | Local Snapshot Restore | **YES** (Type `yes`) / `--yes` in CI | `EXIT_LOCAL_DOWN` (81) / `EXIT_CONFIG` (80) | **Destructive to local DB**. Instant offline rollback from local snapshot. Requires confirmation in TTY. |
 
 ---
 
-### 📊 Kategori 3: Status, Diagnostics & History (Read-Only)
+### 📊 Category 3: Status, Diagnostics & History (Read-Only)
 
-| Command | Scope & Tanggung Jawab | Sifat Perintah | Input Interaktif? | Ekspektasi Saat Gagal / Exit Code | Batasan Ketat (*Strict Boundaries*) |
+| Command | Scope & Responsibility | Command Type | Interactive Input? | Failure & Exit Code Expectation | Strict Boundaries |
 |---|---|---|---|---|---|
-| **`gaet status`** | Menampilkan ringkasan status sinkronisasi, jumlah tabel, ukuran DB, dan auto-backup. | Read-Only Summary | **TIDAK** (100% Non-interaktif) | `0` (atau `EXIT_CONFIG` jika tanpa `.env`) | 100% read-only. Tidak pernah minta password/input. |
-| **`gaet check`** | Validasi instan ketersediaan tools PostgreSQL, `.env`, koneksi DB, dan folder backup. | Read-Only Diagnostic | **TIDAK** (100% Non-interaktif) | Non-zero jika ada check FAIL | Menggunakan flag `-w` (`--no-password`). Hanya memberi saran `gaet init` tanpa panggil wizard. |
-| **`gaet diff`** | Perbandingan jumlah baris (*row count*) per tabel antara DB Lokal dan Cloud DB. | Read-Only Comparison | **TIDAK** (100% Non-interaktif) | Non-zero jika koneksi gagal | Membandingkan statistik tabel secara aman tanpa mengubah data. |
-| **`gaet doctor`** | Pengecekan kesehatan sistem mendalam (OS, izin folder, koneksi, dependensi). | Read-Only Diagnostic | **TIDAK** (100% Non-interaktif) | Mengembalikan jumlah isu | Memberikan laporan teknis komprehensif untuk penyelesaian masalah. |
-| **`gaet log`** | Menampilkan daftar dan histori file `.dump` yang tersimpan di direktori backup. | Read-Only History | **TIDAK** (100% Non-interaktif) | `0` | Menampilkan daftar file backup di folder `backups/`. |
-| **`gaet snapshots`** | Menampilkan daftar seluruh snapshot backup `.dump` lokal secara terstruktur. | Read-Only Snapshots | **TIDAK** (100% Non-interaktif) | `0` | Menampilkan tabel snapshot lokal, tanggal buat, ukuran, dan retensi. |
+| **`gaet status`** | Displays sync status summary, table count, DB size, and auto-backup state. | Read-Only Summary | **NO** (100% Non-interactive) | `0` (or `EXIT_CONFIG` if missing `.env`) | 100% read-only. Never prompts for input or passwords. |
+| **`gaet check`** | Instant diagnostic check for PostgreSQL tools, `.env`, DB connections, and backup folder. | Read-Only Diagnostic | **NO** (100% Non-interactive) | Non-zero if any check FAILS | Uses `-w` (`--no-password`). Suggests `gaet init` without running wizard. |
+| **`gaet diff`** | Per-table row count comparison between Local DB and Cloud DB. | Read-Only Comparison | **NO** (100% Non-interactive) | Non-zero if connection fails | Safely queries table metadata without modifying data. |
+| **`gaet doctor`** | In-depth system health report (OS, file permissions, connection, tool dependencies). | Read-Only Diagnostic | **NO** (100% Non-interactive) | Returns issue count | Provides actionable technical suggestions. |
+| **`gaet log`** | Views execution log and backup history from `.gaet/logs/`. | Read-Only History | **NO** (100% Non-interactive) | `0` | Displays log file output (`--follow` for tailing). |
+| **`gaet snapshots`**| Lists all local `.dump` backup snapshots in a structured table. | Read-Only Snapshots | **NO** (100% Non-interactive) | `0` | Lists local snapshot file names, dates, sizes, and retention policies. |
 
 ---
 
-### ⚙️ Kategori 4: Configuration & Utilities (Manajemen Konfigurasi & Shell)
+### ⚙️ Category 4: Configuration & Utilities
 
-| Command | Scope & Tanggung Jawab | Sifat Perintah | Input Interaktif? | Ekspektasi Saat Gagal / Exit Code | Batasan Ketat (*Strict Boundaries*) |
+| Command | Scope & Responsibility | Command Type | Interactive Input? | Failure & Exit Code Expectation | Strict Boundaries |
 |---|---|---|---|---|---|
-| **`gaet get`** | Membaca dan mencetak nilai variabel spesifik atau seluruh isi `.env`. | Config Read | **TIDAK** (100% Non-interaktif) | `0` (atau `1` jika key tak ada) | 100% read-only ke file `.env`. |
-| **`gaet set`** | Mengubah atau menambah nilai variabel `KEY=VALUE` spesifik di file `.env`. | Config Write | **TIDAK** (100% Non-interaktif) | `0` / `1` (Format salah) | Mengubah key spesifik secara presisi tanpa panggil wizard `init`. |
-| **`gaet remote`** | Manajemen Remote Cloud DB (`show`, `set-url`, `remove`) ala Git. | Config / Remote Mgmt | **TIDAK** (100% Non-interaktif) | `0` / Non-zero jika URL invalid | Memeriksa dan mengatur Remote Cloud Database URL dengan mudah. |
-| **`gaet export`** | Mengekspor konfigurasi `.env` dalam format variabel shell (`export GAET_...`). | Config Export | **TIDAK** (100% Non-interaktif) | `0` | Memudahkan penggunaan konfigurasi di script bash/zsh. |
-| **`gaet completion`**| Menghasilkan kode auto-completion untuk shell (bash, zsh, fish). | Shell Tool | **TIDAK** (100% Non-interaktif) | `0` | Hanya mencetak script penyelesaian otomatis terminal. |
-| **`gaet help`** | Menampilkan panduan bantuan teknis untuk perintah spesifik. | Information | **TIDAK** (100% Non-interaktif) | `0` | Mencetak manual penggunaan perintah. |
+| **`gaet get`** | Reads and prints specific or all `.env` configuration variables. | Config Read | **NO** (100% Non-interactive) | `0` (or `1` if key missing) | 100% read-only to `.env` file. `--list` shows schema reference. |
+| **`gaet set`** | Sets or updates `KEY=VALUE` variables directly in `.env`. | Config Write | **NO** (100% Non-interactive) | `0` / `1` (Invalid format) | Updates specified key cleanly without invoking setup wizard. |
+| **`gaet remote`** | Git-style management for Remote Cloud DB URL (`show`, `set-url`, `remove`). | Config / Remote Mgmt | **NO** (100% Non-interactive) | `0` / Non-zero if URL invalid | Manages cloud URL cleanly with connectivity test. |
+| **`gaet export`** | Exports `.env` variables as shell environment statements (`export GAET_...`). | Config Export | **NO** (100% Non-interactive) | `0` | Utility for bash/zsh scripting environment. |
+| **`gaet completion`**| Generates shell auto-completion scripts (bash, zsh, fish, ps1). | Shell Tool | **NO** (100% Non-interactive) | `0` | Outputs completion script to stdout. |
+| **`gaet help`** | Displays technical help documentation for specific commands or options. | Information | **NO** (100% Non-interactive) | `0` | Prints command usage manual. |
 
 ---
 
-### 🌐 Kategori 5: Background Services & Dashboard (Layanan Background)
+### 🌐 Category 5: Background Services & Dashboard
 
-| Command | Scope & Tanggung Jawab | Sifat Perintah | Input Interaktif? | Ekspektasi Saat Gagal / Exit Code | Batasan Ketat (*Strict Boundaries*) |
+| Command | Scope & Responsibility | Command Type | Interactive Input? | Failure & Exit Code Expectation | Strict Boundaries |
 |---|---|---|---|---|---|
-| **`gaet serve`** | Menjalankan web dashboard lokal (HTTP server) untuk monitoring visual. | Service Run | **TIDAK** (Blocking process / Ctrl+C) | Non-zero jika port terpakai | Hanya menjalankan HTTP server dashboard monitoring. |
-| **`gaet stop`** | Menghentikan daemon auto-backup (cron/systemd) atau server dashboard `serve`. | Service Control | **TIDAK** (100% Non-interaktif) | `0` / Non-zero jika service tak ada | Mematikan timer/server latar belakang secara aman. |
+| **`gaet serve`** | Launches local web dashboard HTTP server for real-time monitoring. | Service Run | **NO** (Blocking process / Ctrl+C) | Non-zero if port in use | Serves monitoring dashboard on configured port. |
+| **`gaet stop`** | Stops auto-backup daemon (cron/systemd) or web dashboard process. | Service Control | **NO** (100% Non-interactive) | `0` / Non-zero if service absent | Terminates background tasks safely. |
 
 ---
 
-## 🔒 Aturan Emas Implementasi Kode (*Code Enforcement Guidelines*)
+## 🔒 Code Enforcement Guidelines
 
-1. **Gunakan `pg_env()` dan `-w`**: Semua panggilan `psql`, `pg_dump`, `pg_restore` wajib menyertakan flag `-w` (`--no-password`) dan environment `PGPASSFILE` via `pg_env()`.
-2. **Path Konfigurasi Dinamis**: Selalu manfaatkan konstanta `ENV_FILE` (yang mendukung `GAET_DIR`), jangan pernah hardcode `~/.gaet/.env` di pesan output.
-3. **Penanganan Non-Interactive Mode**: Jika `sys.stdin.isatty()` bernilai `False`, perintah interaktif seperti `fetch` **wajib** meminta flag `--yes` atau langsung abort dengan `die()`.
+1. **`pg_env()` and `-w` Flag**: All invocations of `psql`, `pg_dump`, and `pg_restore` must supply `-w` (`--no-password`) and utilize temporary `PGPASSFILE` environments generated by `pg_env()`.
+2. **Dynamic Config Pathing**: Always reference the `ENV_FILE` path constant (which respects `GAET_DIR`). Never hardcode `~/.gaet/.env` in string outputs.
+3. **Non-Interactive Guard**: When `sys.stdin.isatty()` returns `False`, destructive commands like `fetch` or `restore` **MUST** require `--yes` or abort immediately via `die()`.

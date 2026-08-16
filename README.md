@@ -1,411 +1,288 @@
-# gaet — PostgreSQL Backup & Sync CLI
+# gaet(1) — PostgreSQL Backup & Sync CLI
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![Platform: Linux | macOS | Windows](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-supported-brightgreen.svg)]()
-[![v3.0.0](https://img.shields.io/badge/v3.0.1-blue?label=release)](CHANGELOG.md)
+[![v3.0.1](https://img.shields.io/badge/v3.0.1-blue?label=release)](CHANGELOG.md)
 
-Backup PostgreSQL to any cloud instance. Zero external dependencies. Cross-platform support.
+> **gaet** is a zero-dependency, Git-styled PostgreSQL backup & synchronization CLI tool. It provides seamless snapshot management, local-to-cloud push/fetch operations, structured status badges, and automated retention policies.
 
 ---
 
-## Table of Contents
+## 📖 Table of Contents
 
-- [Quick Start](#quick-start)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Configuration](#configuration)
-- [Commands Reference](#commands-reference)
-- [Architecture](#architecture)
-- [Security](#security)
-- [Troubleshooting](TROUBLESHOOTING.md)
-- [FAQ](#faq)
-- [See Also](#see-also)
+1. [Name & Synopsis](#name--synopsis)
+2. [Description & Architecture](#description--architecture)
+3. [Quick Start](#quick-start)
+4. [Installation](#installation)
+5. [Command Specifications](#command-specifications)
+   - [Setup & Lifecycle](#1-setup--lifecycle)
+   - [Data Synchronization](#2-data-synchronization)
+   - [Status & Diagnostics](#3-status--diagnostics)
+   - [Configuration & Remote Management](#4-configuration--remote-management)
+   - [Services & Monitoring](#5-services--monitoring)
+6. [Configuration Reference](#configuration-reference)
+7. [Workflows & Practical Guides](#workflows--practical-guides)
+8. [Security & Hardening](#security--hardening)
+9. [Troubleshooting](#troubleshooting)
+10. [See Also](#see-also)
+
+---
+
+## Name & Synopsis
+
+**NAME**  
+`gaet` — Zero-dependency PostgreSQL database backup, synchronization, and snapshot management CLI.
+
+**SYNOPSIS**  
+```bash
+gaet [<global-options>] <command> [<args>]
+```
+
+**GLOBAL OPTIONS**  
+- `-q, --quiet` : Suppress non-essential informational headers and output formatting.
+- `--plain`     : Output plain, unformatted TSV output (pipe-safe for `grep`, `awk`, `sed`).
+- `--json`      : Return structured JSON objects for programmatic consumption.
+- `--dry-run`   : Simulate execution without writing files or mutating databases.
+
+---
+
+## Description & Architecture
+
+`gaet` bridges local PostgreSQL development environments with remote cloud database providers (Supabase, Neon, AWS RDS, GCP Cloud SQL, or custom VPS instances). Designed with Git parity in mind, `gaet` treats local database dumps as versioned snapshots that can be pushed to or fetched from remote instances cleanly.
+
+```
+                  ┌──────────────────────────────────────────────┐
+                  │                 gaet CLI                     │
+                  └──────────────────────┬───────────────────────┘
+                                         │
+                   ┌─────────────────────┴─────────────────────┐
+                   ▼                                           ▼
+      ┌─────────────────────────┐                 ┌─────────────────────────┐
+      │   Local DB Instance     │                 │   Cloud DB Remote       │
+      │ 127.0.0.1 / Unix Socket │                 │ Supabase / Neon / VPS   │
+      └────────────┬────────────┘                 └────────────▲────────────┘
+                   │                                           │
+                   │ pg_dump -Fc (Compress)                    │ pg_restore --clean
+                   ▼                                           │
+      ┌─────────────────────────┐                              │
+      │  Local Backup Snapshot  ├──────────────────────────────┘
+      │  ~/.gaet/backups/*.dump │
+      └─────────────────────────┘
+```
+
+### Architectural Guarantees
+
+1. **Zero External Dependencies**: Implemented strictly using the Python Standard Library (`subprocess`, `urllib`, `argparse`, `pathlib`, `json`). Requires no `pip` packages.
+2. **Passwordless Security Model**: PostgreSQL operations (`psql`, `pg_dump`, `pg_restore`) enforce the `-w` (`--no-password`) flag alongside atomic, temporary `PGPASSFILE` instances (`0600` permission level). Plaintext passwords are never passed as command-line flags or logged to history.
+3. **Atomic State & Environment Updates**: Configuration key updates via `gaet set` utilize atomic line-by-line single-pass updates to `~/.gaet/.env` to prevent config corruption.
+4. **Concurrency Safety**: Non-blocking file locks (`~/.gaet/gaet.lock`) prevent overlapping execution during automated scheduled backups or simultaneous manual invocations.
+5. **Git Workspace Integration**: Running `gaet init` initializes a version-controlled workspace in `~/.gaet` (with strict `.gitignore` rules shielding secrets, lock files, and dump payloads).
 
 ---
 
 ## Quick Start
 
+Get up and running in under 2 minutes:
+
 ```bash
-# Install (Linux/macOS)
+# 1. Install gaet CLI
 curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 
-# Or Windows (PowerShell)
-irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
-
-# Initialize (interactive wizard)
+# 2. Run interactive setup wizard
 gaet init
 
-# First backup
+# 3. Create your first cloud backup
 gaet push
 
-# Check status
+# 4. Verify table sync status
 gaet status
 ```
-
-For a detailed walkthrough, see [QUICKSTART.md](QUICKSTART.md).
 
 ---
 
 ## Installation
 
-### Requirements
+### Method 1: Automated Script (Recommended)
 
-- Python 3.8+
-- PostgreSQL client tools (`pg_dump`, `pg_restore`, `psql`)
-- No pip packages required (zero dependencies)
-
-### Install via script (recommended)
-
+**Linux / macOS:**
 ```bash
-# Linux/macOS
 curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+```
 
-# Windows (PowerShell as Administrator)
+**Windows (PowerShell):**
+```powershell
 irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
 ```
 
-### Install from source
+### Method 2: System Package / Source Installation
 
 ```bash
 git clone https://github.com/ghanirahmans/gaet.git
 cd gaet
 pip install -e .
-python gaet.py --help
 ```
 
-### Verify installation
+### Shell Auto-Completion Setup
+
+Generate shell auto-completion for your active terminal environment:
 
 ```bash
-gaet --version
-# Output: gaet v3.0.1
+# Bash
+gaet completion bash > ~/.bash_completion.d/gaet
+source ~/.bash_completion.d/gaet
 
-gaet doctor
-# Comprehensive health check
+# Zsh
+gaet completion zsh > ~/.zfunc/_gaet
+fpath=(~/.zfunc $fpath) && autoload -U compinit && compinit
+
+# Fish
+gaet completion fish > ~/.config/fish/completions/gaet.fish
 ```
 
 ---
 
-## Usage
+## Command Specifications
 
-### Basic Workflow
+`gaet` provides 18 structured subcommands categorized into 5 logical operation groups:
 
+### 1. Setup & Lifecycle
+
+- **`gaet init [preset]`**  
+  Launches the interactive setup wizard. Auto-detects local PostgreSQL instances (Unix sockets & TCP 5432), tests database connectivity, prompts for optional cloud remote credentials, and configures `.env`.
+  - *Presets*: `gaet init hindsight` or `gaet init hindsight hermes`.
+- **`gaet install`**  
+  Installs executable symlinks and system service integration.
+- **`gaet update`**  
+  Checks and updates the local `gaet` installation to the latest stable release.
+- **`gaet uninstall [--purge]`**  
+  Safely removes binary symlinks and background tasks. Use `--purge` to delete `~/.gaet` data.
+
+### 2. Data Synchronization
+
+- **`gaet push [--dry-run] [--tables=TABLES]`**  
+  Creates a compressed local dump (`~/.gaet/backups/gaet_YYYYMMDD_HHmmss.dump`) using `pg_dump -Fc`, validates binary integrity via `pg_restore --list`, and restores schema/data into the target Remote Cloud DB.
+- **`gaet fetch [--dry-run] [--yes]`**  
+  Fetches snapshot data from Remote Cloud DB and restores it into the local database instance (**Overwrites local DB!**). Requires explicit `yes` confirmation or `--yes` flag in non-TTY environments.
+- **`gaet restore [snapshot_file] [--dry-run] [--yes]`**  
+  Restores the local database from a specific local snapshot `.dump` file (defaults to the latest available snapshot if unspecified).
+
+### 3. Status & Diagnostics
+
+- **`gaet status [--json] [--plain]`**  
+  Displays visual synchronization status table, local vs cloud table row alignment, total backup directory volume, and auto-backup scheduler state.
+- **`gaet check [--json]`**  
+  Performs pre-flight checks verifying system binaries (`psql`, `pg_dump`, `pg_restore`), local DB authentication, and cloud connectivity.
+- **`gaet diff`**  
+  Displays side-by-side table row count comparison between local and cloud database instances.
+- **`gaet doctor`**  
+  Comprehensive diagnostic health report evaluating system environment, file permissions (`0600`), disk storage, and background services.
+- **`gaet log [<lines>] [--follow] [--filter=KEYWORD]`**  
+  Views structured activity log history (`~/.gaet/logs/gaet.log`).
+- **`gaet snapshots [--json]`**  
+  Lists all local backup `.dump` snapshots stored in `~/.gaet/backups/` along with file size, creation timestamp, and auto-retention policy details.
+
+### 4. Configuration & Remote Management
+
+- **`gaet get [KEY] [--list]`**  
+  Retrieves configured environment variables (sensitive passwords masked). Use `--list` to view the full grouped configuration schema reference.
+- **`gaet set KEY=VALUE [KEY2=VALUE2]`**  
+  Atomically updates configuration variables in `~/.gaet/.env`. Provide `KEY=` with empty value to delete a setting.
+- **`gaet remote [show|set-url|remove] [URL]`**  
+  Git-style management of cloud database target URLs.
+- **`gaet export`**  
+  Outputs active `.env` configuration as shell-formatted `export GAET_...` environment variables.
+
+### 5. Services & Monitoring
+
+- **`gaet serve [--port PORT] [--host HOST]`**  
+  Launches the lightweight zero-dependency web monitoring dashboard at `http://127.0.0.1:9191`.
+- **`gaet stop`**  
+  Stops active web dashboard servers and background cron/systemd automated backup tasks.
+
+---
+
+## Configuration Reference
+
+Configuration settings are stored in `~/.gaet/.env` (restricted file mode `0600`).
+
+| Group | Key Name | Type | Default | Description |
+|---|---|---|---|---|
+| **Local DB** | `GAET_LOCAL_URL` | URL | `(empty)` | Full local PostgreSQL connection string |
+| | `GAET_LOCAL_DB_HOST` | String | `127.0.0.1` | Host address or Unix domain socket path |
+| | `GAET_LOCAL_DB_PORT` | Int | `5432` | Local PostgreSQL port listener |
+| | `GAET_LOCAL_DB_USER` | String | `postgres` | Database authentication username |
+| | `GAET_LOCAL_DB_NAME` | String | `postgres` | Target database name |
+| | `GAET_LOCAL_DB_PASS` | String | `(empty)` | Database user password |
+| **Cloud Remote** | `GAET_REMOTE_URL` | URL | `(empty)` | Cloud PostgreSQL target connection URL |
+| | `GAET_REMOTE_SSLMODE` | String | `require` | SSL connection requirement mode |
+| **Options** | `GAET_RETENTION_DAYS` | Int | `7` | Days to keep `.dump` files before cleanup |
+| | `GAET_PG_TIMEOUT` | Int | `3600` | Max timeout (seconds) for dump/restore ops |
+| | `GAET_TABLES` | String | `(all)` | Comma-separated list of specific tables |
+
+---
+
+## Workflows & Practical Guides
+
+### 1. Dev-to-Cloud Backup (`push`)
 ```bash
-# 1. Configure
-gaet init
-
-# 2. Verify connections
-gaet check
-
-# 3. Test before running
+# Test execution safety first
 gaet push --dry-run
 
-# 4. Run backup
+# Run full backup & sync
 gaet push
-
-# 5. Monitor sync status
-gaet status
 ```
 
-### Configuration
-
-Config is stored in `~/.gaet/.env` (permissions `0600`).
-
+### 2. Cloud-to-Local Restore (`fetch`)
 ```bash
-# View config
-gaet get
-
-# Set variables
-gaet set GAET_REMOTE_URL=postgresql://user:pass@host:5432/db
-
-# Delete variable
-gaet set KEY=
-
-# Export as shell commands
-gaet export
+# Pull cloud database state to local development environment
+gaet fetch --yes
 ```
 
-### Machine-Readable Output
-
+### 3. Local Offline Snapshot Rollback (`restore`)
 ```bash
-# JSON output for scripting
-gaet status --json | jq '.tables[] | select(.ok == false)'
+# List available snapshots
+gaet snapshots
 
-# Plain TSV for grep/awk
-gaet status --plain | grep -v "✓"
+# Rollback local DB to specific snapshot file
+gaet restore gaet_20260816_120000.dump --yes
+```
 
-# Quiet mode for scripts
+### 4. Headless CI/CD Pipeline Integration
+```bash
+# Scripting mode with machine-readable outputs
+export GAET_DIR="/tmp/ci_gaet"
+gaet set GAET_LOCAL_DB_NAME="test_db" GAET_REMOTE_URL="$DATABASE_URL"
+gaet check --json
 gaet push -q
 ```
 
-### Web Dashboard
+---
 
-```bash
-# Start dashboard (http://localhost:9191)
-gaet serve
+## Security & Hardening
 
-# Custom port
-gaet serve --port 8080
-
-# Stop dashboard
-gaet stop
-```
+1. **Strict File Permissions**: Secrets stored in `~/.gaet/.env` enforce Unix mode `0600` (`rw-------`).
+2. **Password Injection Defense**: Credentials are isolated inside transient file buffers specified via `PGPASSFILE` environment bindings.
+3. **Non-TTY Confirmation Requirement**: Destructive commands (`fetch`, `restore`, `uninstall`) strictly refuse execution in non-interactive terminals unless explicit flag `--yes` is supplied.
 
 ---
 
-## Commands Reference
+## Troubleshooting
 
-### Health & Status
-
-| Command | Description |
-|---------|-------------|
-| `gaet check` | Validate config and connections |
-| `gaet status` | Show sync status per table |
-| `gaet doctor` | Comprehensive health check |
-| `gaet diff` | Compare local vs cloud row counts |
-
-### Backup & Restore
-
-| Command | Description |
-|---------|-------------|
-| `gaet push` | Backup local → cloud |
-| `gaet push --dry-run` | Simulate without executing |
-| `gaet push --auto=6` | Enable auto-backup every 6 hours |
-| `gaet fetch` | Restore cloud → local (overwrites!) |
-| `gaet fetch --dry-run` | Simulate restore |
-| `gaet stop` | Stop auto-backup and dashboard |
-
-### Monitoring
-
-| Command | Description |
-|---------|-------------|
-| `gaet log` | View last 30 backup log lines |
-| `gaet log 100` | View last 100 lines |
-| `gaet log --follow` | Real-time tailing |
-| `gaet log --filter ERROR` | Filter by keyword |
-| `gaet log --filter CRON` | Show cron/auto-backup entries |
-| `gaet serve` | Start web dashboard |
-
-### Configuration
-
-| Command | Description |
-|---------|-------------|
-| `gaet init` | Interactive setup wizard |
-| `gaet init hindsight` | Preset for Hindsight database |
-| `gaet init hindsight hermes` | Preset for Hermes Agent |
-| `gaet get` | View all config variables |
-| `gaet get KEY` | View specific variable |
-| `gaet set KEY=value` | Set variable |
-| `gaet set KEY=` | Delete variable |
-| `gaet export` | Print config as shell exports |
-
-### Maintenance
-
-| Command | Description |
-|---------|-------------|
-| `gaet install` | Setup/install dependencies |
-| `gaet update` | Update to latest version |
-| `gaet uninstall` | Remove gaet (keeps data) |
-| `gaet uninstall --purge` | Complete removal |
-
-### Help
-
-| Command | Description |
-|---------|-------------|
-| `gaet --help` | Show full help |
-| `gaet help <cmd>` | Show help for command |
-| `gaet help --json` | Machine-readable schema |
-| `gaet completion` | Generate shell completions |
-| `gaet --version` | Show version |
-
-### Flags (work on all commands)
-
-| Flag | Description |
-|------|-------------|
-| `-q, --quiet` | Suppress non-essential output |
-| `--plain` | Pipe-safe TSV output (no box-drawing) |
-| `--json` | JSON output (where supported) |
-| `--dry-run` | Simulate without executing |
-
----
-
-## Architecture
-
-### How It Works
-
-```mermaid
-flowchart LR
-    A[Local DB] --> B[pg_dump --compress=9]
-    B --> C[Integrity Check\npg_restore --list]
-    C -->|Valid| D[pg_restore to Cloud]
-    C -->|Invalid| E[Abort]
-    D --> F[Cloud DB]
-    
-    style A fill:#4CAF50,color:#fff
-    style F fill:#2196F3,color:#fff
-    style E fill:#f44336,color:#fff
-```
-
-**Steps:**
-1. Acquire file lock (prevents overlapping runs)
-2. `pg_dump --format=custom --compress=9` to temp file
-3. `pg_restore --list` validates dump integrity
-4. Restore to cloud with `pg_restore --clean --if-exists`
-5. Delete temp file, release lock, update log
-6. Apply retention policy (delete old backups)
-
-### File Structure
-
-```
-gaet/
-├── gaet.py                    # CLI (~4200 lines, pure stdlib)
-├── dashboard/
-│   ├── server.py              # Python HTTP server (no Node.js needed)
-│   └── static/index.html      # Web UI
-├── scripts/
-│   ├── installer.py           # Cross-platform installer
-│   ├── service_manager.py     # systemd/launchd/Task Scheduler
-│   └── scheduler.py           # Auto-backup scheduling
-├── completions/
-│   ├── gaet.bash              # Bash completions
-│   ├── gaet.zsh               # Zsh completions
-│   ├── gaet.fish              # Fish completions
-│   └── gaet.ps1               # PowerShell completions
-├── tests/
-│   └── test_gaet.py           # 17 unit tests
-├── benchmarks/                # Benchmark datasets
-├── gaet.1                     # Man page
-├── README.md
-├── CHANGELOG.md
-├── QUICKSTART.md
-├── TROUBLESHOOTING.md
-├── SECURITY.md
-├── install.sh                 # Linux/macOS installer
-└── install.ps1                # Windows installer
-```
-
-### Benchmarks
-
-Measured on PostgreSQL 18, Linux (i5-12450H, NVMe, 8GB RAM).
-
-| Database | Size | pg_dump | pg_restore | gaet push | gaet fetch |
-|----------|------|---------|------------|-----------|------------|
-| Simple (2 tables, 110k rows) | 126 MB | 0.46s | 0.50s | ~1s | ~1s |
-| Complex (7 tables, 750k rows) | 404 MB | 2.51s | 5.69s | ~8s | ~7s |
-| Production-like (38 tables, 10.7M rows) | 1944 MB | 50.09s | 58.24s | 91.06s | 80.49s |
-
-Compression: 1944 MB → **359.6 MB** (82% reduction)
-
-For large databases (>1GB), increase timeout:
-```bash
-gaet set GAET_PG_TIMEOUT=600
-```
-
----
-
-## Security
-
-See [SECURITY.md](SECURITY.md) for detailed security information.
-
-### Key Points
-
-- Passwords stored in `~/.gaet/.env` with `0600` permissions
-- Credentials never logged or passed via command-line arguments
-- SQL injection protected via parameterized queries and input validation
-- No external network dependencies (only connects to your PostgreSQL instances)
-
----
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GAET_LOCAL_DB_HOST` | `localhost` | Local PostgreSQL host |
-| `GAET_LOCAL_DB_PORT` | `5432` | Local PostgreSQL port |
-| `GAET_LOCAL_DB_NAME` | `postgres` | Local database name |
-| `GAET_LOCAL_DB_USER` | `postgres` | Local database user |
-| `GAET_LOCAL_DB_PASS` | — | Local database password |
-| `GAET_REMOTE_URL` | — | Cloud PostgreSQL connection URL |
-| `GAET_RETENTION_DAYS` | `7` | Days to keep backups |
-| `GAET_PG_TIMEOUT` | `120` | Seconds per pg_dump/pg_restore operation |
-| `GAET_REMOTE_SSLMODE` | `prefer` | SSL mode for cloud connections |
-| `GAET_DASHBOARD_PORT` | `9191` | Dashboard listening port |
-| `GAET_DASHBOARD_HOST` | `127.0.0.1` | Dashboard binding address |
-
-### Config Priority
-
-Individual variables (`GAET_LOCAL_DB_*`) override `GAET_LOCAL_URL`:
-```bash
-gaet set GAET_LOCAL_DB_HOST=localhost
-gaet set GAET_LOCAL_DB_PORT=5432
-gaet set GAET_LOCAL_DB_NAME=mydb
-# These take precedence over GAET_LOCAL_URL
-```
-
----
-
-## FAQ
-
-### What's the difference between `push` and `fetch`?
-
-- `gaet push` — Dumps local database and restores to cloud (backup)
-- `gaet fetch` — Dumps cloud database and restores to local (restore/overwrite)
-
-### Is my data encrypted in transit?
-
-By default, `GAET_REMOTE_SSLMODE=prefer` tries SSL first, falls back to plain if server doesn't support it. For strict encryption, set `GAET_REMOTE_SSLMODE=require`.
-
-### Can I backup specific tables only?
-
-Yes:
-```bash
-gaet push --tables=users,posts,orders
-```
-
-### How do I schedule automatic backups?
+Run the comprehensive health check command to diagnose issues:
 
 ```bash
-gaet push --auto        # Every 6 hours (default)
-gaet push --auto=24     # Every 24 hours
+gaet doctor
 ```
 
-This creates a systemd timer (Linux), launchd job (macOS), or Task Scheduler task (Windows).
-
-### Where are backups stored?
-
-`~/.gaet/backups/gaet_YYYYMMDD_HHmmss.dump`
-
-Older backups are automatically deleted after `GAET_RETENTION_DAYS`.
-
-### How do I restore from a specific backup?
-
-Use `gaet fetch` — it restores from the latest backup. To restore an older backup, copy it to the backups directory and run fetch.
-
-### Can I use gaet with Supabase/Neon/RDS?
-
-Yes! Any PostgreSQL instance works. Set `GAET_REMOTE_URL` to your connection string:
-```bash
-gaet set GAET_REMOTE_URL=postgresql://user:pass@host.supabase.co:5432/dbname
-```
+For error codes, exit values, and common solutions, consult [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ---
 
 ## See Also
 
-- [QUICKSTART.md](QUICKSTART.md) — 5-minute getting started guide
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — Common errors and fixes
-- [SECURITY.md](SECURITY.md) — Security policy and considerations
-- [CHANGELOG.md](CHANGELOG.md) — Version history
-- [CONTRIBUTING.md](CONTRIBUTING.md) — How to contribute
-- [benchmarks/README.md](benchmarks/README.md) — Detailed benchmark methodology
-- [gaet.1](gaet.1) — Manual page (`man gaet.1`)
-
----
-
-## Links
-
-- **Repository:** https://github.com/ghanirahmans/gaet
-- **Issues:** https://github.com/ghanirahmans/gaet/issues
-- **License:** MIT
+- [COMMAND_SCOPES.md](COMMAND_SCOPES.md) — Technical scope boundaries and invariants.
+- [QUICKSTART.md](QUICKSTART.md) — 5-minute walkthrough guide.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Internal system design and module specs.
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — Diagnostic guides and error code index.
+- Manual Page: `man gaet` (or `man ./gaet.1`).
