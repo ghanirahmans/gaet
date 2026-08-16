@@ -16,7 +16,7 @@ fi
 RAW_BASE="https://raw.githubusercontent.com/ghanirahmans/gaet/$COMMIT_SHA"
 
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║  gaet — Database Backup & Sync CLI                   ║"
+echo "║  gaet - Database Backup & Sync CLI                   ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 
