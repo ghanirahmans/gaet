@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![Platform: Linux | macOS | Windows](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-supported-brightgreen.svg)]()
-[![v3.0.1](https://img.shields.io/badge/v3.0.1-blue?label=release)](CHANGELOG.md)
+[![v1.0.0 LTS](https://img.shields.io/badge/v1.0.0-LTS%20Release-blue?label=release)](SUPPORT.md)
 
 > **gaet** is a zero-dependency PostgreSQL backup and synchronization CLI tool. It handles snapshot retention, local-to-cloud pushes, fetches, and status reporting.
 

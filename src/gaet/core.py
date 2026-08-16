@@ -77,7 +77,7 @@ from pathlib import Path
 
 from typing import Any, Dict, List, Optional, Tuple
 
-VERSION = "3.0.2"
+VERSION = "1.0.0"
 
 NAME = "gaet"
 
