@@ -249,7 +249,16 @@
     .theme-toggle:hover { color: var(--text-primary); border-color: var(--border-accent); }
     
     .empty-state { text-align: center; padding: 36px 16px; color: var(--text-muted); }
-  </style>
+    
+    /* Input Groups & Config Cards */
+    .input-group { display: flex; gap: 8px; width: 100%; }
+    .input-group .form-control { flex: 1; }
+    .input-group .btn-icon { padding: 8px 12px; font-size: 14px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; }
+    .input-group .btn-icon:hover { border-color: var(--border-accent); color: var(--text-primary); }
+    .config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-top: 12px; }
+    .config-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+    .config-card .key { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .config-card .val { font-family: var(--font-mono); font-size: 13px; color: var(--text-primary); word-break: break-all; }
 </head>
 <body>
   <div class="app-container">
@@ -429,6 +438,116 @@
 
       <!-- TAB 4: SETTINGS & DIAGNOSTICS -->
       <div id="tab-settings" class="tab-content">
+        <!-- Active Configuration Read-Only Summary -->
+        <div class="section">
+          <div class="section-header">
+            <div>
+              <h2>⚙️ Active Configuration Summary</h2>
+              <p style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="envFilePath">Path: ~/.gaet/.env</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="toggleMaskBtn" onclick="toggleMasking()">
+              <span id="maskBtnIcon">👁️</span> <span id="maskBtnText">Show Passwords</span>
+            </button>
+          </div>
+          <div class="section-body">
+            <div id="configGrid" class="config-grid">
+              <div class="empty-state">Loading active configuration...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comprehensive Configuration Form Editor -->
+        <div class="section">
+          <div class="section-header">
+            <h2>✏️ Edit & Update Configuration</h2>
+          </div>
+          <div class="section-body">
+            <form id="configForm" onsubmit="saveConfig(event)">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:24px;">
+                
+                <!-- Group 1: Local DB -->
+                <div style="background:var(--bg-secondary);padding:20px;border-radius:var(--radius-sm);border:1px solid var(--border);">
+                  <h3 style="font-size:14px;color:var(--text-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                    <span>💾 Local Database Connection</span>
+                  </h3>
+                  <div class="form-group">
+                    <label>GAET_LOCAL_URL</label>
+                    <div class="input-group">
+                      <input type="password" class="form-control" id="cfgLocalUrl" placeholder="postgresql://postgres:pass@127.0.0.1:5432/postgres" />
+                      <button type="button" class="btn-icon" onclick="toggleInputVisibility('cfgLocalUrl', this)" title="Show/Hide Password">👁️</button>
+                    </div>
+                    <div class="form-hint">Local PostgreSQL connection string.</div>
+                  </div>
+                </div>
+
+                <!-- Group 2: Cloud DB -->
+                <div style="background:var(--bg-secondary);padding:20px;border-radius:var(--radius-sm);border:1px solid var(--border);">
+                  <h3 style="font-size:14px;color:var(--text-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                    <span>☁️ Cloud Database Target</span>
+                  </h3>
+                  <div class="form-group">
+                    <label>GAET_REMOTE_URL</label>
+                    <div class="input-group">
+                      <input type="password" class="form-control" id="cfgRemoteUrl" placeholder="postgresql://user:pass@ep-xyz.supabase.com:5432/postgres" />
+                      <button type="button" class="btn-icon" onclick="toggleInputVisibility('cfgRemoteUrl', this)" title="Show/Hide Password">👁️</button>
+                    </div>
+                    <div class="form-hint">Remote target connection string.</div>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label>GAET_REMOTE_SSLMODE</label>
+                    <select class="form-control" id="cfgSslMode">
+                      <option value="require">require (default, recommended)</option>
+                      <option value="prefer">prefer</option>
+                      <option value="disable">disable</option>
+                      <option value="allow">allow</option>
+                    </select>
+                    <div class="form-hint">SSL connection enforcement for cloud database.</div>
+                  </div>
+                </div>
+
+                <!-- Group 3: Retention & Filter Rules -->
+                <div style="background:var(--bg-secondary);padding:20px;border-radius:var(--radius-sm);border:1px solid var(--border);">
+                  <h3 style="font-size:14px;color:var(--text-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                    <span>⏰ Retention & Filter Rules</span>
+                  </h3>
+                  <div class="form-group">
+                    <label>GAET_RETENTION_DAYS</label>
+                    <input type="number" class="form-control" id="cfgRetention" placeholder="7" min="1" max="365" />
+                    <div class="form-hint">Number of days to keep dump files before auto-purging.</div>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label>GAET_TABLES (Optional)</label>
+                    <input type="text" class="form-control" id="cfgTables" placeholder="Auto-discover (or e.g. users,orders)" />
+                    <div class="form-hint">Leave blank for auto-discovery of all public tables.</div>
+                  </div>
+                </div>
+
+                <!-- Group 4: Dashboard & Daemon -->
+                <div style="background:var(--bg-secondary);padding:20px;border-radius:var(--radius-sm);border:1px solid var(--border);">
+                  <h3 style="font-size:14px;color:var(--text-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                    <span>🖥️ Dashboard & Daemon Settings</span>
+                  </h3>
+                  <div class="form-group">
+                    <label>GAET_DASHBOARD_PORT</label>
+                    <input type="number" class="form-control" id="cfgPort" placeholder="9191" />
+                    <div class="form-hint">Web dashboard HTTP listening port.</div>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label>GAET_DASHBOARD_HOST</label>
+                    <input type="text" class="form-control" id="cfgHost" placeholder="0.0.0.0" />
+                    <div class="form-hint">Interface binding host (0.0.0.0 or 127.0.0.1).</div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div style="margin-top:24px;display:flex;justify-content:flex-end;">
+                <button type="submit" class="btn btn-primary" id="saveConfigBtn">Save & Apply Configuration</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
         <!-- Diagnostic Checklist -->
         <div class="section">
           <div class="section-header">
@@ -437,36 +556,6 @@
           </div>
           <div class="section-body" id="checkBody">
             <div class="empty-state">Click 'Run Diagnostic' to check PostgreSQL tools & connections.</div>
-          </div>
-        </div>
-
-        <!-- Configuration Form -->
-        <div class="section">
-          <div class="section-header">
-            <h2>⚙️ Environment Configuration (.env)</h2>
-          </div>
-          <div class="section-body">
-            <form id="configForm" onsubmit="saveConfig(event)">
-              <div class="form-group">
-                <label>Cloud Database URL (GAET_REMOTE_URL)</label>
-                <input type="text" class="form-control" id="cfgRemoteUrl" placeholder="postgresql://user:pass@host:5432/dbname" />
-                <div class="form-hint">Target cloud PostgreSQL connection string.</div>
-              </div>
-
-              <div class="form-group">
-                <label>Local Database Connection (GAET_LOCAL_URL)</label>
-                <input type="text" class="form-control" id="cfgLocalUrl" placeholder="postgresql://postgres:@127.0.0.1:5432/postgres" />
-                <div class="form-hint">Local PostgreSQL database target.</div>
-              </div>
-
-              <div class="form-group">
-                <label>Backup Retention Period (Days)</label>
-                <input type="number" class="form-control" id="cfgRetention" placeholder="7" min="1" max="365" />
-                <div class="form-hint">Number of days to keep backup snapshot dump files before auto-purging.</div>
-              </div>
-
-              <button type="submit" class="btn btn-primary" id="saveConfigBtn">Save Configuration</button>
-            </form>
           </div>
         </div>
       </div>
@@ -721,14 +810,72 @@
       }
     }
 
+    let rawConfig = {};
+    let maskedConfig = {};
+    let isMaskedView = true;
+
+    function toggleMasking() {
+      isMaskedView = !isMaskedView;
+      document.getElementById('maskBtnIcon').textContent = isMaskedView ? '👁️' : '🙈';
+      document.getElementById('maskBtnText').textContent = isMaskedView ? 'Show Passwords' : 'Hide Passwords';
+      renderConfigGrid();
+    }
+
+    function toggleInputVisibility(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+      } else {
+        input.type = 'password';
+        btn.textContent = '👁️';
+      }
+    }
+
+    function renderConfigGrid() {
+      const grid = document.getElementById('configGrid');
+      const cfg = isMaskedView ? maskedConfig : rawConfig;
+      const keys = Object.keys(rawConfig);
+      
+      if (keys.length === 0) {
+        grid.innerHTML = '<div class="empty-state">No configuration variables defined in ~/.gaet/.env</div>';
+        return;
+      }
+      
+      grid.innerHTML = '';
+      keys.forEach(k => {
+        const val = cfg[k] ?? rawConfig[k] ?? '';
+        const card = document.createElement('div');
+        card.className = 'config-card';
+        card.innerHTML = `
+          <div class="key">${k}</div>
+          <div class="val">${val || '<span style="color:var(--text-muted)">Not set</span>'}</div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
     async function fetchConfig() {
       try {
         const r = await fetch('/api/config');
         const d = await r.json();
-        const cfg = d.config || {};
-        document.getElementById('cfgRemoteUrl').value = cfg.GAET_REMOTE_URL || '';
-        document.getElementById('cfgLocalUrl').value = cfg.GAET_LOCAL_URL || '';
-        document.getElementById('cfgRetention').value = cfg.GAET_RETENTION_DAYS || '7';
+        rawConfig = d.config || {};
+        maskedConfig = d.masked_config || rawConfig;
+        
+        if (d.env_file) {
+          document.getElementById('envFilePath').textContent = `Path: ${d.env_file}`;
+        }
+        
+        renderConfigGrid();
+
+        // Populate Form Fields
+        document.getElementById('cfgLocalUrl').value = rawConfig.GAET_LOCAL_URL || '';
+        document.getElementById('cfgRemoteUrl').value = rawConfig.GAET_REMOTE_URL || '';
+        document.getElementById('cfgSslMode').value = rawConfig.GAET_REMOTE_SSLMODE || 'require';
+        document.getElementById('cfgRetention').value = rawConfig.GAET_RETENTION_DAYS || '7';
+        document.getElementById('cfgTables').value = rawConfig.GAET_TABLES || '';
+        document.getElementById('cfgPort').value = rawConfig.GAET_DASHBOARD_PORT || '9191';
+        document.getElementById('cfgHost').value = rawConfig.GAET_DASHBOARD_HOST || '0.0.0.0';
       } catch (e) {
         console.error('Config fetch error:', e);
       }
@@ -742,9 +889,13 @@
 
       const payload = {
         config: {
-          GAET_REMOTE_URL: document.getElementById('cfgRemoteUrl').value,
-          GAET_LOCAL_URL: document.getElementById('cfgLocalUrl').value,
-          GAET_RETENTION_DAYS: document.getElementById('cfgRetention').value
+          GAET_LOCAL_URL: document.getElementById('cfgLocalUrl').value.trim(),
+          GAET_REMOTE_URL: document.getElementById('cfgRemoteUrl').value.trim(),
+          GAET_REMOTE_SSLMODE: document.getElementById('cfgSslMode').value,
+          GAET_RETENTION_DAYS: document.getElementById('cfgRetention').value.trim(),
+          GAET_TABLES: document.getElementById('cfgTables').value.trim(),
+          GAET_DASHBOARD_PORT: document.getElementById('cfgPort').value.trim(),
+          GAET_DASHBOARD_HOST: document.getElementById('cfgHost').value.trim(),
         }
       };
 
@@ -755,13 +906,18 @@
           body: JSON.stringify(payload)
         });
         const d = await r.json();
-        if (d.ok) showToast(d.msg, 'ok');
-        else showToast(d.msg, 'err');
+        if (d.ok) {
+          showToast(d.msg, 'ok');
+          fetchConfig();
+          fetchFullStatus();
+        } else {
+          showToast(d.msg, 'err');
+        }
       } catch (err) {
         showToast('Failed to save configuration', 'err');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Save Configuration';
+        btn.textContent = 'Save & Apply Configuration';
       }
     }
 

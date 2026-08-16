@@ -47,7 +47,7 @@ def mask_password_url(url_str: str) -> str:
     """Mask password in postgresql URL."""
     if not url_str:
         return ""
-    return re.sub(r'(://[^:]+:)[^@]+(@)', r'\1****\2', url_str)
+    return re.sub(r'(://[^:]+:)[^@]+(@)', r'\1••••••••\2', url_str)
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
@@ -141,12 +141,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     pass
 
             masked_config = dict(config_vars)
-            if "GAET_REMOTE_URL" in masked_config:
-                masked_config["GAET_REMOTE_URL_MASKED"] = mask_password_url(masked_config["GAET_REMOTE_URL"])
-            if "GAET_LOCAL_URL" in masked_config:
-                masked_config["GAET_LOCAL_URL_MASKED"] = mask_password_url(masked_config["GAET_LOCAL_URL"])
+            for k, v in masked_config.items():
+                if "URL" in k or "PASS" in k or "SECRET" in k:
+                    if "://" in v:
+                        masked_config[k] = mask_password_url(v)
+                    elif v:
+                        masked_config[k] = "••••••••"
 
-            self.send_json(200, {"config": masked_config, "env_file": str(ENV_FILE)})
+            self.send_json(200, {
+                "config": config_vars,
+                "masked_config": masked_config,
+                "env_file": str(ENV_FILE)
+            })
             return
 
         # ── API Endpoint: Snapshot Download ────────────────────────────────
