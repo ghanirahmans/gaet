@@ -854,8 +854,15 @@ def cmd_completion(args: argparse.Namespace) -> None:
     """Generate shell completions."""
     shell = args.shell
     # completions live beside the install root: ~/.local/bin/completions when
-    # installed, repo-root/completions when running from source checkout.
-    script_dir = Path(__file__).resolve().parent.parent / "completions"
+    # installed, <repo>/completions when running from a source checkout
+    # (src-layout: __file__ = <root>/src/gaet/status.py, so candidates are
+    # .parent.parent for installed and .parent.parent.parent for source).
+    _here = Path(__file__).resolve().parent
+    script_dir = next(
+        (c / "completions" for c in (_here.parent, _here.parent.parent)
+         if (c / "completions").is_dir()),
+        _here.parent / "completions",
+    )
     shell_files = {"bash": "gaet.bash", "zsh": "gaet.zsh", "fish": "gaet.fish"}
 
     if shell:

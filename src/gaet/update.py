@@ -200,6 +200,12 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
     files = [
         ("gaet.py", "gaet"),
     ]
+    # v3 src-layout: the shim needs the src/gaet package beside it.
+    pkg_files = [
+        "__init__.py", "__main__.py", "registry.py", "cli.py", "core.py",
+        "detect.py", "init.py", "config.py", "status.py", "backup.py",
+        "scheduler.py", "log.py", "serve.py", "export.py", "update.py",
+    ]
     script_files = ["__init__.py", "status.py", "scheduler.py", "service_manager.py", "installer.py"]
 
     for src, dst in files:
@@ -212,6 +218,19 @@ def _update_download(install_dir: Path, skip_build: bool = False) -> None:
             status_ok(f"{dst} → {dest_path}")
         except Exception as e:
             die(f"Failed to download {src}: {e}")
+
+    # Download the gaet package (src/gaet/*.py) into gaet_pkg/
+    # (a dir named `gaet/` beside the `gaet` binary is impossible on disk)
+    pkg_dst = install_dir / "gaet_pkg" / "gaet"
+    pkg_dst.mkdir(parents=True, exist_ok=True)
+    for pf in pkg_files:
+        url = f"{GITHUB_API}/src/gaet/{pf}?ref=master"
+        try:
+            data = _gh_download(url)
+            (pkg_dst / pf).write_bytes(data)
+            status_ok(f"src/gaet/{pf} → {pkg_dst}/")
+        except Exception as e:
+            status_warn(f"Failed to download src/gaet/{pf}: {e}")
 
     # Download scripts
     scripts_dst = install_dir / "scripts"
@@ -359,6 +378,16 @@ def cmd_update(args: argparse.Namespace) -> None:
         shutil.copy2(str(src), str(dst))
         dst.chmod(0o755) if not IS_WINDOWS else None
         status_ok(f"gaet → {dst}")
+
+    # v3 src-layout: copy the gaet package dir into gaet_pkg/ (shim imports
+    # it; `gaet/` beside the `gaet` binary is impossible on disk)
+    pkg_src = project_dir / "src" / "gaet"
+    if pkg_src.is_dir():
+        pkg_dst = install_dir / "gaet_pkg" / "gaet"
+        pkg_dst.mkdir(parents=True, exist_ok=True)
+        for pf in pkg_src.glob("*.py"):
+            shutil.copy2(str(pf), str(pkg_dst / pf.name))
+        status_ok(f"src/gaet → {pkg_dst}")
     
     # Copy scripts if exists
     scripts_src = project_dir / "scripts"

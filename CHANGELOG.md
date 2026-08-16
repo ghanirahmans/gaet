@@ -2,6 +2,26 @@
 
 All notable changes to gaet are documented here.
 
+## [3.0.1] — 2026-08-16
+
+### Changed
+- **src-layout:** the `gaet/` package moved to `src/gaet/` (standard Python
+  project layout). Repo root now holds only the entry shim (`gaet.py`),
+  docs, `dashboard/`, `scripts/`, and `tests/` — no source dirs mixed in.
+- `pyproject.toml`: `package-dir = {"" = "src"}` so `pip install .` exposes
+  exactly the `gaet` package.
+- `install.sh` / `_update_download` / copy-from-project: now download/copy
+  the `src/gaet/*.py` package into `~/.local/bin/gaet_pkg/gaet/`, fixing a
+  v3 regression where a curl-install got the shim but no package (`import
+  gaet` failed). The package dir is named `gaet_pkg` because a dir `gaet/`
+  next to the `gaet` binary is impossible on disk (file/dir name clash).
+  `tests/test_gaet.py` prefers `src/` on sys.path so `python -m unittest
+  discover -s tests` needs no `PYTHONPATH`.
+
+### Fixed
+- Fresh `curl | bash` install after the v3 package split silently produced a
+  broken binary (shim without package) — installer now fetches both.
+
 ## [3.0.0] — 2026-08-16
 
 ### Changed

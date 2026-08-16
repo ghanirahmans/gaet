@@ -67,7 +67,20 @@ api_json=$(curl -sSL "$API_BASE/gaet.py?ref=master")
 if echo "$api_json" | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if 'content' in d else 1)" 2>/dev/null; then
     echo "$api_json" | "$PYTHON" -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" > "$GAET_DIR/gaet"
     chmod +x "$GAET_DIR/gaet"
-    echo " OK"
+    # v3 layout: gaet.py is a shim importing the src/gaet package.
+    # Download the package into gaet_pkg/ (a dir named `gaet/` next to the
+    # `gaet` binary is impossible — file and dir can't share a name).
+    PKG_OK=0
+    for f in __init__.py __main__.py registry.py cli.py core.py detect.py init.py \
+             config.py status.py backup.py scheduler.py log.py serve.py export.py update.py; do
+        pkg_json=$(curl -sSL "$API_BASE/src/gaet/$f?ref=master")
+        if echo "$pkg_json" | "$PYTHON" -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if 'content' in d else 1)" 2>/dev/null; then
+            mkdir -p "$GAET_DIR/gaet_pkg"
+            echo "$pkg_json" | "$PYTHON" -c "import json,sys,base64; print(base64.b64decode(json.load(sys.stdin)['content']).decode(),end='')" > "$GAET_DIR/gaet_pkg/gaet/$f"
+            PKG_OK=$((PKG_OK+1))
+        fi
+    done
+    echo " OK (cli + $PKG_OK package files)"
 else
     err_msg=$(echo "$api_json" | "$PYTHON" -c "import json,sys; print(json.load(sys.stdin).get('message','API error'))" 2>/dev/null || echo "unknown error")
     echo " FAILED"

@@ -2,28 +2,53 @@
 
 import argparse
 import sys
-from .core import C, DEF_AUTO_INTERVAL, DEF_SERVICE_PREFIX, NC, Path, _svc_available, _svc_mod, argparse, box_title, die, echo, get_env_int, get_env_str, get_scheduler_name, load_env, scheduler_disable, scheduler_enable, status_arrow, status_fail, status_info, status_ok, status_warn, sys
+
+# Service backend lives in scripts/service_manager.py (downloaded alongside the
+# package by install.sh / update). Import lazily with a clear fallback so the
+# scheduler commands fail gracefully if scripts/ is missing.
+try:
+    from scripts.service_manager import (
+        service_is_running,
+        service_start,
+        service_status,
+        service_stop,
+    )
+except ImportError:
+    service_start = service_stop = service_is_running = service_status = None
+
+from .core import (
+    C, DEF_AUTO_INTERVAL, DEF_SERVICE_PREFIX, NC, Path, _svc_available,
+    argparse, box_title, die, echo, get_env_int, get_env_str,
+    get_scheduler_name, load_env, scheduler_disable, scheduler_enable,
+    status_arrow, status_fail, status_info, status_ok, status_warn, sys,
+)
+from .registry import command
+
 
 def _svc_start(dashboard_dir=None, port=9191, host="0.0.0.0", foreground=False):
-    if _svc_available:
-        return _svc_mod.service_start(dashboard_dir, port, host, foreground)
+    if _svc_available and service_start is not None:
+        return service_start(dashboard_dir, port, host, foreground)
     print("  ⚠  service_manager module tidak tersedia. Jalankan dari folder proyek.")
     return False, "module not found"
 
+
 def _svc_stop():
-    if _svc_available:
-        return _svc_mod.service_stop()
+    if _svc_available and service_stop is not None:
+        return service_stop()
     return True, "module not loaded"
 
+
 def _svc_is_running():
-    if _svc_available:
-        return _svc_mod.service_is_running()
+    if _svc_available and service_is_running is not None:
+        return service_is_running()
     return False
 
+
 def _svc_status():
-    if _svc_available:
-        return _svc_mod.service_status()
+    if _svc_available and service_status is not None:
+        return service_status()
     return {"running": False, "platform": "unknown", "pid": None}
+
 
 def cmd_auto_on(args: argparse.Namespace) -> None:
     """Enable auto-backup."""
@@ -54,6 +79,7 @@ def cmd_auto_on(args: argparse.Namespace) -> None:
         status_fail("Failed to enable auto-backup")
         status_warn("On this system, enable auto-backup manually.")
         echo()
+
 
 def cmd_stop_auto(args: argparse.Namespace) -> None:
     """Stop auto-backup &/or dashboard."""
@@ -93,6 +119,7 @@ def cmd_stop_auto(args: argparse.Namespace) -> None:
         else:
             status_warn(f"Gagal menghentikan dashboard: {msg}")
 
+
 # -- registry (gaetway) ------------------------------------------------------------------
 from .registry import command
 
@@ -105,4 +132,3 @@ def _build_stop_parser(subparsers, common):
 
 
 command("stop", "Stop auto-backup or dashboard", build=_build_stop_parser)(cmd_stop_auto)
-

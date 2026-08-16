@@ -5,7 +5,10 @@ import sys
 import unittest
 from pathlib import Path
 
+# src-layout: prefer the src/gaet package over the root gaet.py shim.
+# Insertion order matters — root must be added FIRST so src lands ahead of it.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from gaet import (
     parse_remote_url,
