@@ -1,36 +1,131 @@
-"""cmd_get / cmd_set — environment config access."""
+"""cmd_get / cmd_set — environment config access with rich schema reference."""
 
 import argparse
 import os
 import re
-from .core import B, C, D, ENV_FILE, GAET_DIR, IS_WINDOWS, NAME, NC, Y, argparse, box_title, die, echo, load_env, os, re, status_info, status_ok, status_warn
+from typing import Dict, Any
+
+from .core import (
+    B, C, D, ENV_FILE, GAET_DIR, IS_WINDOWS, NAME, NC, Y, G, R,
+    box_title, box_section, die, echo, load_env, status_info, status_ok, status_warn, status_arrow,
+)
+
+CONFIG_SCHEMA: Dict[str, Dict[str, str]] = {
+    "GAET_LOCAL_URL": {
+        "type": "URL",
+        "default": "127.0.0.1:5432",
+        "desc": "URL koneksi lengkap ke PostgreSQL lokal",
+        "example": "postgresql://user:pass@127.0.0.1:5432/mydb",
+    },
+    "GAET_LOCAL_DB_HOST": {
+        "type": "String",
+        "default": "127.0.0.1",
+        "desc": "Host atau path Unix domain socket PostgreSQL lokal",
+        "example": "127.0.0.1 atau /run/postgresql",
+    },
+    "GAET_LOCAL_DB_PORT": {
+        "type": "Integer",
+        "default": "5432",
+        "desc": "Port listener PostgreSQL lokal",
+        "example": "5432",
+    },
+    "GAET_LOCAL_DB_USER": {
+        "type": "String",
+        "default": "postgres",
+        "desc": "Username database PostgreSQL lokal",
+        "example": "postgres",
+    },
+    "GAET_LOCAL_DB_NAME": {
+        "type": "String",
+        "default": "postgres",
+        "desc": "Nama database PostgreSQL lokal yang di-sync/backup",
+        "example": "my_app_db",
+    },
+    "GAET_LOCAL_DB_PASS": {
+        "type": "String",
+        "default": "(kosong)",
+        "desc": "Password autentikasi PostgreSQL lokal",
+        "example": "mysecretpass",
+    },
+    "GAET_REMOTE_URL": {
+        "type": "URL",
+        "default": "(kosong)",
+        "desc": "Connection String PostgreSQL Remote Cloud (Supabase/Neon/RDS)",
+        "example": "postgresql://user:pass@ep-host.region.aws.neon.tech:5432/neondb",
+    },
+    "GAET_REMOTE_SSLMODE": {
+        "type": "String",
+        "default": "require",
+        "desc": "Mode SSL/TLS koneksi cloud (require / verify-full / disable)",
+        "example": "require",
+    },
+    "GAET_RETENTION_DAYS": {
+        "type": "Integer",
+        "default": "7",
+        "desc": "Jumlah hari simpan file backup .dump sebelum auto-cleanup",
+        "example": "14",
+    },
+    "GAET_PG_TIMEOUT": {
+        "type": "Integer",
+        "default": "3600",
+        "desc": "Timeout maksimal (detik) eksekusi pg_dump & pg_restore",
+        "example": "1800",
+    },
+    "GAET_TABLES": {
+        "type": "String",
+        "default": "(semua)",
+        "desc": "Filter nama tabel spesifik dipisah koma",
+        "example": "users,orders,products",
+    },
+}
+
+
+def show_config_schema() -> None:
+    """Print a clean visual reference table of all supported configuration keys."""
+    box_title(f"{NAME} Configuration Keys Reference")
+    echo(f"  {B}{'Key Konfigurasi':<22} {'Tipe':<8} {'Default':<12} {'Fungsi & Deskripsi'}{NC}")
+    echo(f"  {D}{'─'*22} {'─'*8} {'─'*12} {'─'*35}{NC}")
+
+    for key, info in CONFIG_SCHEMA.items():
+        echo(f"  {C}{key:<22}{NC} {Y}{info['type']:<8}{NC} {D}{info['default']:<12}{NC} {info['desc']}")
+        echo(f"    {D}Set: gaet set {key}={info['example']}{NC}")
+        echo()
+    status_info("Gunakan: gaet set KEY=value untuk mengubah variabel")
+    echo()
+
 
 def cmd_get(args: argparse.Namespace) -> None:
     """Get environment variables from .env file.
-    
+
     Usage:
-      gaet get                 Show all variables
+      gaet get                 Show all configured variables
+      gaet get --list          List all available configuration keys & descriptions
       gaet get KEY             Show specific key
-      gaet get KEY1 KEY2 ...   Show multiple keys
     """
-    env = load_env()
-    
-    if not env:
-        status_warn("No .env file found or file is empty")
+    if getattr(args, "list", False):
+        show_config_schema()
         return
-    
+
+    env = load_env()
+
+    if not env:
+        status_warn(f"Belum ada file config di {ENV_FILE}")
+        echo(f"  {D}Jalankan 'gaet init' atau 'gaet get --list' untuk melihat opsi key.{NC}")
+        echo()
+        return
+
     box_title(f"{NAME} get")
-    
+
     # Determine which keys to show
-    if hasattr(args, 'keys') and args.keys:
+    if hasattr(args, "keys") and args.keys:
         keys_to_show = args.keys
     else:
         keys_to_show = sorted(env.keys())
-    
+
     # Display variables
     found_count = 0
     not_found = []
-    
+
     for key in keys_to_show:
         if key in env:
             value = env[key]
@@ -41,25 +136,31 @@ def cmd_get(args: argparse.Namespace) -> None:
                     display_value = value[:10] + "***" + value[-5:]
                 else:
                     display_value = "***"
-            status_ok(f"{C}{key}{NC}  =  {display_value}")
+            status_ok(f"{C}{key:<22}{NC} = {display_value}")
             found_count += 1
         else:
             not_found.append(key)
-    
-    # Report not found keys
+
+    # Report not found keys with helpful hints from schema if available
     if not_found:
+        echo()
         for key in not_found:
-            status_warn(f"{key} not found")
-    
+            if key in CONFIG_SCHEMA:
+                schema = CONFIG_SCHEMA[key]
+                echo(f"  {Y}ℹ {key:<20}{NC} {D}(belum diset — default: {schema['default']}){NC}")
+                status_arrow(f"Set dengan: gaet set {key}={schema['example']}")
+            else:
+                status_warn(f"Key '{key}' tidak ditemukan di .env")
+
     echo()
-    if hasattr(args, 'keys') and args.keys:
-        # User requested specific keys
+    if hasattr(args, "keys") and args.keys:
         if found_count > 0:
-            status_info(f"Showing {found_count} of {len(keys_to_show)} requested variables")
+            status_info(f"Menampilkan {found_count} dari {len(keys_to_show)} variabel")
     else:
-        # Show all
-        status_info(f"Total {found_count} variables configured")
+        status_info(f"Total {found_count} variabel dikonfigurasi di {ENV_FILE}")
+        echo(f"  {D}Ketik 'gaet get --list' untuk melihat referensi seluruh key.{NC}")
     echo()
+
 
 def cmd_set(args: argparse.Namespace) -> None:
     """Set environment variables in .env file.
@@ -70,23 +171,8 @@ def cmd_set(args: argparse.Namespace) -> None:
       gaet set GAET_REMOTE_URL=postgres://...
       gaet set KEY=           # empty value = delete key
     """
-    if not args.variables:
-        box_title(f"{NAME} set")
-        echo(f"  {B}Set environment variables{NC}")
-        echo()
-        echo(f"  {D}Contoh:{NC}")
-        echo(f"    gaet set GAET_LOCAL_URL=postgresql://user:***@127.0.0.1:5432/db")
-        echo(f"    gaet set GAET_REMOTE_URL=postgresql://user:***@db.xxx.supabase.co:5432/postgres")
-        echo(f"    gaet set GAET_RETENTION_DAYS=14")
-        echo(f"    gaet set GAET_TABLES=users,posts,comments")
-        echo()
-        echo(f"  {D}Bisa beberapa sekaligus:{NC}")
-        echo(f"    gaet set KEY1=v1 KEY2=v2")
-        echo()
-        echo(f"  {D}Hapus key:{NC}")
-        echo(f"    gaet set KEY=")
-        echo()
-        echo(f"  {D}Lihat semua: gaet get   |   Edit interaktif: gaet init{NC}")
+    if getattr(args, "list", False) or not args.variables:
+        show_config_schema()
         return
 
     # Ensure .env directory exists
@@ -100,12 +186,12 @@ def cmd_set(args: argparse.Namespace) -> None:
     deletions = set()
     for var in args.variables:
         if "=" not in var:
-            die(f"Invalid format: {var}. Use KEY=value")
+            die(f"Format tidak valid: {var}. Gunakan format KEY=value (contoh: gaet set GAET_RETENTION_DAYS=14)")
         key, value = var.split("=", 1)
         key = key.strip()
         value = value.strip()
         if not key:
-            die("Key cannot be empty")
+            die("Key tidak boleh kosong")
         if value == "":
             # Empty value = delete
             deletions.add(key)
@@ -167,14 +253,15 @@ def cmd_set(args: argparse.Namespace) -> None:
                 display_value = value[:10] + "***" + value[-5:]
             else:
                 display_value = "***"
-        status_ok(f"{C}{key}{NC}  =  {display_value}")
+        status_ok(f"{C}{key:<22}{NC} = {display_value}")
     for key in deletions:
         if key in updates:
             continue  # already shown above
-        status_ok(f"{C}{key}{NC}  =  {Y}(deleted){NC}")
+        status_ok(f"{C}{key:<22}{NC} = {Y}(deleted){NC}")
     echo()
-    status_info(f"Config saved: {ENV_FILE}")
+    status_info(f"Config tersimpan di: {ENV_FILE}")
     echo()
+
 
 # -- registry (gaetway) ------------------------------------------------------------------
 from .registry import command
@@ -183,16 +270,17 @@ from .registry import command
 def _build_get_parser(subparsers, common):
     p = subparsers.add_parser("get", help="Get environment variables", parents=[common])
     p.add_argument("keys", nargs="*", default=[], help="Keys to retrieve (if empty, shows all)")
+    p.add_argument("--list", "-l", action="store_true", help="Tampilkan seluruh daftar key konfigurasi yang didukung")
     return p
 
 
 def _build_set_parser(subparsers, common):
     p = subparsers.add_parser("set", help="Set environment variables", parents=[common])
     p.add_argument("variables", nargs="*", default=[],
-                   help="Variables to set (format: KEY=value). Empty to show examples.")
+                   help="Variables to set (format: KEY=value). Run without args to see reference.")
+    p.add_argument("--list", "-l", action="store_true", help="Tampilkan seluruh daftar key konfigurasi yang didukung")
     return p
 
 
 command("get", "Get environment variables", build=_build_get_parser)(cmd_get)
 command("set", "Set environment variables", build=_build_set_parser)(cmd_set)
-
