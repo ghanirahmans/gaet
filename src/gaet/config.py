@@ -1,96 +1,71 @@
-"""cmd_get / cmd_set — environment config access with rich schema reference."""
+"""cmd_get / cmd_set — environment config access with clean schema reference."""
 
 import argparse
 import os
 import re
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from .core import (
     B, C, D, ENV_FILE, GAET_DIR, IS_WINDOWS, NAME, NC, Y, G, R,
     box_title, box_section, die, echo, load_env, status_info, status_ok, status_warn, status_arrow,
 )
 
+CONFIG_CATEGORIES: List[Dict[str, Any]] = [
+    {
+        "category": "💾 Database Lokal",
+        "keys": [
+            ("GAET_LOCAL_URL", "URL", "URL koneksi lengkap (postgresql://user:pass@host:port/db)"),
+            ("GAET_LOCAL_DB_HOST", "String", "Host / socket path PostgreSQL (default: 127.0.0.1)"),
+            ("GAET_LOCAL_DB_PORT", "Int", "Port listener PostgreSQL (default: 5432)"),
+            ("GAET_LOCAL_DB_USER", "String", "Username database lokal (default: postgres)"),
+            ("GAET_LOCAL_DB_NAME", "String", "Nama database lokal yang di-backup (default: postgres)"),
+            ("GAET_LOCAL_DB_PASS", "String", "Password autentikasi PostgreSQL lokal"),
+        ],
+    },
+    {
+        "category": "☁️ Cloud Remote",
+        "keys": [
+            ("GAET_REMOTE_URL", "URL", "URL PostgreSQL Cloud (Supabase, Neon, RDS, VPS)"),
+            ("GAET_REMOTE_SSLMODE", "String", "Mode SSL koneksi cloud (default: require)"),
+        ],
+    },
+    {
+        "category": "⚙️ Backup & Opsi",
+        "keys": [
+            ("GAET_RETENTION_DAYS", "Int", "Retensi simpan file backup .dump (default: 7 hari)"),
+            ("GAET_PG_TIMEOUT", "Int", "Timeout maksimal (detik) pg_dump & pg_restore (default: 3600)"),
+            ("GAET_TABLES", "String", "Filter nama tabel spesifik dipisah koma (default: semua)"),
+        ],
+    },
+]
+
+# Quick lookup schema dict for single key lookup
 CONFIG_SCHEMA: Dict[str, Dict[str, str]] = {
-    "GAET_LOCAL_URL": {
-        "type": "URL",
-        "default": "127.0.0.1:5432",
-        "desc": "URL koneksi lengkap ke PostgreSQL lokal",
-        "example": "postgresql://user:pass@127.0.0.1:5432/mydb",
-    },
-    "GAET_LOCAL_DB_HOST": {
-        "type": "String",
-        "default": "127.0.0.1",
-        "desc": "Host atau path Unix domain socket PostgreSQL lokal",
-        "example": "127.0.0.1 atau /run/postgresql",
-    },
-    "GAET_LOCAL_DB_PORT": {
-        "type": "Integer",
-        "default": "5432",
-        "desc": "Port listener PostgreSQL lokal",
-        "example": "5432",
-    },
-    "GAET_LOCAL_DB_USER": {
-        "type": "String",
-        "default": "postgres",
-        "desc": "Username database PostgreSQL lokal",
-        "example": "postgres",
-    },
-    "GAET_LOCAL_DB_NAME": {
-        "type": "String",
-        "default": "postgres",
-        "desc": "Nama database PostgreSQL lokal yang di-sync/backup",
-        "example": "my_app_db",
-    },
-    "GAET_LOCAL_DB_PASS": {
-        "type": "String",
-        "default": "(kosong)",
-        "desc": "Password autentikasi PostgreSQL lokal",
-        "example": "mysecretpass",
-    },
-    "GAET_REMOTE_URL": {
-        "type": "URL",
-        "default": "(kosong)",
-        "desc": "Connection String PostgreSQL Remote Cloud (Supabase/Neon/RDS)",
-        "example": "postgresql://user:pass@ep-host.region.aws.neon.tech:5432/neondb",
-    },
-    "GAET_REMOTE_SSLMODE": {
-        "type": "String",
-        "default": "require",
-        "desc": "Mode SSL/TLS koneksi cloud (require / verify-full / disable)",
-        "example": "require",
-    },
-    "GAET_RETENTION_DAYS": {
-        "type": "Integer",
-        "default": "7",
-        "desc": "Jumlah hari simpan file backup .dump sebelum auto-cleanup",
-        "example": "14",
-    },
-    "GAET_PG_TIMEOUT": {
-        "type": "Integer",
-        "default": "3600",
-        "desc": "Timeout maksimal (detik) eksekusi pg_dump & pg_restore",
-        "example": "1800",
-    },
-    "GAET_TABLES": {
-        "type": "String",
-        "default": "(semua)",
-        "desc": "Filter nama tabel spesifik dipisah koma",
-        "example": "users,orders,products",
-    },
+    "GAET_LOCAL_URL": {"type": "URL", "default": "127.0.0.1:5432", "desc": "URL koneksi lengkap ke PostgreSQL lokal", "example": "postgresql://user:pass@127.0.0.1:5432/mydb"},
+    "GAET_LOCAL_DB_HOST": {"type": "String", "default": "127.0.0.1", "desc": "Host atau path Unix domain socket PostgreSQL lokal", "example": "127.0.0.1"},
+    "GAET_LOCAL_DB_PORT": {"type": "Integer", "default": "5432", "desc": "Port listener PostgreSQL lokal", "example": "5432"},
+    "GAET_LOCAL_DB_USER": {"type": "String", "default": "postgres", "desc": "Username database PostgreSQL lokal", "example": "postgres"},
+    "GAET_LOCAL_DB_NAME": {"type": "String", "default": "postgres", "desc": "Nama database PostgreSQL lokal yang di-sync/backup", "example": "my_app_db"},
+    "GAET_LOCAL_DB_PASS": {"type": "String", "default": "(kosong)", "desc": "Password autentikasi PostgreSQL lokal", "example": "mysecretpass"},
+    "GAET_REMOTE_URL": {"type": "URL", "default": "(kosong)", "desc": "Connection String PostgreSQL Remote Cloud (Supabase/Neon/RDS)", "example": "postgresql://user:pass@ep-host.region.aws.neon.tech:5432/neondb"},
+    "GAET_REMOTE_SSLMODE": {"type": "String", "default": "require", "desc": "Mode SSL/TLS koneksi cloud (require / verify-full / disable)", "example": "require"},
+    "GAET_RETENTION_DAYS": {"type": "Integer", "default": "7", "desc": "Jumlah hari simpan file backup .dump sebelum auto-cleanup", "example": "14"},
+    "GAET_PG_TIMEOUT": {"type": "Integer", "default": "3600", "desc": "Timeout maksimal (detik) eksekusi pg_dump & pg_restore", "example": "1800"},
+    "GAET_TABLES": {"type": "String", "default": "(semua)", "desc": "Filter nama tabel spesifik dipisah koma", "example": "users,orders,products"},
 }
 
 
 def show_config_schema() -> None:
-    """Print a clean visual reference table of all supported configuration keys."""
-    box_title(f"{NAME} Configuration Keys Reference")
-    echo(f"  {B}{'Key Konfigurasi':<22} {'Tipe':<8} {'Default':<12} {'Fungsi & Deskripsi'}{NC}")
-    echo(f"  {D}{'─'*22} {'─'*8} {'─'*12} {'─'*35}{NC}")
+    """Print a clean, grouped visual reference table of all supported configuration keys."""
+    box_title(f"{NAME} Config Reference")
 
-    for key, info in CONFIG_SCHEMA.items():
-        echo(f"  {C}{key:<22}{NC} {Y}{info['type']:<8}{NC} {D}{info['default']:<12}{NC} {info['desc']}")
-        echo(f"    {D}Set: gaet set {key}={info['example']}{NC}")
+    for group in CONFIG_CATEGORIES:
+        box_section(group["category"])
+        for key, ktype, desc in group["keys"]:
+            echo(f"  {C}{key:<22}{NC} {Y}[{ktype:<6}]{NC} {desc}")
         echo()
-    status_info("Gunakan: gaet set KEY=value untuk mengubah variabel")
+
+    status_info(f"Cara ubah: {C}gaet set KEY=value{NC}  |  Contoh: {D}gaet set GAET_RETENTION_DAYS=14{NC}")
     echo()
 
 
@@ -147,7 +122,7 @@ def cmd_get(args: argparse.Namespace) -> None:
         for key in not_found:
             if key in CONFIG_SCHEMA:
                 schema = CONFIG_SCHEMA[key]
-                echo(f"  {Y}ℹ {key:<20}{NC} {D}(belum diset — default: {schema['default']}){NC}")
+                echo(f"  {Y}[INFO] {key:<20}{NC} {D}(belum diset — default: {schema['default']}){NC}")
                 status_arrow(f"Set dengan: gaet set {key}={schema['example']}")
             else:
                 status_warn(f"Key '{key}' tidak ditemukan di .env")
