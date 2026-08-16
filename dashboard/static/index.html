@@ -41,20 +41,87 @@
     }
     [data-theme="light"] {
       --bg-primary: #f8fafc;
-      --bg-secondary: #f1f5f9;
-      --bg-card: rgba(255, 255, 255, 0.9);
+      --bg-secondary: #ffffff;
+      --bg-card: rgba(255, 255, 255, 0.95);
       --bg-card-hover: #ffffff;
-      --border: rgba(0, 0, 0, 0.08);
-      --border-accent: rgba(59, 151, 151, 0.4);
+      --border: rgba(226, 232, 240, 0.85);
+      --border-accent: rgba(59, 151, 151, 0.45);
       --text-primary: #0f172a;
       --text-secondary: #475569;
-      --text-muted: #94a3b8;
+      --text-muted: #64748b;
       --accent: #2b7a7a;
       --accent-hover: #1e5959;
       --crimson: #901b39;
-      --crimson-bg: rgba(144, 27, 57, 0.1);
+      --crimson-bg: rgba(144, 27, 57, 0.08);
       --purple: #901b39;
-      --purple-bg: rgba(144, 27, 57, 0.1);
+      --purple-bg: rgba(144, 27, 57, 0.08);
+    }
+
+    [data-theme="light"] body {
+      background: radial-gradient(circle at 10% 10%, rgba(59, 151, 151, 0.06) 0%, transparent 40%),
+                  radial-gradient(circle at 90% 90%, rgba(174, 36, 72, 0.04) 0%, transparent 40%),
+                  #f8fafc;
+    }
+
+    [data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); }
+
+    [data-theme="light"] .header {
+      background: rgba(255, 255, 255, 0.9);
+      border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .tab-btn:hover { background: rgba(59, 151, 151, 0.08); color: #0f172a; }
+    [data-theme="light"] .tab-btn.active { background: rgba(59, 151, 151, 0.12); color: #2b7a7a; border-color: rgba(59, 151, 151, 0.35); }
+
+    [data-theme="light"] .stat-card,
+    [data-theme="light"] .section,
+    [data-theme="light"] .settings-hero,
+    [data-theme="light"] .settings-nav,
+    [data-theme="light"] .settings-section,
+    [data-theme="light"] .modal-content {
+      background: #ffffff;
+      border-color: rgba(226, 232, 240, 1);
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    }
+
+    [data-theme="light"] .stat-card:hover {
+      border-color: rgba(59, 151, 151, 0.5);
+      box-shadow: 0 10px 25px rgba(59, 151, 151, 0.12);
+    }
+
+    [data-theme="light"] .data-table th {
+      background: #f1f5f9;
+      color: #475569;
+      border-bottom-color: #e2e8f0;
+    }
+
+    [data-theme="light"] .data-table td {
+      border-bottom-color: #e2e8f0;
+      color: #0f172a;
+    }
+
+    [data-theme="light"] .data-table tbody tr:hover {
+      background: rgba(59, 151, 151, 0.05);
+    }
+
+    [data-theme="light"] .form-control-styled,
+    [data-theme="light"] .form-control {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #0f172a;
+    }
+
+    [data-theme="light"] footer {
+      background: rgba(255, 255, 255, 0.9) !important;
+      border-top-color: #e2e8f0 !important;
+      color: #64748b !important;
+    }
+
+    [data-theme="light"] footer code {
+      background: rgba(59, 151, 151, 0.1);
+      color: #2b7a7a !important;
+      border-color: rgba(59, 151, 151, 0.25);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
