@@ -46,7 +46,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 # ─── Version ──────────────────────────────────────────────────────────────
-VERSION = "2.0.0"
+VERSION = "2.0.1"
 NAME = "gaet"
 
 # ─── OS Detection ─────────────────────────────────────────────────────────
@@ -245,9 +245,7 @@ def acquire_lock() -> None:
         if _lock_is_stale():
             try:
                 # Remove stale lock (dir + pid file) and retry
-                import shutil as _sh
-
-                _sh.rmtree(LOCK_PATH)
+                shutil.rmtree(LOCK_PATH, ignore_errors=True)
             except OSError:
                 pass
             try:
@@ -665,6 +663,108 @@ def safe_getpass(prompt: str) -> str:
         return ""
 
 
+def _is_socket_host(h: str) -> bool:
+    """True when the host value is a Unix socket directory (starts with '/').
+
+    Socket paths cannot be encoded in a postgres:// URL — they must be
+    stored as individual GAET_LOCAL_DB_* variables instead (git's config is
+    also path-aware: `.git/config` is never a URL for local paths).
+    """
+    return bool(h) and h.startswith("/")
+
+
+def _local_config_lines(h, p, u, n, w) -> Tuple[str, str, str]:
+    """Build the local-database section of ~/.gaet/.env.
+
+    Returns (local_lines, pass_line, tables_note):
+      - Host is a socket dir  → individual GAET_LOCAL_DB_* vars (URL can't
+        encode a path with '/'); connection keeps working via psql -h <dir>.
+      - Host is TCP/IP        → compact GAET_LOCAL_URL (git-style default).
+    """
+    if _is_socket_host(h):
+        # Socket path: cannot live in a connection URL. Write individual
+        # variables so load_env/get_local_db round-trips correctly.
+        local_lines = (
+            f"GAET_LOCAL_DB_HOST={h}\n"
+            f"GAET_LOCAL_DB_PORT={p}\n"
+            f"GAET_LOCAL_DB_USER={u}\n"
+            f"GAET_LOCAL_DB_NAME={n}"
+        )
+    else:
+        local_url = f"postgresql://{u}@{h}:{p}/{n}"
+        local_lines = f"GAET_LOCAL_URL={local_url}"
+    if w:
+        pass_line = f"GAET_LOCAL_DB_PASS={w}"
+    else:
+        pass_line = "# GAET_LOCAL_DB_PASS="
+    return local_lines, pass_line, ""
+
+
+def _write_env_file(content: str) -> None:
+    """Atomically write ~/.gaet/.env with 0600 permissions."""
+    fd = os.open(str(ENV_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(content)
+
+
+def _ensure_git_workspace() -> bool:
+    """Make ~/.gaet a versioned workspace the way `git init` sets up a repo.
+
+    Secrets live in .env, which is git-ignored (exactly like .git/config is
+    local-only), so initializing a repo here never leaks credentials. The
+    repo tracks .gitignore + any non-secret scaffolding, giving config
+    history and `gaet update` a clean baseline.
+
+    Returns True when git is available and the workspace is (or was made
+    into) a repository; False otherwise (git missing — non-fatal).
+    """
+    git = shutil.which("git")
+    if not git:
+        return False
+    try:
+        # Workspace dir must exist before `git init` (like `git init` in a
+        # fresh directory — gaet init ensures both dir and repo).
+        GAET_DIR.mkdir(parents=True, exist_ok=True)
+        git_dir = GAET_DIR / ".git"
+        if not git_dir.exists():
+            run_cmd([git, "-C", str(GAET_DIR), "init", "-q"], timeout=10)
+        gi = GAET_DIR / ".gitignore"
+        gi_content = (
+            "# gaet workspace — secrets & data stay local (like .git/config)\n"
+            ".env\n"
+            ".env.backup.*\n"
+            "backups/\n"
+            "*.dump\n"
+            "*.log\n"
+            ".gaet.lock/\n"
+        )
+        if not gi.is_file() or gi.read_text(encoding="utf-8") != gi_content:
+            gi.write_text(gi_content, encoding="utf-8")
+        # Ensure git user identity exists BEFORE any commit so fresh
+        # environments (no global user.name/email) don't abort it.
+        ident = run_cmd(
+            [git, "-C", str(GAET_DIR), "config", "user.email"], timeout=5
+        )[0].strip()
+        if not ident:
+            run_cmd([git, "-C", str(GAET_DIR), "config", "user.name", "gaet"], timeout=5)
+            run_cmd(
+                [git, "-C", str(GAET_DIR), "config", "user.email", "gaet@localhost"],
+                timeout=5,
+            )
+        # Commit only tracked scaffolding; .env is ignored so nothing
+        # sensitive ever lands in history.
+        out, _, rc = run_cmd([git, "-C", str(GAET_DIR), "status", "--porcelain"], timeout=10)
+        if rc == 0 and out.strip():
+            run_cmd([git, "-C", str(GAET_DIR), "add", ".gitignore"], timeout=10)
+            run_cmd(
+                [git, "-C", str(GAET_DIR), "commit", "-q", "-m", "chore: init gaet workspace"],
+                timeout=10,
+            )
+        return True
+    except OSError:
+        return False
+
+
 def _save_init_config(h, p, u, n, w, remote_url, retention_days):
     """Save config from non-interactive init mode."""
     GAET_DIR.mkdir(parents=True, exist_ok=True)
@@ -678,15 +778,9 @@ def _save_init_config(h, p, u, n, w, remote_url, retention_days):
             status_info(f"Old config backed up to: {backup_path}")
         except OSError:
             pass
-    
-    # Build local URL without password
-    if w:
-        local_url = f"postgresql://{u}@{h}:{p}/{n}"
-        pass_line = f"GAET_LOCAL_DB_PASS={w}"
-    else:
-        local_url = f"postgresql://{u}@{h}:{p}/{n}"
-        pass_line = "# GAET_LOCAL_DB_PASS="
-    
+
+    local_lines, pass_line, _ = _local_config_lines(h, p, u, n, w)
+
     env_content = textwrap.dedent(f"""\
         # ══════════════════════════════════════════════════════════════
         # gaet — Konfigurasi (auto-generated)
@@ -695,7 +789,7 @@ def _save_init_config(h, p, u, n, w, remote_url, retention_days):
         # ══════════════════════════════════════════════════════════════
 
         # Local Database
-        GAET_LOCAL_URL={local_url}
+        {local_lines}
         {pass_line}
 
         # Remote Database (Cloud)
@@ -704,13 +798,13 @@ def _save_init_config(h, p, u, n, w, remote_url, retention_days):
         # Backup
         GAET_RETENTION_DAYS={retention_days}
         """)
-    
-    fd = os.open(str(ENV_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, 'w') as f:
-        f.write(env_content)
-    
+
+    _write_env_file(env_content)
+
     echo()
     status_ok(f"Config saved to {ENV_FILE}")
+    if _ensure_git_workspace():
+        status_ok(f"Workspace versioned with git ({GAET_DIR})")
     echo()
     box_section("Summary")
     env = load_env()
@@ -1691,15 +1785,27 @@ def cmd_diff(args: argparse.Namespace) -> None:
 
 
 def cmd_export(args: argparse.Namespace) -> None:
-    """Export config as shell-compatible env vars."""
+    """Export config as shell-compatible env vars.
+
+    Values are exported verbatim so `eval $(gaet export)` works (like
+    `git config --list` returns real values): an exported but masked
+    password would silently break every downstream command. A warning is
+    printed to stderr so the secret never lands in a captured stdout log
+    without the user knowing.
+    """
     env = load_env()
     if not env:
         echo(f"  {Y}No config found. Run: gaet init{NC}")
         return
+    sensitive = [k for k in env if "pass" in k.lower() and env[k]]
+    if sensitive:
+        print(
+            f"gaet: warning — exporting {len(sensitive)} secret(s); "
+            "keep this output private (use `> file` with 0600 perms).",
+            file=sys.stderr,
+        )
     for key in sorted(env.keys()):
         val = env[key]
-        if "pass" in key.lower() and val:
-            val = "***"
         echo(f"export {key}={val}")
 
 
@@ -2011,13 +2117,9 @@ def cmd_init(args: argparse.Namespace) -> None:
         if preset and "tables" in preset:
             tables_line = f"GAET_TABLES={preset['tables']}"
 
-        # Build local URL without password in the URL string
-        if w:
-            local_url = f"postgresql://{u}@{h}:{p}/{n}"
-            pass_line = f"GAET_LOCAL_DB_PASS={w}"
-        else:
-            local_url = f"postgresql://{u}@{h}:{p}/{n}"
-            pass_line = "# GAET_LOCAL_DB_PASS="
+        # Build local config lines — socket hosts become individual vars
+        # (see _local_config_lines); URL form used for TCP/IP hosts.
+        local_lines, pass_line, _ = _local_config_lines(h, p, u, n, w)
 
         env_content = textwrap.dedent(f"""\
         # ══════════════════════════════════════════════════════════════
@@ -2027,7 +2129,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         # ══════════════════════════════════════════════════════════════
 
         # Local Database
-        GAET_LOCAL_URL={local_url}
+        {local_lines}
         {pass_line}
 
         # Remote Database (Cloud)
@@ -2037,11 +2139,12 @@ def cmd_init(args: argparse.Namespace) -> None:
         GAET_RETENTION_DAYS={ret}
         {tables_line}""")
 
-        fd = os.open(str(ENV_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, 'w') as f:
-            f.write(env_content)
+        _write_env_file(env_content)
         echo()
         status_ok(f"Config saved to {ENV_FILE}")
+
+    if _ensure_git_workspace():
+        status_ok(f"Workspace versioned with git ({GAET_DIR})")
 
     echo()
     box_section("Summary")
@@ -3101,24 +3204,25 @@ def cmd_log(args: argparse.Namespace) -> None:
     follow = getattr(args, "follow", False)
 
     if follow:
-        # tail -f style: poll log file and print new lines
+        # tail -f style: poll log files and print new lines (each file
+        # keeps its own cursor — LOG_FILE and CRON_LOG advance separately)
         echo(f"  {D}Following log (Ctrl+C to stop){NC}")
         echo()
-        last_pos = 0
+        positions = {str(LOG_FILE): 0, str(CRON_LOG): 0}
         try:
             while True:
                 for src in [LOG_FILE, CRON_LOG]:
                     if src.is_file():
                         with open(str(src), "r", encoding="utf-8", errors="replace") as f:
-                            f.seek(last_pos)
+                            f.seek(positions[str(src)])
                             new_lines = f.readlines()
+                            positions[str(src)] = f.tell()
                             for line in new_lines:
                                 if filter_str and filter_str.lower() not in line.lower():
                                     continue
                                 if since_str and not (line.startswith(f"[{since_str}") or since_str in line):
                                     continue
                                 echo(f"  {D}│{NC} {line.rstrip()}")
-                            last_pos = f.tell()
                 time.sleep(1)
         except KeyboardInterrupt:
             echo(f"\n  {D}Follow stopped.{NC}")

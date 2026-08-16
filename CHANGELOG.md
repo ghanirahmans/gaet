@@ -2,6 +2,26 @@
 
 All notable changes to gaet are documented here.
 
+## [2.0.1] — 2026-08-16
+
+### Added
+- `gaet init` now turns `~/.gaet` into a **git-versioned workspace** (like `git init`):
+  `.gitignore` keeps secrets (`.env`) and data (`backups/`, `*.dump`, lock) out of
+  history; scaffolding gets an initial commit so config evolution is traceable.
+- Socket-host configs (`/run/postgresql`, etc.) are stored as individual
+  `GAET_LOCAL_DB_*` variables instead of an unparseable connection URL.
+
+### Fixed
+- `gaet init` with a detected Unix socket wrote an invalid `GAET_LOCAL_URL`
+  that could not be parsed back by `get_local_db` — now round-trips correctly.
+- `gaet log --follow` mixed cursors between `gaet.log` and `cron.log`
+  (duplicate/missed lines) — each file now tracks its own position.
+- `gaet export` masked passwords as `***`, producing shell output that would
+  silently break `eval $(gaet export)` — values are now exported verbatim,
+  with a warning to stderr that secrets are included.
+- Stale-lock cleanup uses `shutil.rmtree(ignore_errors=True)` (no stray
+  crash from a half-removed lock dir).
+
 ## [2.0.0 LTS] — 2026-08-15
 
 Long-Term Support release. Supported until at least 2027.

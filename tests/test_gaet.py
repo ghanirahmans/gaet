@@ -12,6 +12,9 @@ from gaet import (
     mask_url_password,
     get_env_str,
     get_env_int,
+    get_local_db,
+    _is_socket_host,
+    _local_config_lines,
 )
 
 
@@ -117,6 +120,48 @@ class TestGetEnvInt(unittest.TestCase):
 
     def test_empty_value_returns_default(self):
         self.assertEqual(get_env_int({"KEY": ""}, "KEY", 10), 10)
+
+
+class TestLocalConfigLines(unittest.TestCase):
+    """Regression tests for the socket-host config fix (v2.0.1)."""
+
+    def test_tcp_host_uses_url(self):
+        lines, pass_line, _ = _local_config_lines("127.0.0.1", "5432", "postgres", "mydb", "")
+        self.assertIn("GAET_LOCAL_URL=postgresql://postgres@127.0.0.1:5432/mydb", lines)
+        self.assertNotIn("GAET_LOCAL_DB_HOST", lines)
+        self.assertTrue(pass_line.startswith("#"))
+
+    def test_socket_host_uses_individual_vars(self):
+        lines, pass_line, _ = _local_config_lines("/run/postgresql", "5432", "pg", "appdb", "s3cret")
+        # A socket path cannot be encoded in a postgres:// URL — individual
+        # vars must be written instead (v2.0.1 regression fix).
+        self.assertNotIn("GAET_LOCAL_URL", lines)
+        self.assertIn("GAET_LOCAL_DB_HOST=/run/postgresql", lines)
+        self.assertIn("GAET_LOCAL_DB_PORT=5432", lines)
+        self.assertIn("GAET_LOCAL_DB_USER=pg", lines)
+        self.assertIn("GAET_LOCAL_DB_NAME=appdb", lines)
+        self.assertEqual(pass_line, "GAET_LOCAL_DB_PASS=s3cret")
+
+    def test_socket_config_roundtrips_through_get_local_db(self):
+        """The config written for a socket host must parse back correctly."""
+        env = {
+            "GAET_LOCAL_DB_HOST": "/var/run/postgresql",
+            "GAET_LOCAL_DB_PORT": "5433",
+            "GAET_LOCAL_DB_USER": "postgres",
+            "GAET_LOCAL_DB_NAME": "mydb",
+            "GAET_LOCAL_DB_PASS": "pw",
+        }
+        h, p, u, n, w = get_local_db(env)
+        self.assertEqual(h, "/var/run/postgresql")
+        self.assertEqual(p, "5433")
+        self.assertEqual(u, "postgres")
+        self.assertEqual(n, "mydb")
+        self.assertEqual(w, "pw")
+
+    def test_is_socket_host(self):
+        self.assertTrue(_is_socket_host("/run/postgresql"))
+        self.assertFalse(_is_socket_host("127.0.0.1"))
+        self.assertFalse(_is_socket_host(""))
 
 
 if __name__ == "__main__":

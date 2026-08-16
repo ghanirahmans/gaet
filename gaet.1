@@ -123,8 +123,13 @@ gaet completion \-\-shell bash   # Install bash completions
 .fi
 .SH FILES
 .TP
+.I ~/.gaet/
+gaet workspace. When git is available, `gaet init` versions this
+directory (`.gitignore` keeps `.env`, `backups/`, and lock files out of
+history — secrets never enter git).
+.TP
 .I ~/.gaet/.env
-Configuration file (created with 0600 permissions).
+Configuration file (created with 0600 permissions; git\\-ignored).
 .TP
 .I ~/.gaet/backups/
 Local backup storage directory.

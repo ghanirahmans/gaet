@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![Platform: Linux | macOS | Windows](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-supported-brightgreen.svg)]()
-[![v2.0.0 LTS](https://img.shields.io/badge/v2.0.0--lts-blue?label=LTS)](CHANGELOG.md)
+[![v2.0.1](https://img.shields.io/badge/v2.0.1-blue?label=release)](CHANGELOG.md)
 
 Backup PostgreSQL to any cloud instance. Zero external dependencies. Cross-platform support.
 
@@ -78,7 +78,7 @@ python gaet.py --help
 
 ```bash
 gaet --version
-# Output: gaet v2.0.0
+# Output: gaet v2.0.1
 
 gaet doctor
 # Comprehensive health check
@@ -258,7 +258,7 @@ flowchart LR
 
 ```
 gaet/
-├── gaet.py                    # CLI (~3900 lines, pure stdlib)
+├── gaet.py                    # CLI (~4200 lines, pure stdlib)
 ├── dashboard/
 │   ├── server.py              # Python HTTP server (no Node.js needed)
 │   └── static/index.html      # Web UI
@@ -324,7 +324,7 @@ See [SECURITY.md](SECURITY.md) for detailed security information.
 |----------|---------|-------------|
 | `GAET_LOCAL_DB_HOST` | `localhost` | Local PostgreSQL host |
 | `GAET_LOCAL_DB_PORT` | `5432` | Local PostgreSQL port |
-| `GAET_LOCAL_DB_NAME` | `gaetlocaltest` | Local database name |
+| `GAET_LOCAL_DB_NAME` | `postgres` | Local database name |
 | `GAET_LOCAL_DB_USER` | `postgres` | Local database user |
 | `GAET_LOCAL_DB_PASS` | — | Local database password |
 | `GAET_REMOTE_URL` | — | Cloud PostgreSQL connection URL |
