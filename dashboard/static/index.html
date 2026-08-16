@@ -759,7 +759,7 @@
               <span class="badge" id="syncBadge">—</span>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-              <button class="btn btn-primary btn-sm" id="pushBtn" onclick="doAction('push', 'Pushing to Cloud...', '↑ Push to Cloud')">↑ Push to Cloud</button>
+              <button class="btn btn-primary btn-sm" id="pushBtn" onclick="doAction('push', 'Pushing All Tables...', '↑ Push All Tables')" title="Push all tracked tables to cloud target">↑ Push All Tables</button>
               <button class="btn btn-secondary btn-sm" id="fetchBtn" onclick="doAction('fetch', 'Fetching from Cloud...', '↓ Fetch from Cloud')">↓ Fetch from Cloud</button>
               <button class="btn btn-secondary btn-sm" onclick="runDiffAnalysis()" title="Run detailed gaet diff CLI comparison">🔍 Diff Analysis</button>
               <button class="btn btn-secondary btn-sm" onclick="doAction('push?dry_run=1', 'Simulating push...', '⚡ Dry Run')" title="Simulate push without modifying data">⚡ Dry Run</button>
@@ -1414,7 +1414,7 @@
               <button class="btn btn-secondary btn-xs" onclick="inspectTable('${t.table}', ${t.local || 0}, ${t.supabase || 0})" title="Inspect table details">🔍 Inspect</button>
               ${isOk 
                 ? `<span style="color:var(--text-muted);font-size:11px;">✓ Synced</span>`
-                : `<button class="btn btn-primary btn-xs" onclick="doAction('push', 'Pushing data...', '↑ Push Sync')" title="Push local changes to cloud">↑ Sync</button>`}
+                : `<button class="btn btn-primary btn-xs" onclick="doAction('push?table=' + encodeURIComponent('${t.table}'), 'Syncing ${t.table}...', '↑ Sync Table')" title="Sync local changes for table ${t.table} only">↑ Sync Table</button>`}
             </div>
           </td>
         `;
@@ -1942,7 +1942,7 @@
         </div>
         <div style="display:flex; gap:10px; justify-content:flex-end;">
           <button class="btn btn-secondary btn-sm" onclick="closeModal('tableModal'); runDiffAnalysis();">🔍 Detailed Diff</button>
-          <button class="btn btn-primary btn-sm" onclick="closeModal('tableModal'); doAction('push', 'Syncing cloud data...', '↑ Sync Cloud');">↑ Sync Cloud</button>
+          <button class="btn btn-primary btn-sm" onclick="closeModal('tableModal'); doAction('push?table=' + encodeURIComponent('${name}'), 'Syncing table ${name}...', '↑ Sync Table');">↑ Sync Table (${name})</button>
         </div>
       `;
 

@@ -33,12 +33,15 @@ STATIC_DIR = SCRIPT_DIR / "static"
 PUBLIC_DIR = SCRIPT_DIR / "public"
 
 
-def run_gaet(args: list[str]) -> tuple[int, str, str]:
+def run_gaet(args: list[str], env_override: dict = None) -> tuple[int, str, str]:
     """Run gaet command and return (rc, stdout, stderr)."""
     import subprocess
+    env = dict(os.environ)
+    if env_override:
+        env.update(env_override)
     r = subprocess.run(
         GAET_CMD + args,
-        capture_output=True, text=True, timeout=120
+        capture_output=True, text=True, timeout=120, env=env
     )
     return r.returncode, r.stdout, r.stderr
 
@@ -289,20 +292,33 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if path == "/api/push":
             auto = params.get("auto", [None])[0] or body_data.get("auto")
             dry_run = body_data.get("dry_run", False) or params.get("dry_run", [False])[0]
+            table = params.get("table", [None])[0] or body_data.get("table")
             args = ["push"]
             if dry_run:
                 args.append("--dry-run")
             elif auto:
                 args.extend(["--auto", str(auto)])
-            rc, out, err = run_gaet(args)
-            msg = "Push dry-run completed!" if dry_run else ("Cloud push complete!" if rc == 0 else f"Push failed: {err or out}")
+
+            env_override = {}
+            if table:
+                env_override["GAET_TABLES"] = str(table)
+
+            rc, out, err = run_gaet(args, env_override=env_override if env_override else None)
+            target_str = f"table '{table}'" if table else "all tables"
+            msg = f"Push dry-run for {target_str} completed!" if dry_run else (f"Cloud push for {target_str} complete!" if rc == 0 else f"Push failed: {err or out}")
             self.send_json(200, {"ok": rc == 0, "msg": msg, "output": out})
             return
 
         # ── API Endpoint: Fetch ─────────────────────────────────────────────
         if path == "/api/fetch":
-            rc, out, err = run_gaet(["fetch", "--yes"])
-            msg = "Cloud fetch complete!" if rc == 0 else f"Fetch failed: {err or out}"
+            table = params.get("table", [None])[0] or body_data.get("table")
+            env_override = {}
+            if table:
+                env_override["GAET_TABLES"] = str(table)
+
+            rc, out, err = run_gaet(["fetch", "--yes"], env_override=env_override if env_override else None)
+            target_str = f"table '{table}'" if table else "all tables"
+            msg = f"Cloud fetch for {target_str} complete!" if rc == 0 else f"Fetch failed: {err or out}"
             self.send_json(200, {"ok": rc == 0, "msg": msg, "output": out})
             return
 
