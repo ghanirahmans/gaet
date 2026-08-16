@@ -15,6 +15,7 @@ from .core import (
     status_arrow,
     status_info,
     set_output_modes,
+    print_docs_footer,
     C, G, Y, D, B, NC,
     DEF_RETENTION_DAYS,
 )
@@ -81,7 +82,7 @@ def cmd_snapshots(args: argparse.Namespace) -> None:
     echo()
     status_info(f"Auto-retention: {retention} days")
     status_info(f"Run: {C}gaet restore <filename.dump>{NC} to restore a snapshot")
-    echo()
+    print_docs_footer()
 
 
 def _build_snapshots_parser(subparsers, common):

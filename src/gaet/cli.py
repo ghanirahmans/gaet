@@ -37,6 +37,7 @@ from .core import (
     emit_help_json,
     get_env_int,
     load_env,
+    print_docs_footer,
     set_output_modes,
     status_info,
     suggest_command,
@@ -210,7 +211,7 @@ def _run_cli() -> None:
         echo(f"    {C}gaet --help{NC}        List all commands")
         echo(f"    {C}gaet help push{NC}     Push command details")
         echo(f"    {C}gaet doctor{NC}        Comprehensive health check")
-        echo()
+        print_docs_footer()
         sys.exit(0)
 
     # Set defaults for attributes that may not exist on main parser

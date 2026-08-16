@@ -179,6 +179,20 @@ EXIT_LOCKED = 83
 
 EXIT_TOOLS = 84
 
+DOCS_URL = "https://github.com/ghanirahmans/gaet"
+
+TROUBLESHOOTING_URL = "https://github.com/ghanirahmans/gaet/blob/main/TROUBLESHOOTING.md"
+
+def print_docs_footer(doc_type: str = "main") -> None:
+    """Print clean CLI documentation footer unless output is quiet/plain/piped."""
+    if is_plain() or QUIET:
+        return
+    echo()
+    if doc_type == "troubleshooting":
+        echo(f"  {D}💡 Troubleshooting guide:{NC} {C}{TROUBLESHOOTING_URL}{NC}")
+    else:
+        echo(f"  {D}📖 Documentation & Support:{NC} {C}{DOCS_URL}{NC}")
+
 def set_output_modes(quiet: bool, plain: bool) -> None:
     """Configure global QUIET/PLAIN from parsed args."""
     global QUIET, PLAIN
@@ -192,6 +206,8 @@ def is_plain() -> bool:
 def die(msg: str, code: int = 1) -> None:
     """Print error and exit."""
     print(f"  {R}{ICON_FAIL}{NC}  {msg}", file=sys.stderr)
+    if not is_plain() and not QUIET:
+        print(f"  {D}💡 Troubleshooting guide:{NC} {C}{TROUBLESHOOTING_URL}{NC}\n", file=sys.stderr)
     sys.exit(code)
 
 def log(msg: str) -> None:
