@@ -312,10 +312,11 @@ def get_status():
                                      tables)
     remote_counts = {}
     su = parse_url(cfg["remote_url"])
-    if all(su):
+    if su and su[2] and su[4]:
         user, pw, host, port, db = su
+        ssl_mode = None if host.startswith("/") else "require"
         remote_counts = get_table_counts(psql, host, port, user, db, pw,
-                                          tables, ssl_mode="require")
+                                          tables, ssl_mode=ssl_mode)
 
     result_tables = []
     all_ok = True
@@ -357,10 +358,11 @@ def get_status():
         local_size = out + " MB"
 
     remote_size = "?"
-    if all(su) and remote_counts:
+    if su and su[2] and su[4] and remote_counts:
         user, pw, host, port, db = su
         env_rm = _pgpass_env(user, pw)
-        env_rm["PGSSLMODE"] = "require"
+        if not host.startswith("/"):
+            env_rm["PGSSLMODE"] = "require"
         out, _, _ = sh([psql, "-h", host, "-p", port, "-U", user, "-d", db, "-tAc",
                          "SELECT round(pg_database_size(current_database())/1024.0/1024.0,1)"],
                         env=env_rm, timeout=15)
