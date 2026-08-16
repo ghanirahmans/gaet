@@ -12,14 +12,16 @@ $GAET_CONFIG = "$env:USERPROFILE\.gaet"
 # Use TLS 1.2 for GitHub
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+$GAET_BRANCH = if ($env:GAET_BRANCH) { $env:GAET_BRANCH } else { "lts/v1.0" }
+
 # Resolve commit SHA dynamically to bypass GitHub raw CDN 5-minute cache
 try {
-    $commitResp = Invoke-RestMethod -Uri "https://api.github.com/repos/ghanirahmans/gaet/commits/master" -UseBasicParsing -ErrorAction SilentlyContinue
+    $commitResp = Invoke-RestMethod -Uri "https://api.github.com/repos/ghanirahmans/gaet/commits/$GAET_BRANCH" -UseBasicParsing -ErrorAction SilentlyContinue
     $commitSha = $commitResp.sha
 } catch {
-    $commitSha = "master"
+    $commitSha = $GAET_BRANCH
 }
-if (-not $commitSha) { $commitSha = "master" }
+if (-not $commitSha) { $commitSha = $GAET_BRANCH }
 $GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/$commitSha"
 
 Write-Host ""

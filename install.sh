@@ -8,10 +8,11 @@ set -eo pipefail
 
 GAET_DIR="$HOME/.local/bin"
 GAET_CONFIG="$HOME/.gaet"
+GAET_BRANCH="${GAET_BRANCH:-lts/v1.0}"
 # Resolve commit SHA dynamically to bypass GitHub raw CDN 5-minute cache
-COMMIT_SHA=$(curl -fsSL https://api.github.com/repos/ghanirahmans/gaet/commits/master 2>/dev/null | grep '"sha"' | head -n1 | cut -d'"' -f4 || true)
+COMMIT_SHA=$(curl -fsSL https://api.github.com/repos/ghanirahmans/gaet/commits/$GAET_BRANCH 2>/dev/null | grep '"sha"' | head -n1 | cut -d'"' -f4 || true)
 if [ -z "$COMMIT_SHA" ]; then
-    COMMIT_SHA="master"
+    COMMIT_SHA="$GAET_BRANCH"
 fi
 RAW_BASE="https://raw.githubusercontent.com/ghanirahmans/gaet/$COMMIT_SHA"
 
