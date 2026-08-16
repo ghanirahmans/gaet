@@ -124,21 +124,29 @@ _USE_COLOR = (sys.stdout.isatty() or _FORCE_COLOR) and not _NO_COLOR
 
 if _USE_COLOR:
     R = "\033[0;31m"
+    BR = "\033[1;31m"
     G = "\033[0;32m"
+    BG = "\033[1;32m"
     Y = "\033[1;33m"
+    BY = "\033[1;33m"
     C = "\033[0;36m"
+    BC = "\033[1;36m"
+    M = "\033[0;35m"
+    BM = "\033[1;35m"
+    BL = "\033[0;34m"
+    BBL = "\033[1;34m"
     B = "\033[1m"
     D = "\033[2m"
     W = "\033[1;37m"
     NC = "\033[0m"
-    ICON_OK = "[ OK ]"
-    ICON_FAIL = "[FAIL]"
-    ICON_WARN = "[WARN]"
-    ICON_INFO = "[INFO]"
-    ICON_ARROW = "[NOTE]"
-    ICON_STAR = "[STAR]"
+    ICON_OK = f"{BG}[ OK ]{NC}"
+    ICON_FAIL = f"{BR}[FAIL]{NC}"
+    ICON_WARN = f"{BY}[WARN]{NC}"
+    ICON_INFO = f"{BC}[INFO]{NC}"
+    ICON_ARROW = f"{BM}[NOTE]{NC}"
+    ICON_STAR = f"{BY}[STAR]{NC}"
 else:
-    R = G = Y = C = B = D = W = NC = ""
+    R = BR = G = BG = Y = BY = C = BC = M = BM = BL = BBL = B = D = W = NC = ""
     ICON_OK = "[ OK ]"
     ICON_FAIL = "[FAIL]"
     ICON_WARN = "[WARN]"
@@ -904,19 +912,19 @@ def box_section(title: str) -> None:
     echo(f"  {C}─{NC} {B}{title}{NC}")
 
 def status_ok(msg: str) -> None:
-    echo(f"  {G}{ICON_OK}{NC}  {msg}")
+    echo(f"  {ICON_OK}  {msg}")
 
 def status_fail(msg: str) -> None:
-    echo(f"  {R}{ICON_FAIL}{NC}  {msg}")
+    echo(f"  {ICON_FAIL}  {msg}")
 
 def status_warn(msg: str) -> None:
-    echo(f"  {Y}{ICON_WARN}{NC}  {msg}")
+    echo(f"  {ICON_WARN}  {msg}")
 
 def status_info(msg: str) -> None:
-    echo(f"  {C}{ICON_INFO}{NC}  {msg}")
+    echo(f"  {ICON_INFO}  {msg}")
 
 def status_arrow(msg: str) -> None:
-    echo(f"  {D}{ICON_ARROW}{NC}  {msg}")
+    echo(f"  {ICON_ARROW}  {msg}")
 
 def draw_table(headers: str, rows: List[str]) -> None:
     """
