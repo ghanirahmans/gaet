@@ -1310,15 +1310,6 @@
       </div>
     </header>
 
-    <!-- Active Operation Progress Banner -->
-    <div id="opProgress" class="op-progress-bar">
-      <div class="op-progress-info">
-        <span class="spin-anim">⚙️</span>
-        <span id="opProgressText">Executing operation...</span>
-      </div>
-      <span class="status-tag tag-ok" style="font-size:10px; padding:2px 6px;">[ ACTIVE RUN ]</span>
-    </div>
-
     <!-- Global Connection Alert Banner -->
     <div id="globalBanner"
       style="display:none; background:rgba(239, 68, 68, 0.14); border:1px solid rgba(239, 68, 68, 0.35); border-radius:var(--radius-md); padding:12px 18px; margin-bottom:20px; font-size:12.5px; color:#f87171; justify-content:space-between; align-items:center;">
@@ -1875,14 +1866,7 @@
     }
 
     function setOpProgress(active, text = '') {
-      const bar = document.getElementById('opProgress');
-      const txt = document.getElementById('opProgressText');
-      if (active) {
-        txt.textContent = text;
-        bar.style.display = 'flex';
-      } else {
-        bar.style.display = 'none';
-      }
+      // Operation status is handled cleanly inside dedicated execution modals
     }
 
     function fmt(n) {
