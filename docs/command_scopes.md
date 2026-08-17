@@ -1,78 +1,77 @@
 # Gaet CLI — Architecture & Comprehensive Command Scope Specification
 
-This document strictly defines the scope, responsibilities, input/output behaviors, and boundaries for **all 18 CLI commands in `gaet`** to ensure total transparency, reliability, and consistent *Git-style* command-line aesthetics.
+This document defines the scope, responsibilities, input/output behaviors, and operational boundaries for the **subcommands in `gaet`** to ensure reliability, predictability, and Git-style CLI consistency.
 
 ---
 
-## 📐 4 Core Pillars of Gaet Command Architecture
+## Core Principles of Gaet Command Architecture
 
-1. **Single Responsibility Principle (SRP)**: Each command handles exactly one specific task. `check` never runs the `init` wizard, `push` never prompts for interactive setup, etc.
-2. **Zero Surprises (Git Parity)**: Read-only commands (`status`, `check`, `diff`, `doctor`, `log`, `snapshots`, `get`, `export`) are **STRICTLY NON-INTERACTIVE**. They never prompt for input, modify `.env` files, or hang the terminal.
-3. **Graceful Failures**: If an error occurs (such as database connection failure or invalid credentials), the CLI terminates immediately (< 0.1s) with appropriate exit codes and human-readable explanation badges.
-4. **Safety Guards**: Destructive operations (`fetch` overwriting local database, `restore` dropping tables, `uninstall` purging system files) **MUST** require explicit interactive confirmation or demand the `--yes` flag in non-TTY / CI environments.
-
----
-
-## 📋 Comprehensive Command Scope Matrix (18 Commands)
-
-### 🚀 Category 1: Setup & Lifecycle
-
-| Command | Scope & Responsibility | Command Type | Interactive Input? | Failure & Exit Code Expectation | Strict Boundaries |
-|---|---|---|---|---|---|
-| **`gaet init`** | Interactive setup wizard, `.env` file initialization, and git-versioned workspace setup (`~/.gaet` or `GAET_DIR`). | Setup / Wizard | **YES** (Numbered selection menu) | Non-zero on user cancel (Ctrl+C) / IO error | **Only** command allowed to execute interactive wizard prompts and write new `.env` templates. |
-| **`gaet install`** | Installs `gaet` executable binary and symlinks to system PATH (`/usr/local/bin`). | System Install | **NO** (Unless sudo required) | Non-zero if permission denied | Never touches database connections. Handles binary installation only. |
-| **`gaet update`** | Updates `gaet` CLI source code/package to latest version from GitHub/PyPI. | System Update | **NO** | Non-zero if git/network fails | Updates CLI code only; never mutates `.env` variables. |
-| **`gaet uninstall`**| Removes `gaet` binary, symlinks, auto-backup timers, and config directory. | Destructive System | **YES** (`y/N` prompt) / `--yes` flag | Non-zero if cancelled | Requires explicit confirmation before removing files/services. |
+1. **Single Responsibility Principle (SRP)**: Each command performs one specific task. `check` never runs the `init` wizard, and `push` never prompts for interactive setup.
+2. **Zero Surprises (Git Parity)**: Read-only commands (`status`, `check`, `diff`, `doctor`, `log`, `snapshots`, `get`, `export`) are **strictly non-interactive**. They never prompt for user input or mutate environment files.
+3. **Deterministic Failures**: If an error occurs (such as an unreachable database host or invalid credentials), the CLI exits immediately with standard exit codes and actionable diagnostic messages.
+4. **Safety Guards**: Destructive operations (`fetch` overwriting local database, `restore` dropping local schema, `uninstall` purging configuration/backups) **require explicit confirmation in interactive TTY mode** or demand the `-y` / `--yes` flag in non-interactive/CI pipelines.
 
 ---
 
-### 🔄 Category 2: Data Synchronization
+## Command Scope Matrix
 
-| Command | Scope & Responsibility | Command Type | Interactive Input? | Failure & Exit Code Expectation | Strict Boundaries |
-|---|---|---|---|---|---|
-| **`gaet push`** | Executes `pg_dump` on local DB and restores to Remote Cloud DB. | Data Sync (Mutate Remote) | **NO** (Except `--auto` option) | `EXIT_LOCAL_DOWN` (81) / `EXIT_CLOUD_DOWN` (82) | Aborts immediately if local/cloud DB is unreachable. **Never** triggers `init` wizard. |
-| **`gaet fetch`** | Executes `pg_dump` on Remote Cloud DB and restores to Local DB (overwrites!). | Data Sync (Mutate Local) | **YES** (Type `yes`) / `--yes` in CI | `EXIT_LOCAL_DOWN` (81) / `EXIT_CLOUD_DOWN` (82) | **Destructive to local DB**. Requires `yes` in TTY. Rejects execution in non-TTY without `--yes`. |
-| **`gaet restore`** | Restores local DB from a specific local snapshot `.dump` file (default: latest). | Local Snapshot Restore | **YES** (Type `yes`) / `--yes` in CI | `EXIT_LOCAL_DOWN` (81) / `EXIT_CONFIG` (80) | **Destructive to local DB**. Instant offline rollback from local snapshot. Requires confirmation in TTY. |
+### Category 1: Setup & System Lifecycle
 
----
-
-### 📊 Category 3: Status, Diagnostics & History (Read-Only)
-
-| Command | Scope & Responsibility | Command Type | Interactive Input? | Failure & Exit Code Expectation | Strict Boundaries |
-|---|---|---|---|---|---|
-| **`gaet status`** | Displays sync status summary, table count, DB size, and auto-backup state. | Read-Only Summary | **NO** (100% Non-interactive) | `0` (or `EXIT_CONFIG` if missing `.env`) | 100% read-only. Never prompts for input or passwords. |
-| **`gaet check`** | Instant diagnostic check for PostgreSQL tools, `.env`, DB connections, and backup folder. | Read-Only Diagnostic | **NO** (100% Non-interactive) | Non-zero if any check FAILS | Uses `-w` (`--no-password`). Suggests `gaet init` without running wizard. |
-| **`gaet diff`** | Per-table row count comparison between Local DB and Cloud DB. | Read-Only Comparison | **NO** (100% Non-interactive) | Non-zero if connection fails | Safely queries table metadata without modifying data. |
-| **`gaet doctor`** | In-depth system health report (OS, file permissions, connection, tool dependencies). | Read-Only Diagnostic | **NO** (100% Non-interactive) | Returns issue count | Provides actionable technical suggestions. |
-| **`gaet log`** | Views execution log and backup history from `.gaet/logs/`. | Read-Only History | **NO** (100% Non-interactive) | `0` | Displays log file output (`--follow` for tailing). |
-| **`gaet snapshots`**| Lists all local `.dump` backup snapshots in a structured table. | Read-Only Snapshots | **NO** (100% Non-interactive) | `0` | Lists local snapshot file names, dates, sizes, and retention policies. |
+| Command | Scope & Responsibility | Type | Interactive Input? | Exit Codes | Boundaries |
+|:---|:---|:---|:---|:---|:---|
+| **`gaet init`** | Interactive setup wizard, `.env` file creation, and database profile configuration. | Setup Wizard | **Yes** | `0` / `1` (User Cancel) | Only command allowed to prompt interactive configuration questions. |
+| **`gaet update`** | Checks GitHub Releases API and updates `gaet` binary via the release installer. | System Update | **No** | `0` / `1` (Network Error) | Updates binary executable; never mutates `.env` variables. |
+| **`gaet uninstall`** | Removes `gaet` binary, scheduled service timers, and configuration files. | Destructive System | **Yes** (`-y` to skip) | `0` / `1` (Cancel) | Requires explicit confirmation before removing local snapshots or configuration files. |
 
 ---
 
-### ⚙️ Category 4: Configuration & Utilities
+### Category 2: Data Synchronization & Restore
 
-| Command | Scope & Responsibility | Command Type | Interactive Input? | Failure & Exit Code Expectation | Strict Boundaries |
-|---|---|---|---|---|---|
-| **`gaet get`** | Reads and prints specific or all `.env` configuration variables. | Config Read | **NO** (100% Non-interactive) | `0` (or `1` if key missing) | 100% read-only to `.env` file. `--list` shows schema reference. |
-| **`gaet set`** | Sets or updates `KEY=VALUE` variables directly in `.env`. | Config Write | **NO** (100% Non-interactive) | `0` / `1` (Invalid format) | Updates specified key cleanly without invoking setup wizard. |
-| **`gaet remote`** | Git-style management for Remote Cloud DB URL (`show`, `set-url`, `remove`). | Config / Remote Mgmt | **NO** (100% Non-interactive) | `0` / Non-zero if URL invalid | Manages cloud URL cleanly with connectivity test. |
-| **`gaet export`** | Exports `.env` variables as shell environment statements (`export GAET_...`). | Config Export | **NO** (100% Non-interactive) | `0` | Utility for bash/zsh scripting environment. |
-| **`gaet completion`**| Generates shell auto-completion scripts (bash, zsh, fish, ps1). | Shell Tool | **NO** (100% Non-interactive) | `0` | Outputs completion script to stdout. |
-| **`gaet help`** | Displays technical help documentation for specific commands or options. | Information | **NO** (100% Non-interactive) | `0` | Prints command usage manual. |
+| Command | Scope & Responsibility | Type | Interactive Input? | Exit Codes | Boundaries |
+|:---|:---|:---|:---|:---|:---|
+| **`gaet push`** | Dumps local PostgreSQL database (`pg_dump`) and restores to Remote Cloud DB. | Data Sync (Mutate Remote) | **No** | `0` / `81` / `82` | Aborts immediately if local or remote DB is unreachable. |
+| **`gaet fetch`** | Dumps Remote Cloud DB and restores to local PostgreSQL database (overwrites local schema). | Data Sync (Mutate Local) | **Yes** (`-y` to skip) | `0` / `81` / `82` | **Destructive to local DB**. Requires `-y` in non-interactive/CI environments. |
+| **`gaet restore`** | Restores local PostgreSQL DB from a local `.dump` snapshot file (default: latest). | Snapshot Restore | **Yes** (`-y` to skip) | `0` / `80` / `81` | **Destructive to local DB**. Performs offline rollback from local snapshot file. |
 
 ---
 
-### 🌐 Category 5: Background Services & Dashboard
+### Category 3: Status, Diagnostics & History (Read-Only)
 
-| Command | Scope & Responsibility | Command Type | Interactive Input? | Failure & Exit Code Expectation | Strict Boundaries |
-|---|---|---|---|---|---|
-| **`gaet serve`** | Launches local web dashboard HTTP server for real-time monitoring. | Service Run | **NO** (Blocking process / Ctrl+C) | Non-zero if port in use | Serves monitoring dashboard on configured port. |
-| **`gaet stop`** | Stops auto-backup daemon (cron/systemd) or web dashboard process. | Service Control | **NO** (100% Non-interactive) | `0` / Non-zero if service absent | Terminates background tasks safely. |
+| Command | Scope & Responsibility | Type | Interactive Input? | Exit Codes | Boundaries |
+|:---|:---|:---|:---|:---|:---|
+| **`gaet status`** | Displays sync status summary, table counts, DB sizes, and snapshot counts. | Read-Only Summary | **No** | `0` / `80` | Read-only. Never prompts for input or passwords. |
+| **`gaet check`** | Validates PostgreSQL client tools (`pg_dump`, `psql`), `.env` config, and DB connectivity. | Read-Only Diagnostic | **No** | `0` / `1` (Checks Fail) | Uses `-w` (`--no-password`). Returns structured JSON with `--json`. |
+| **`gaet diff`** | Compares table structures and row counts between Local DB and Cloud DB. | Read-Only Comparison | **No** | `0` / `1` | Queries metadata only; never mutates database schemas. |
+| **`gaet doctor`** | Performs in-depth diagnostic health audit (permissions, tool paths, connectivity). | Read-Only Audit | **No** | `0` / `1` | Provides technical troubleshooting recommendations. |
+| **`gaet log`** | Displays execution history and audit log from `.gaet/logs/`. | Read-Only History | **No** | `0` | Displays log records; supports `-F` (`--follow`) for tailing. |
+| **`gaet snapshots`** | Lists all local `.dump` backup snapshots in a structured table. | Read-Only Snapshots | **No** | `0` | Displays snapshot names, timestamps, sizes, and retention status. |
 
 ---
 
-## 🔒 Code Enforcement Guidelines
+### Category 4: Configuration & Utilities
 
-1. **`pg_env()` and `-w` Flag**: All invocations of `psql`, `pg_dump`, and `pg_restore` must supply `-w` (`--no-password`) and utilize temporary `PGPASSFILE` environments generated by `pg_env()`.
-2. **Dynamic Config Pathing**: Always reference the `ENV_FILE` path constant (which respects `GAET_DIR`). Never hardcode `~/.gaet/.env` in string outputs.
-3. **Non-Interactive Guard**: When `sys.stdin.isatty()` returns `False`, destructive commands like `fetch` or `restore` **MUST** require `--yes` or abort immediately via `die()`.
+| Command | Scope & Responsibility | Type | Interactive Input? | Exit Codes | Boundaries |
+|:---|:---|:---|:---|:---|:---|
+| **`gaet get`** | Reads and displays `.env` configuration keys. | Config Read | **No** | `0` | Read-only. Supports `--list` to view configuration schema reference. |
+| **`gaet set`** | Sets or updates `KEY=VALUE` variables in `.env` using single-pass atomic file writes. | Config Write | **No** | `0` / `2` (Invalid Format) | Modifies specified keys without launching interactive setup wizard. |
+| **`gaet remote`** | Manages Cloud DB connection URL (`show`, `set-url`, `remove`). | Config Management | **No** | `0` / `80` | Validates PostgreSQL URL formatting and tests connectivity. |
+| **`gaet export`** | Exports `.env` variables as shell environment statements (`export GAET_...`). | Config Utility | **No** | `0` | Outputs shell-compatible export statements to stdout. |
+| **`gaet completion`** | Generates shell autocompletion scripts (bash, zsh, fish, powershell). | Shell Utility | **No** | `0` | Outputs shell autocompletion logic to stdout. |
+
+---
+
+### Category 5: Background Services & Dashboard
+
+| Command | Scope & Responsibility | Type | Interactive Input? | Exit Codes | Boundaries |
+|:---|:---|:---|:---|:---|:---|
+| **`gaet auto`** | Enables automated backup scheduler using native OS service daemons (systemd/launchd/cron). | Service Control | **No** | `0` / `1` | Configures OS background service timers for periodic backups. |
+| **`gaet stop`** | Disables background automated backup service daemons. | Service Control | **No** | `0` | Removes registered background service daemons cleanly. |
+| **`gaet serve`** | Launches local web dashboard HTTP server (`//go:embed` static UI & REST API). | Service Run | **No** (Blocking process) | `0` / `1` | Serves monitoring dashboard UI and REST API on configured port. |
+
+---
+
+## Security & Execution Rules
+
+1. **Passwordless Executions (`-w`)**: All PostgreSQL tools (`psql`, `pg_dump`, `pg_restore`) execute with `-w` (`--no-password`) alongside short-lived, isolated `PGPASSFILE` buffers (`0600` permissions). Passwords are never exposed in process lists or CLI arguments.
+2. **Path Standard Compliance**: All runtime configurations respect `GAET_DIR` and adhere to standard user paths (`~/.gaet/.env`).
+3. **Non-Interactive Guard**: In non-TTY / CI environments, destructive operations (`fetch`, `restore`, `uninstall`) require `-y` / `--yes` flag to proceed.
