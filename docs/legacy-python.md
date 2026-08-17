@@ -12,7 +12,7 @@
 
 - **Zero Runtime Overhead**: No need for Python interpreter, `pip`, or virtual environments on target servers.
 - **Single Portable Binary**: Compiled into a single executable (`gaet` / `gaet.exe`) for Linux, macOS, and Windows.
-- **Fast Startup & Concurrency**: Instant CLI execution and faster PostgreSQL stream dumps.
+- **Fast Startup & Concurrency**: Instant CLI execution and faster database stream dumps.
 - **OS Native Daemons**: Integrated systemd, launchd, and Windows Task Scheduler services.
 
 ---

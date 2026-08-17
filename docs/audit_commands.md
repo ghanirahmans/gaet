@@ -6,7 +6,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Project** | `gaet` — PostgreSQL Backup & Sync CLI |
+| **Project** | `gaet` — Database Backup & Sync CLI |
 | **Version Audited** | `v3.0.3` (Paket `src/gaet`) |
 | **Tanggal Audit** | 16 Agustus 2026 |
 | **Referensi Utama** | **Git Architecture & CLI Design Patterns (Git Parity)** |
@@ -16,7 +16,7 @@
 
 ## 1. Eksekutif Summary & Status Proyek
 
-`gaet` adalah CLI tool zero-dependency untuk backup dan sinkronisasi PostgreSQL (Lokal ↔ Cloud). **Filosofi utama desain `gaet` mengambil Git sebagai referensi utama**, di mana database lokal diibaratkan sebagai *working tree*, backup `.dump` lokal sebagai *snapshots*, dan database cloud (Supabase/Neon/RDS/VPS) sebagai *remote repository (origin)*.
+`gaet` adalah CLI tool zero-dependency untuk backup dan sinkronisasi database (Lokal ↔ Cloud). **Filosofi utama desain `gaet` mengambil Git sebagai referensi utama**, di mana database lokal diibaratkan sebagai *working tree*, backup `.dump` lokal sebagai *snapshots*, dan database cloud (Supabase/Neon/RDS/VPS) sebagai *remote repository (origin)*.
 
 Setelah dilakukan overhaul total UX dan pengerasan sistem (*hardening*), seluruh **18 perintah CLI `gaet`** kini telah di-audit ulang dan dipastikan beroperasi di bawah batasan scope yang ketat, tanpa risiko kebocoran password, tanpa traceback Python di terminal, dan 100% ramah pengguna.
 

@@ -7,12 +7,12 @@
 ## 1. Project Context & Product Overview
 
 ### What is Gaet?
-`gaet` is a lightweight, zero-dependency **PostgreSQL Database Backup & Synchronization System**. It provides a CLI and a companion Web Operations Hub to backup, restore, compare (`diff`), diagnose (`doctor`), and synchronize PostgreSQL databases between local environments and cloud targets (e.g. Supabase, Neon, AWS RDS, GCP CloudSQL, or socket/network instances).
+`gaet` is a lightweight, zero-dependency **Database Backup & Synchronization System**. It provides a CLI and a companion Web Operations Hub to backup, restore, compare (`diff`), diagnose (`doctor`), and synchronize databases between local environments and cloud targets (e.g. Supabase, Neon, AWS RDS, GCP CloudSQL, or socket/network instances).
 
 ### Target Audience & Core Jobs
-- **Target Users**: Database Administrators, DevOps Engineers, and Full-Stack Developers managing PostgreSQL databases.
+- **Target Users**: Database Administrators, DevOps Engineers, and Full-Stack Developers managing databases.
 - **Main Jobs**:
-  1. Monitor real-time synchronization status between local PostgreSQL and cloud targets.
+  1. Monitor real-time synchronization status between local DB and cloud targets.
   2. Perform on-demand backups (`push`), restores (`fetch`), and snapshot file management.
   3. Inspect table-by-table schema differences and record counts.
   4. Run system diagnostics (`doctor`) and manage environment configuration (`.env`).
@@ -23,7 +23,7 @@
 - **Tab 1: Overview**: System Health Banners, Stat Cards (Local DB, Cloud Target, Snapshot Vault, Auto-Backup Daemon), Table Schema Matrix with per-table Sync Actions, Command Hub Bar, and Live Activity Log stream.
 - **Tab 2: Snapshots**: Local Snapshot Dump Vault Table (`~/.gaet/backups`), Filename Search Filter, Create Dump, Restore & Delete actions.
 - **Tab 3: CLI Logs**: Realtime CLI log stream viewer (`~/.gaet/gaet.log`), live filter input, auto-scroll toggle, and copy stream functionality.
-- **Tab 4: Settings**: 2-Way Synced Local DB Config (`GAET_LOCAL_URL` ↔ granular fields), Remote Cloud Target Config, Auto-Backup Retention, PostgreSQL auto-discovery scanner (`fetchAutoDetect`), and Save & Apply.
+- **Tab 4: Settings**: 2-Way Synced Local DB Config (`GAET_LOCAL_URL` ↔ granular fields), Remote Cloud Target Config, Auto-Backup Retention, database auto-discovery scanner (`fetchAutoDetect`), and Save & Apply.
 
 ---
 

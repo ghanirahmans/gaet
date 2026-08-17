@@ -6,7 +6,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Project** | gaet — PostgreSQL Backup & Sync CLI |
+| **Project** | gaet — Database Backup & Sync CLI |
 | **Version audited** | 2.0.0 (commit `7481d56`, branch `master`) |
 | **Audit date** | 2026-08-08 |
 | **Auditor** | Hermes Agent (automated static analysis) |
@@ -18,7 +18,7 @@
 
 ## 1. Executive Summary
 
-gaet is a zero-dependency, cross-platform CLI tool for PostgreSQL backup and cloud synchronization. The codebase demonstrates solid architectural foundations — atomic locking, integrity verification, cross-platform scheduler abstraction, and credential hygiene patterns that exceed expectations for a tool of this scope.
+gaet is a zero-dependency, cross-platform CLI tool for database backup and cloud synchronization. The codebase demonstrates solid architectural foundations — atomic locking, integrity verification, cross-platform scheduler abstraction, and credential hygiene patterns that exceed expectations for a tool of this scope.
 
 However, the audit identified **26 findings** across security, reliability, code quality, and supply chain domains. The most severe issues are:
 

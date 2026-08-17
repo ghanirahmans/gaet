@@ -29,9 +29,9 @@ This document defines the scope, responsibilities, input/output behaviors, and o
 
 | Command | Scope & Responsibility | Type | Interactive Input? | Exit Codes | Boundaries |
 |:---|:---|:---|:---|:---|:---|
-| **`gaet push`** | Dumps local PostgreSQL database (`pg_dump`) and restores to Remote Cloud DB. | Data Sync (Mutate Remote) | **No** | `0` / `81` / `82` | Aborts immediately if local or remote DB is unreachable. |
-| **`gaet fetch`** | Dumps Remote Cloud DB and restores to local PostgreSQL database (overwrites local schema). | Data Sync (Mutate Local) | **Yes** (`-y` to skip) | `0` / `81` / `82` | **Destructive to local DB**. Requires `-y` in non-interactive/CI environments. |
-| **`gaet restore`** | Restores local PostgreSQL DB from a local `.dump` snapshot file (default: latest). | Snapshot Restore | **Yes** (`-y` to skip) | `0` / `80` / `81` | **Destructive to local DB**. Performs offline rollback from local snapshot file. |
+| **`gaet push`** | Dumps local database (`pg_dump`) and restores to Remote Cloud DB. | Data Sync (Mutate Remote) | **No** | `0` / `81` / `82` | Aborts immediately if local or remote DB is unreachable. |
+| **`gaet fetch`** | Dumps Remote Cloud DB and restores to local database (overwrites local schema). | Data Sync (Mutate Local) | **Yes** (`-y` to skip) | `0` / `81` / `82` | **Destructive to local DB**. Requires `-y` in non-interactive/CI environments. |
+| **`gaet restore`** | Restores local DB from a local `.dump` snapshot file (default: latest). | Snapshot Restore | **Yes** (`-y` to skip) | `0` / `80` / `81` | **Destructive to local DB**. Performs offline rollback from local snapshot file. |
 
 ---
 
@@ -40,7 +40,7 @@ This document defines the scope, responsibilities, input/output behaviors, and o
 | Command | Scope & Responsibility | Type | Interactive Input? | Exit Codes | Boundaries |
 |:---|:---|:---|:---|:---|:---|
 | **`gaet status`** | Displays sync status summary, table counts, DB sizes, and snapshot counts. | Read-Only Summary | **No** | `0` / `80` | Read-only. Never prompts for input or passwords. |
-| **`gaet check`** | Validates PostgreSQL client tools (`pg_dump`, `psql`), `.env` config, and DB connectivity. | Read-Only Diagnostic | **No** | `0` / `1` (Checks Fail) | Uses `-w` (`--no-password`). Returns structured JSON with `--json`. |
+| **`gaet check`** | Validates database client tools (`pg_dump`, `psql`), `.env` config, and DB connectivity. | Read-Only Diagnostic | **No** | `0` / `1` (Checks Fail) | Uses `-w` (`--no-password`). Returns structured JSON with `--json`. |
 | **`gaet diff`** | Compares table structures and row counts between Local DB and Cloud DB. | Read-Only Comparison | **No** | `0` / `1` | Queries metadata only; never mutates database schemas. |
 | **`gaet doctor`** | Performs in-depth diagnostic health audit (permissions, tool paths, connectivity). | Read-Only Audit | **No** | `0` / `1` | Provides technical troubleshooting recommendations. |
 | **`gaet log`** | Displays execution history and audit log from `.gaet/logs/`. | Read-Only History | **No** | `0` | Displays log records; supports `-F` (`--follow`) for tailing. |
