@@ -4,7 +4,6 @@ package core
 import (
 	"fmt"
 	"os"
-	"strings"
 )
 
 // Color control — enabled when stdout is a TTY unless NO_COLOR is set.
@@ -108,26 +107,18 @@ func Die(msg string, code int) *GaetError {
 	return &GaetError{Code: code, Message: msg}
 }
 
-// BoxTitle prints a section title box.
+// BoxTitle prints a main section title header.
 func BoxTitle(title string) {
 	if Quiet {
 		return
 	}
-	width := 60
-	leftPad := 2
-	rightPad := width - leftPad - len(title)
-	if rightPad < 0 {
-		rightPad = 0
+	if IsPlain() {
+		fmt.Printf("\n  ==> %s\n\n", title)
+		return
 	}
-	line := strings.Repeat("─", width)
-	fmt.Printf("\n  %s┌%s┐%s\n", ColorBold, line, ColorReset)
-	fmt.Printf("  %s│%s%s%s%s%s%s%s│%s\n",
-		ColorBold, ColorReset,
-		strings.Repeat(" ", leftPad),
-		ColorBCyan, title, ColorReset,
-		strings.Repeat(" ", rightPad),
-		ColorBold, ColorReset)
-	fmt.Printf("  %s└%s┘%s\n\n", ColorBold, line, ColorReset)
+	fmt.Printf("\n  %s▌%s  %s%s%s\n\n",
+		ColorBCyan, ColorReset,
+		ColorBold, title, ColorReset)
 }
 
 // BoxSection prints a sub-section header.
@@ -135,8 +126,13 @@ func BoxSection(title string) {
 	if Quiet {
 		return
 	}
-	fmt.Printf("\n  %s── %s%s %s──%s\n",
-		ColorDim, ColorBold, title, ColorDim, ColorReset)
+	if IsPlain() {
+		fmt.Printf("\n  ── %s ──\n", title)
+		return
+	}
+	fmt.Printf("\n  %s▌%s  %s%s%s\n",
+		ColorCyan, ColorReset,
+		ColorDim, title, ColorReset)
 }
 
 // PrintDocsFooter prints the documentation URL footer.
