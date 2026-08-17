@@ -60,3 +60,47 @@ test('stopServer gracefully handles unspawned process', async () => {
   assert.equal(res.ok, true);
   assert.equal(res.msg, 'No active spawned Gaet process to stop.');
 });
+
+test('doctor, detect, testRemote, export, getConfig, setConfig endpoints', async () => {
+  const mockFetch = async (url, options) => {
+    if (url.endsWith('/api/doctor')) {
+      return { ok: true, status: 200, json: async () => ({ ok: true, issues: 0 }) };
+    }
+    if (url.endsWith('/api/detect')) {
+      return { ok: true, status: 200, json: async () => ({ ok: true, instances: [] }) };
+    }
+    if (url.endsWith('/api/remote/test')) {
+      return { ok: true, status: 200, json: async () => ({ ok: true, connected: true, output: 'OK' }) };
+    }
+    if (url.endsWith('/api/export')) {
+      return { ok: true, status: 200, json: async () => ({ ok: true, env_vars: 'export FOO="bar"' }) };
+    }
+    if (url.endsWith('/api/config') && (!options || options.method === undefined || options.method === 'GET')) {
+      return { ok: true, status: 200, json: async () => ({ GAET_LOCAL_DB_HOST: '127.0.0.1' }) };
+    }
+    if (url.endsWith('/api/config') && options.method === 'POST') {
+      return { ok: true, status: 200, json: async () => ({ ok: true, msg: 'Saved' }) };
+    }
+    throw new Error('Unknown endpoint: ' + url);
+  };
+
+  const client = new GaetClient({ fetch: mockFetch });
+  
+  const doc = await client.doctor();
+  assert.equal(doc.ok, true);
+
+  const det = await client.detect();
+  assert.equal(det.ok, true);
+
+  const rem = await client.testRemote();
+  assert.equal(rem.connected, true);
+
+  const exp = await client.export();
+  assert.equal(exp.ok, true);
+
+  const cfg = await client.getConfig();
+  assert.equal(cfg.GAET_LOCAL_DB_HOST, '127.0.0.1');
+
+  const setCfg = await client.setConfig({ GAET_LOCAL_DB_HOST: '127.0.0.1' });
+  assert.equal(setCfg.ok, true);
+});

@@ -1,6 +1,6 @@
 {
   "name": "@ghanirahmans/gaet",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "type": "module",
   "description": "Official TypeScript/JavaScript SDK client for Gaet - Zero-dependency PostgreSQL Database Backup & Cloud Sync CLI & Service",
   "main": "./dist/index.js",

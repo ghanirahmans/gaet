@@ -158,3 +158,46 @@ export interface GaetDiffResponse {
     table_count: number;
   };
 }
+
+/**
+ * Doctor diagnostic response from `GET /api/doctor`.
+ */
+export interface GaetDoctorResponse {
+  ok: boolean;
+  issues: number;
+  checks: {
+    config: { ok: boolean; path: string };
+    tools: { ok: boolean };
+  };
+}
+
+/**
+ * Local PostgreSQL scanner response from `GET /api/detect`.
+ */
+export interface GaetDetectResponse {
+  ok: boolean;
+  instances: Array<{
+    type?: string;
+    host?: string;
+    port?: string;
+    user?: string;
+    socket?: string;
+  }>;
+}
+
+/**
+ * Cloud remote test connection response from `GET /api/remote/test`.
+ */
+export interface GaetRemoteTestResponse {
+  ok: boolean;
+  connected: boolean;
+  output: string;
+}
+
+/**
+ * Environment export response from `GET /api/export`.
+ */
+export interface GaetExportResponse {
+  ok: boolean;
+  env_vars: string;
+}

@@ -156,7 +156,13 @@ console.log('PostgreSQL tools ok:', checkResult.checks.tools.ok);
 | `gaet.deleteSnapshot(name)` | `Promise<GaetGenericResponse>` | Removes a specific snapshot dump file from disk. |
 | `gaet.logs()` | `Promise<GaetLogsResponse>` | Reads audit log entries from `~/.gaet/gaet.log`. |
 | `gaet.check()` | `Promise<GaetCheckResponse>` | Runs system checks for `pg_dump`, `psql`, and permissions. |
+| `gaet.doctor()` | `Promise<GaetDoctorResponse>` | Runs full doctor diagnostics on environment, config, and tools. |
 | `gaet.diff()` | `Promise<GaetDiffResponse>` | Compares table counts between local and remote databases. |
+| `gaet.detect()` | `Promise<GaetDetectResponse>` | Scans local system for active PostgreSQL socket and TCP instances. |
+| `gaet.testRemote()` | `Promise<GaetRemoteTestResponse>` | Tests connectivity to the Cloud Remote database URL. |
+| `gaet.getConfig()` | `Promise<Record<string, string>>` | Reads environment configuration variables from `~/.gaet/.env`. |
+| `gaet.setConfig(config)` | `Promise<{ ok: boolean; msg: string }>` | Saves environment configuration variables to `~/.gaet/.env`. |
+| `gaet.export()` | `Promise<GaetExportResponse>` | Exports configuration as shell environment statements. |
 
 ## TypeScript Types
 

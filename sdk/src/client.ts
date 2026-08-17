@@ -1,10 +1,14 @@
 import type {
   GaetCheckResponse,
   GaetClientOptions,
+  GaetDetectResponse,
   GaetDiffResponse,
+  GaetDoctorResponse,
+  GaetExportResponse,
   GaetFetchResponse,
   GaetLogsResponse,
   GaetPushResponse,
+  GaetRemoteTestResponse,
   GaetSnapshotsResponse,
   GaetStartServerOptions,
   GaetStatusResponse,
@@ -214,5 +218,54 @@ export class GaetClient {
    */
   async diff(): Promise<GaetDiffResponse> {
     return this.request<GaetDiffResponse>('/api/diff');
+  }
+
+  /**
+   * Execute full system doctor diagnostics.
+   * Corresponds to `gaet doctor`.
+   */
+  async doctor(): Promise<GaetDoctorResponse> {
+    return this.request<GaetDoctorResponse>('/api/doctor');
+  }
+
+  /**
+   * Auto-scan for active local PostgreSQL socket and TCP instances.
+   * Corresponds to `gaet detect`.
+   */
+  async detect(): Promise<GaetDetectResponse> {
+    return this.request<GaetDetectResponse>('/api/detect');
+  }
+
+  /**
+   * Test connectivity to the Cloud Remote database URL.
+   * Corresponds to `gaet remote test`.
+   */
+  async testRemote(): Promise<GaetRemoteTestResponse> {
+    return this.request<GaetRemoteTestResponse>('/api/remote/test');
+  }
+
+  /**
+   * Export configuration as shell export statements.
+   * Corresponds to `gaet export`.
+   */
+  async export(): Promise<GaetExportResponse> {
+    return this.request<GaetExportResponse>('/api/export');
+  }
+
+  /**
+   * Read current environment configuration variables from ~/.gaet/.env.
+   */
+  async getConfig(): Promise<Record<string, string>> {
+    return this.request<Record<string, string>>('/api/config');
+  }
+
+  /**
+   * Update configuration variables in ~/.gaet/.env.
+   */
+  async setConfig(config: Record<string, string>): Promise<{ ok: boolean; msg: string }> {
+    return this.request<{ ok: boolean; msg: string }>('/api/config', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
   }
 }
