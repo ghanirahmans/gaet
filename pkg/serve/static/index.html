@@ -1450,12 +1450,11 @@
                 <th style="text-align:right">Local Rows</th>
                 <th style="text-align:right">Cloud Rows</th>
                 <th style="text-align:center">State</th>
-                <th style="text-align:center">Quick Action</th>
               </tr>
             </thead>
             <tbody id="tableBody">
               <tr>
-                <td colspan="5" style="text-align:center; padding:32px; color:var(--text-muted);"><span
+                <td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted);"><span
                     class="spin-anim">🔄</span> Loading database matrix...</td>
               </tr>
             </tbody>
@@ -1986,9 +1985,6 @@
               ${isOk ? '[ OK ] Synced' : '[ DIFF ] Variance'}
             </span>
           </td>
-          <td style="text-align:center">
-            <button class="btn btn-xs" onclick="syncSingleTable('${t.table}')">⚡ Sync Table</button>
-          </td>
         `;
         tbody.appendChild(tr);
       });
@@ -1996,26 +1992,10 @@
       if (tables.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="5" style="text-align:center; padding:32px; color:var(--text-muted);">
+            <td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted);">
               [ NOTE ] No database tables tracked yet. Configure connections in Settings tab.
             </td>
           </tr>`;
-      }
-    }
-
-    async function syncSingleTable(tableName) {
-      showToast(`Syncing table '${tableName}'...`, 'ok');
-      setOpProgress(true, `Syncing table '${tableName}' to cloud target...`);
-      try {
-        const r = await fetch('/api/push', { method: 'POST' });
-        const d = await r.json();
-        setOpProgress(false);
-        if (d.ok) showToast(`Table '${tableName}' synced!`, 'ok');
-        else showToast(d.msg || 'Sync failed', 'err');
-        fetchFullStatus();
-      } catch (e) {
-        setOpProgress(false);
-        showToast('Failed to sync table', 'err');
       }
     }
 

@@ -148,6 +148,12 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
 			envDB, 5*time.Second)
 		localOK = rc == 0 && strings.TrimSpace(out) == "1"
+		if !localOK && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/") || h == "") {
+			fbOut, _, fbRc := core.RunCmdSimple(tools.Psql,
+				[]string{"-w", "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
+				envDB, 5*time.Second)
+			localOK = fbRc == 0 && strings.TrimSpace(fbOut) == "1"
+		}
 	}
 
 	remoteURL := core.GetEnvStr(env, "GAET_REMOTE_URL", "")
@@ -160,6 +166,102 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	prefix := core.GetEnvStr(env, "GAET_SERVICE_PREFIX", core.DefServicePrefix)
 	cronActive := scheduler.IsActive(prefix)
 	cronHours := core.GetEnvInt(env, "GAET_AUTO_BACKUP_HOURS", 6)
+
+	type tableItem struct {
+		Table    string `json:"table"`
+		Local    int    `json:"local"`
+		Supabase int    `json:"supabase"`
+		OK       bool   `json:"ok"`
+	}
+	var tables []tableItem
+
+	if tools.Psql != "" && localOK {
+		envDB := core.PGEnv(u, ww, "")
+		outLocal, _, rcLocal := core.RunCmdSimple(tools.Psql,
+			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
+				"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"},
+			envDB, 5*time.Second)
+		if rcLocal != 0 && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/") || h == "") {
+			fbOut, _, fbRc := core.RunCmdSimple(tools.Psql,
+				[]string{"-w", "-p", p, "-U", u, "-d", n, "-tAc",
+					"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"},
+				envDB, 5*time.Second)
+			if fbRc == 0 {
+				rcLocal = 0
+				outLocal = fbOut
+			}
+		}
+
+		localCounts := make(map[string]int)
+		if rcLocal == 0 {
+			tList := filterEmptyLines(strings.Split(strings.TrimSpace(outLocal), "\n"))
+			for _, tbl := range tList {
+				cntStr, _, rcCnt := core.RunCmdSimple(tools.Psql,
+					[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", fmt.Sprintf("SELECT count(*) FROM %s;", tbl)},
+					envDB, 3*time.Second)
+				if rcCnt != 0 && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/") || h == "") {
+					fbCnt, _, fbRc := core.RunCmdSimple(tools.Psql,
+						[]string{"-w", "-p", p, "-U", u, "-d", n, "-tAc", fmt.Sprintf("SELECT count(*) FROM %s;", tbl)},
+						envDB, 3*time.Second)
+					if fbRc == 0 {
+						cntStr = fbCnt
+					}
+				}
+				cnt := 0
+				fmt.Sscanf(strings.TrimSpace(cntStr), "%d", &cnt)
+				localCounts[tbl] = cnt
+			}
+		}
+
+		cloudCounts := make(map[string]int)
+		if parsed != nil {
+			ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
+			envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+			outRemote, _, rcRemote := core.RunCmdSimple(tools.Psql,
+				[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc",
+					"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"},
+				envCloud, 5*time.Second)
+			if rcRemote == 0 {
+				tListRemote := filterEmptyLines(strings.Split(strings.TrimSpace(outRemote), "\n"))
+				for _, tbl := range tListRemote {
+					cntStr, _, rcCnt := core.RunCmdSimple(tools.Psql,
+						[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc", fmt.Sprintf("SELECT count(*) FROM %s;", tbl)},
+						envCloud, 3*time.Second)
+					if rcCnt != 0 {
+						cntStr = "0"
+					}
+					cnt := 0
+					fmt.Sscanf(strings.TrimSpace(cntStr), "%d", &cnt)
+					cloudCounts[tbl] = cnt
+				}
+			}
+		}
+
+		allTableNames := make(map[string]bool)
+		for t := range localCounts {
+			allTableNames[t] = true
+		}
+		for t := range cloudCounts {
+			allTableNames[t] = true
+		}
+
+		for t := range allTableNames {
+			locVal, inLoc := localCounts[t]
+			cloudVal, inCloud := cloudCounts[t]
+			if !inLoc {
+				locVal = -1
+			}
+			if !inCloud {
+				cloudVal = -1
+			}
+			tables = append(tables, tableItem{
+				Table:    t,
+				Local:    locVal,
+				Supabase: cloudVal,
+				OK:       inLoc && inCloud && locVal == cloudVal,
+			})
+		}
+	}
 
 	sendJSON(w, http.StatusOK, map[string]any{
 		"local_ok":          localOK,
@@ -174,6 +276,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		"cron_active":       cronActive,
 		"cron_hours":        cronHours,
 		"scheduler_name":    scheduler.SchedulerName(),
+		"tables":            tables,
 	})
 }
 
