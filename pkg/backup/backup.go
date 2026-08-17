@@ -122,6 +122,18 @@ func RunPush(opts PushOptions) error {
 			"--no-owner", "--no-acl", backupFile},
 		envCloud, timeout)
 
+	if rc3 != 0 && (parsed.Host == "127.0.0.1" || parsed.Host == "localhost" || strings.HasPrefix(parsed.Host, "/")) {
+		_, fbErr3, fbRc3 := core.RunCmdSimple(tools.PgRestore,
+			[]string{"-w", "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB,
+				"--no-owner", "--no-acl", backupFile},
+			envCloud, timeout)
+		if fbRc3 == 0 {
+			rc3 = 0
+		} else if fbErr3 != "" {
+			errOut3 = fbErr3
+		}
+	}
+
 	if rc3 != 0 {
 		return core.Die(fmt.Sprintf("Cloud sync failed (rc=%d): %s", rc3, lastNLines(errOut3, 3)), core.ExitCloudDown)
 	}
@@ -221,6 +233,18 @@ func RunFetch(opts FetchOptions) error {
 		[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB,
 			"--format=custom", "--compress=9", "--file=" + fetchFile},
 		envCloud, timeout)
+	if (rc != 0 || !fileExists(fetchFile)) && (parsed.Host == "127.0.0.1" || parsed.Host == "localhost" || strings.HasPrefix(parsed.Host, "/")) {
+		_, fbErrOut, fbRc := core.RunCmdSimple(tools.PgDump,
+			[]string{"-w", "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB,
+				"--format=custom", "--compress=9", "--file=" + fetchFile},
+			envCloud, timeout)
+		if fbRc == 0 && fileExists(fetchFile) {
+			rc = 0
+			errOut = ""
+		} else if fbErrOut != "" {
+			errOut = fbErrOut
+		}
+	}
 	if rc != 0 || !fileExists(fetchFile) {
 		os.Remove(fetchFile)
 		return core.Die(fmt.Sprintf("Cloud dump failed: %s", errOut), core.ExitCloudDown)

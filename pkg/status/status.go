@@ -100,12 +100,8 @@ func runCheckInner(env map[string]string, tools core.DBTools, silent bool) map[s
 	}
 	parsed, parseErr := core.ParseRemoteURL(remoteURL)
 	if parseErr == nil && parsed != nil {
-		ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-		envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
-		out, _, rc := core.RunCmdSimple(tools.Psql,
-			[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc", "SELECT 1;"},
-			envCloud, 10*time.Second)
-		remoteOK := rc == 0 && strings.TrimSpace(out) == "1"
+		out, remoteOK := testLocalDB(tools.Psql, parsed.Host, parsed.Port, parsed.User, parsed.DB, parsed.Password, "SELECT 1;", 10*time.Second)
+		_ = out
 		checks["remote_db"] = map[string]any{"configured": true, "reachable": remoteOK,
 			"host": parsed.Host, "port": parsed.Port, "db": parsed.DB}
 		if remoteOK {
@@ -201,14 +197,10 @@ func RunStatus(opts StatusOptions) error {
 	if parsed, err := core.ParseRemoteURL(remoteURL); err == nil {
 		fmt.Println()
 		core.BoxSection("Cloud Database")
-		ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-		envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
-		out, _, rc := core.RunCmdSimple(tools.Psql,
-			[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc",
-				"SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"},
-			envCloud, 10*time.Second)
-		if rc == 0 {
-			core.StatusOK(fmt.Sprintf("%s tables in cloud database", strings.TrimSpace(out)))
+		out, ok := testLocalDB(tools.Psql, parsed.Host, parsed.Port, parsed.User, parsed.DB, parsed.Password,
+			"SELECT count(*) FROM information_schema.tables WHERE table_schema='public';", 10*time.Second)
+		if ok {
+			core.StatusOK(fmt.Sprintf("%s tables in cloud database", out))
 		} else {
 			core.StatusWarn("Cloud database unreachable")
 		}
@@ -251,15 +243,11 @@ func RunDiff(opts DiffOptions) error {
 	cloudOK := false
 	parsed, parseErr := core.ParseRemoteURL(remoteURL)
 	if parseErr == nil && tools.Psql != "" {
-		ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-		envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
-		out, _, rc := core.RunCmdSimple(tools.Psql,
-			[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc",
-				"SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"},
-			envCloud, 10*time.Second)
-		if rc == 0 {
+		out, ok := testLocalDB(tools.Psql, parsed.Host, parsed.Port, parsed.User, parsed.DB, parsed.Password,
+			"SELECT count(*) FROM information_schema.tables WHERE table_schema='public';", 10*time.Second)
+		if ok {
 			cloudOK = true
-			fmt.Sscanf(strings.TrimSpace(out), "%d", &cloudCount)
+			fmt.Sscanf(out, "%d", &cloudCount)
 		}
 	}
 

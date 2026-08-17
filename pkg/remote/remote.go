@@ -105,6 +105,16 @@ func RunRemote(action, urlArg string, jsonOut bool) error {
 				[]string{"-w", "-h", parsed.Host, "-p", parsed.Port,
 					"-U", parsed.User, "-d", parsed.DB, "-tAc", "SELECT 1;"},
 				envCloud, 5*time.Second)
+			if rc != 0 && (parsed.Host == "127.0.0.1" || parsed.Host == "localhost" || strings.HasPrefix(parsed.Host, "/")) {
+				fbOut, _, fbRc := core.RunCmdSimple(tools.Psql,
+					[]string{"-w", "-p", parsed.Port,
+						"-U", parsed.User, "-d", parsed.DB, "-tAc", "SELECT 1;"},
+					envCloud, 5*time.Second)
+				if fbRc == 0 && strings.TrimSpace(fbOut) == "1" {
+					rc = 0
+					out = fbOut
+				}
+			}
 			if rc == 0 && strings.TrimSpace(out) == "1" {
 				core.StatusOK("Cloud connection OK")
 			} else {
