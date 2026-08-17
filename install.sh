@@ -77,76 +77,69 @@ dl() {
     return 1
 }
 
+GAET_APP_DIR="$GAET_CONFIG/app"
+
+# Clean up legacy un-isolated folders in ~/.local/bin if present
+rm -rf "$GAET_DIR/gaet_pkg" "$GAET_DIR/scripts" "$GAET_DIR/dashboard" "$GAET_DIR/completions" 2>/dev/null || true
+
 # ── 3. Create directories ─────────────────────────────────────────────────
 mkdir -p "$GAET_DIR"
 mkdir -p "$GAET_CONFIG"
+mkdir -p "$GAET_APP_DIR"
+mkdir -p "$GAET_APP_DIR/src/gaet"
+mkdir -p "$GAET_APP_DIR/scripts"
+mkdir -p "$GAET_APP_DIR/completions"
+mkdir -p "$GAET_APP_DIR/dashboard/static" "$GAET_APP_DIR/dashboard/public"
 
-# ── 4. Download gaet CLI ──────────────────────────────────────────────────
-echo -n "  Downloading gaet..."
-# Shim (entry point)
-if dl "$RAW_BASE/gaet.py" "$GAET_DIR/gaet"; then
-    chmod +x "$GAET_DIR/gaet"
+# ── 4. Download gaet app bundle ───────────────────────────────────────────
+echo -n "  Downloading gaet app bundle..."
+if dl "$RAW_BASE/gaet.py" "$GAET_APP_DIR/gaet.py"; then
+    chmod +x "$GAET_APP_DIR/gaet.py"
 else
     echo " FAILED"
-    echo "  ✗ Could not download shim: $RAW_BASE/gaet.py"
+    echo "  ✗ Could not download gaet.py from: $RAW_BASE/gaet.py"
     exit 1
 fi
-# v3 src-layout: package lives in src/gaet. Download into gaet_pkg/gaet/ —
-# a dir named gaet/ next to the gaet binary is impossible on disk (file/dir
-# name clash), so the package dir is nested under gaet_pkg/.
+
 PKG_FILES="__init__.py __main__.py registry.py cli.py core.py detect.py init.py config.py status.py backup.py scheduler.py log.py serve.py export.py update.py remote.py snapshots.py"
 PKG_OK=0
-mkdir -p "$GAET_DIR/gaet_pkg/gaet"
 for f in $PKG_FILES; do
-    if dl "$RAW_BASE/src/gaet/$f" "$GAET_DIR/gaet_pkg/gaet/$f"; then
+    if dl "$RAW_BASE/src/gaet/$f" "$GAET_APP_DIR/src/gaet/$f"; then
         PKG_OK=$((PKG_OK + 1))
     fi
 done
-echo " OK (cli + $PKG_OK package files)"
 
-# ── 5. Download scripts ───────────────────────────────────────────────────
-mkdir -p "$GAET_DIR/scripts"
 SCRIPTS_OK=0
 for f in status.py scheduler.py service_manager.py installer.py __init__.py; do
-    if dl "$RAW_BASE/scripts/$f" "$GAET_DIR/scripts/$f"; then
+    if dl "$RAW_BASE/scripts/$f" "$GAET_APP_DIR/scripts/$f"; then
         SCRIPTS_OK=$((SCRIPTS_OK + 1))
     fi
 done
-echo "  Scripts downloaded ($SCRIPTS_OK/5)"
 
-# ── 5a. Download shell completions ────────────────────────────────────────
-echo -n "  Downloading completions..."
-COMP_DIR="$GAET_DIR/completions"
-mkdir -p "$COMP_DIR"
 COMP_OK=0
 for f in gaet.bash gaet.zsh gaet.fish gaet.ps1; do
-    if dl "$RAW_BASE/completions/$f" "$COMP_DIR/$f"; then
+    if dl "$RAW_BASE/completions/$f" "$GAET_APP_DIR/completions/$f"; then
         COMP_OK=$((COMP_OK + 1))
     fi
 done
-echo " OK ($COMP_OK files)"
 
-# ── 5b. Download dashboard ────────────────────────────────────────────────
-# gaet serve imports `dashboard.server`, which must live in the install dir
-# (~/.local/bin/dashboard/) so it is importable from the gaet entry script
-# (sys.path[0] = ~/.local/bin).
-echo -n "  Downloading dashboard..."
-DASH_DIR="$GAET_DIR/dashboard"
 DASH_OK=0
-mkdir -p "$DASH_DIR/static" "$DASH_DIR/public"
-# Pure Python HTTP server — no Node.js/npm build step required (v2.0.1+).
-# Only files that exist in the repo are downloaded (index.html is
-# self-contained: <style> + <script> inline, no external CSS/JS).
 for f in server.py static/index.html public/gaet-logo.png; do
-    if dl "$RAW_BASE/dashboard/$f" "$DASH_DIR/$f"; then
+    if dl "$RAW_BASE/dashboard/$f" "$GAET_APP_DIR/dashboard/$f"; then
         DASH_OK=$((DASH_OK + 1))
     fi
 done
-if [ "$DASH_OK" -gt 0 ]; then
-    echo " OK ($DASH_OK files)"
-else
-    echo " SKIPPED (dashboard needs 'gaet update')"
-fi
+
+echo " OK ($PKG_OK pkg, $SCRIPTS_OK scripts, $DASH_OK dash)"
+
+# ── 5. Create launcher wrapper script in ~/.local/bin/gaet ───────────────
+echo -n "  Creating launcher binary..."
+cat > "$GAET_DIR/gaet" << 'EOF'
+#!/usr/bin/env bash
+exec python3 "$HOME/.gaet/app/gaet.py" "$@"
+EOF
+chmod +x "$GAET_DIR/gaet"
+echo " OK (~/.local/bin/gaet)"
 
 # ── 6. Create config if not exists ────────────────────────────────────────
 if [ ! -f "$GAET_CONFIG/.env" ]; then
