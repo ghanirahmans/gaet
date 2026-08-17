@@ -100,7 +100,9 @@ func StatusArrow(msg string) {
 // Die prints an error to stderr and returns a GaetError for the caller to exit.
 // The caller in cmd/gaet/main.go calls os.Exit with the error code.
 func Die(msg string, code int) *GaetError {
-	fmt.Fprintf(os.Stderr, "  %s[FAIL]%s  %s\n", ColorBRed, ColorReset, msg)
+	if msg != "" {
+		fmt.Fprintf(os.Stderr, "  %s[FAIL]%s  %s\n", ColorBRed, ColorReset, msg)
+	}
 	if !IsPlain() && !Quiet {
 		fmt.Fprintf(os.Stderr, "  %sTroubleshooting: %shttps://github.com/ghanirahmans/gaet/blob/main/TROUBLESHOOTING.md%s\n",
 			ColorDim, ColorCyan, ColorReset)
