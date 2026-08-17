@@ -179,6 +179,18 @@ func dispatch(command string, args []string) error {
 	case "doctor":
 		return status.RunDoctor(status.DoctorOptions{JSON: hasFlag(args, "--json")})
 
+	// ── diff ──────────────────────────────────────────────────────────
+	case "diff":
+		return status.RunDiff(status.DiffOptions{JSON: hasFlag(args, "--json")})
+
+	// ── export ────────────────────────────────────────────────────────
+	case "export":
+		env, _ := core.LoadEnv(core.EnvFile())
+		for k, v := range env {
+			fmt.Printf("export %s=%q\n", k, v)
+		}
+		return nil
+
 	// ── remote ────────────────────────────────────────────────────────
 	case "remote":
 		action := "show"
@@ -454,9 +466,11 @@ func printHelp(args []string) {
 		{"status", "Show sync status table"},
 		{"check", "Validate config & connections"},
 		{"doctor", "Comprehensive health check"},
+		{"diff", "Compare local DB vs cloud DB schema"},
 		{"remote", "Manage remote cloud DB config"},
 		{"get", "Get configuration variables"},
 		{"set", "Set configuration variables"},
+		{"export", "Export .env as shell variables"},
 		{"auto", "Enable auto-backup (platform scheduler)"},
 		{"stop", "Stop auto-backup scheduler"},
 		{"serve", "Start web dashboard (port 9191)"},
@@ -485,22 +499,24 @@ func printHelp(args []string) {
 
 func printCommandHelp(cmd string) {
 	help := map[string]string{
-		"push":      "gaet push [--dry-run] [--json] [--auto[=N]] [--cron] [--notify=URL]\n  Backup local PostgreSQL database to cloud.",
-		"fetch":     "gaet fetch [--dry-run] [--json] [-y/--yes]\n  Restore cloud database to local (DESTRUCTIVE).",
-		"restore":   "gaet restore [target|latest] [--dry-run] [--json] [-y/--yes]\n  Restore local DB from a local snapshot file.",
-		"snapshots": "gaet snapshots [--json]\n  List local backup snapshot files.",
-		"status":    "gaet status [--json]\n  Show sync status table (local vs cloud).",
-		"check":     "gaet check [--json]\n  Validate configuration and all DB connections.",
-		"doctor":    "gaet doctor [--json]\n  Comprehensive health check.",
-		"remote":    "gaet remote [show|set-url|remove] [url]\n  Manage remote cloud database URL.",
-		"get":       "gaet get [KEY...] [--list] [--json]\n  Display configuration variables from .env.",
-		"set":       "gaet set KEY=value [...]\n  Update configuration variables in .env.",
-		"auto":      "gaet auto [interval_hours]\n  Enable auto-backup scheduler (default: 6h).",
-		"stop":      "gaet stop\n  Stop auto-backup scheduler.",
-		"serve":     "gaet serve [--port=9191] [--host=127.0.0.1]\n  Start embedded web dashboard.",
-		"log":       "gaet log [N] [--filter=KW] [--since=DATE] [--follow]\n  View backup log.",
+		"push":       "gaet push [--dry-run] [--json] [--auto[=N]] [--cron] [--notify=URL]\n  Backup local PostgreSQL database to cloud.",
+		"fetch":      "gaet fetch [--dry-run] [--json] [-y/--yes]\n  Restore cloud database to local (DESTRUCTIVE).",
+		"restore":    "gaet restore [target|latest] [--dry-run] [--json] [-y/--yes]\n  Restore local DB from a local snapshot file.",
+		"snapshots":  "gaet snapshots [--json]\n  List local backup snapshot files.",
+		"status":     "gaet status [--json]\n  Show sync status table (local vs cloud).",
+		"check":      "gaet check [--json]\n  Validate configuration and all DB connections.",
+		"doctor":     "gaet doctor [--json]\n  Comprehensive health check.",
+		"diff":       "gaet diff [--json]\n  Compare local DB vs cloud DB schema table counts.",
+		"export":     "gaet export\n  Export .env configuration variables as shell environment statements.",
+		"remote":     "gaet remote [show|set-url|remove] [url]\n  Manage remote cloud database URL.",
+		"get":        "gaet get [KEY...] [--list] [--json]\n  Display configuration variables from .env.",
+		"set":        "gaet set KEY=value [...]\n  Update configuration variables in .env.",
+		"auto":       "gaet auto [interval_hours]\n  Enable auto-backup scheduler (default: 6h).",
+		"stop":       "gaet stop\n  Stop auto-backup scheduler.",
+		"serve":      "gaet serve [--port=9191] [--host=127.0.0.1]\n  Start embedded web dashboard.",
+		"log":        "gaet log [N] [--filter=KW] [--since=DATE] [--follow]\n  View backup log.",
 		"completion": "gaet completion [bash|zsh|fish|powershell]\n  Generate shell autocompletion script.",
-		"init":      "gaet init [--preset=name] [-y/--yes]\n  Interactive first-run setup wizard.",
+		"init":       "gaet init [--preset=name] [-y/--yes]\n  Interactive first-run setup wizard.",
 	}
 	if h, ok := help[cmd]; ok {
 		core.BoxTitle(fmt.Sprintf("gaet %s — Help", cmd))
