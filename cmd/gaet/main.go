@@ -300,7 +300,7 @@ func dispatch(command string, args []string) error {
 	}
 }
 
-func runUpdate(args []string) error {
+func runUpdate(_ []string) error {
 	core.BoxTitle("gaet update")
 	core.StatusInfo("Checking for updates from GitHub...")
 	core.StatusInfo("(Self-update via GitHub Releases not yet implemented in v2 — use: curl ... | bash)")
