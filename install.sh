@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================================
 # gaet — One-liner installer
-# Usage:        curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
-# Reinstall:    curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+# Usage:        curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.sh | bash
+# Reinstall:    curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.sh | bash
 # ============================================================================
 set -eo pipefail
 

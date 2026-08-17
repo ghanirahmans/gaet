@@ -1,6 +1,6 @@
 # ============================================================================
 # gaet — Windows PowerShell installer
-# Usage: irm https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.ps1 | iex
 # ============================================================================
 param()
 
