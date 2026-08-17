@@ -375,7 +375,7 @@ func RunDoctor(opts DoctorOptions) error {
 		core.StatusFail("Config file not found — run 'gaet init'")
 	}
 
-	core.BoxSection("PostgreSQL Tools")
+	core.BoxSection("Database Client Tools")
 	for name, path := range map[string]string{"pg_dump": tools.PgDump, "pg_restore": tools.PgRestore, "psql": tools.Psql} {
 		if path != "" {
 			core.StatusOK(fmt.Sprintf("%s found: %s", name, path))

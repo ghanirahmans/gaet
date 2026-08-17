@@ -60,8 +60,8 @@ func RunInit(opts InitOptions) error {
 	}
 
 	// Check tools
-	tools := core.FindPGTools(env)
-	core.BoxSection("PostgreSQL Tools Check")
+	tools := core.FindDBTools(env)
+	core.BoxSection("Database Client Tools Check")
 	for _, name := range []string{"pg_dump", "pg_restore", "psql"} {
 		var path string
 		switch name {
