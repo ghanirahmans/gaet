@@ -32,9 +32,11 @@ var allKeys = []ConfigKey{
 	{"GAET_LOCAL_DB_PASS", "String", "(empty)", "Local PostgreSQL password", "mysecretpass"},
 	{"GAET_REMOTE_URL", "URL", "(empty)", "Cloud PostgreSQL URL (Supabase/Neon/RDS/VPS)", "postgresql://user:pass@host:5432/db"},
 	{"GAET_REMOTE_SSLMODE", "String", "require", "Cloud SSL mode (require/verify-full/disable)", "require"},
-	{"GAET_RETENTION_DAYS", "Integer", "7", "Days to retain local .dump backups", "14"},
-	{"GAET_PG_TIMEOUT", "Integer", "900", "Base max timeout for pg_dump/pg_restore (seconds)", "900"},
-	{"GAET_PG_TIMEOUT_PER_GB", "Integer", "300", "Extra dynamic timeout budget added per 1 GB data (seconds)", "300"},
+	{"GAET_RETENTION_DAYS", "Integer", "7", "Days to retain local database dump backups", "14"},
+	{"GAET_TIMEOUT", "Integer", "900", "Base max timeout for backup & restore operations (seconds)", "900"},
+	{"GAET_TIMEOUT_PER_GB", "Integer", "300", "Extra dynamic timeout budget added per 1 GB data (seconds)", "300"},
+	{"GAET_PG_TIMEOUT", "Integer", "900", "(Legacy) Base max timeout for backup/restore operations", "900"},
+	{"GAET_PG_TIMEOUT_PER_GB", "Integer", "300", "(Legacy) Extra dynamic timeout budget added per 1 GB data", "300"},
 	{"GAET_TABLES", "String", "(all)", "Comma-separated table filter list", "users,orders,products"},
 }
 

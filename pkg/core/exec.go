@@ -92,10 +92,18 @@ func PGEnv(user, password, sslMode string) map[string]string {
 	return env
 }
 
-// GetDynamicPGTimeout calculates dynamic timeout budget based on base timeout + timeout budget per 1 GB of data.
-func GetDynamicPGTimeout(env map[string]string, sizeBytes int64) time.Duration {
-	baseTimeout := GetEnvInt(env, "GAET_PG_TIMEOUT", DefPGTimeout)
-	perGBBudget := GetEnvInt(env, "GAET_PG_TIMEOUT_PER_GB", DefPGTimeoutPerGB)
+// GetDynamicTimeout calculates dynamic timeout budget based on base timeout + timeout budget per 1 GB of data.
+// Supports GAET_TIMEOUT (legacy fallback GAET_PG_TIMEOUT) and GAET_TIMEOUT_PER_GB (legacy fallback GAET_PG_TIMEOUT_PER_GB).
+func GetDynamicTimeout(env map[string]string, sizeBytes int64) time.Duration {
+	baseTimeout := GetEnvInt(env, "GAET_TIMEOUT", 0)
+	if baseTimeout == 0 {
+		baseTimeout = GetEnvInt(env, "GAET_PG_TIMEOUT", DefTimeout)
+	}
+
+	perGBBudget := GetEnvInt(env, "GAET_TIMEOUT_PER_GB", 0)
+	if perGBBudget == 0 {
+		perGBBudget = GetEnvInt(env, "GAET_PG_TIMEOUT_PER_GB", DefTimeoutPerGB)
+	}
 
 	sizeGB := float64(sizeBytes) / (1024 * 1024 * 1024)
 	extraSeconds := int(sizeGB * float64(perGBBudget))
