@@ -42,7 +42,7 @@ type InitOptions struct {
 // RunInit implements `gaet init`.
 func RunInit(opts InitOptions) error {
 	env, _ := core.LoadEnv(core.EnvFile())
-	core.BoxTitle("gaet init — Setup Wizard")
+	core.BoxTitle("gaet init")
 
 	// Non-interactive detection
 	isCI := os.Getenv("CI") == "true" || os.Getenv("CONTAINER") == "1"
