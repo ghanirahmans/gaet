@@ -380,7 +380,7 @@ func runUninstall(args []string) error {
 			core.Echo(fmt.Sprintf("    %s0.%s Cancel", core.ColorDim, core.ColorReset))
 			fmt.Println()
 
-			choice := core.SafeInput("  Choice [1/2/0]: ", "0")
+			choice := core.SafeInput("  Choice [1/2/0] (default 0): ", "0")
 			switch choice {
 			case "1":
 				save = false
