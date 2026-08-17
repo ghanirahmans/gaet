@@ -1807,12 +1807,13 @@
         </div>
         <div id="scheduleStatusInfo" class="code-box" style="margin-bottom:20px; padding:12px; font-size:12px; display:none; border-radius:var(--radius-sm);"></div>
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top: 18px;">
-          <button id="stopSchedulerBtn" class="btn btn-danger" onclick="stopScheduleFromModal()" style="display:none; font-size:12px; padding:7px 14px;">
-            🛑 Stop Daemon
+          <button id="stopSchedulerBtn" class="btn btn-danger" onclick="stopScheduleFromModal()" style="display:none; font-size:12px; padding:7px 14px; align-items:center; gap:6px;">
+            <span>🛑 Stop Daemon</span>
+            <span class="kbd-tag" style="font-size:10px;">Shift+Del</span>
           </button>
           <div style="display:flex; gap:10px; margin-left:auto;">
             <button class="btn" onclick="closeModal('scheduleModal')">Cancel</button>
-            <button class="btn btn-primary" onclick="applyScheduleFromModal()">⚡ Apply Scheduler (Enter)</button>
+            <button class="btn btn-primary" onclick="applyScheduleFromModal()">⚡ Apply Scheduler <span class="kbd-tag" style="font-size:10px;">Enter</span></button>
           </div>
         </div>
       </div>
@@ -2701,6 +2702,30 @@
 
     // Hotkeys Navigation — Keyboard-Centric Flow
     document.addEventListener('keydown', (e) => {
+      const scheduleModal = document.getElementById('scheduleModal');
+      const isScheduleOpen = scheduleModal && scheduleModal.style.display === 'flex';
+
+      if (isScheduleOpen) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          applyScheduleFromModal();
+          return;
+        }
+        if ((e.shiftKey && e.key === 'Delete') || (e.altKey && e.key.toLowerCase() === 'x') || (e.altKey && e.key.toLowerCase() === 'd')) {
+          e.preventDefault();
+          const stopBtn = document.getElementById('stopSchedulerBtn');
+          if (stopBtn && stopBtn.style.display !== 'none') {
+            stopScheduleFromModal();
+          }
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeModal('scheduleModal');
+          return;
+        }
+      }
+
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
         if (e.key === 'Escape') document.activeElement.blur();
