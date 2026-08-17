@@ -32,6 +32,9 @@ generate_data.sql
 __pycache__/
 *.pyc
 *.pyo
+# ─── Go Binaries & Build ──────────────────────────────
+gaet
+gaet.exe
 build/
 *.egg-info/
 dist/
