@@ -86,11 +86,11 @@ gaet set GAET_LOCAL_DB_HOST=/path/to/socket/dir
 
 **Fix:**
 ```bash
-# Increase timeout to 600 seconds (10 minutes)
-gaet set GAET_PG_TIMEOUT=600
+# Increase base timeout to 900 seconds and per-GB budget to 300 seconds
+gaet set GAET_TIMEOUT=900 GAET_TIMEOUT_PER_GB=300
 
 # Or use environment variable
-export GAET_PG_TIMEOUT=600
+export GAET_TIMEOUT=900
 gaet push
 ```
 

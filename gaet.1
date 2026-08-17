@@ -96,8 +96,11 @@ Cloud PostgreSQL connection URL (e.g. postgresql://user:pass@host:port/db).
 .B GAET_REMOTE_SSLMODE
 SSL connection mode for cloud remote (default: require).
 .TP
-.B GAET_PG_TIMEOUT
-Per\-operation timeout in seconds for pg_dump/pg_restore (default: 3600).
+.B GAET_TIMEOUT
+Base per\-operation timeout in seconds for backup/restore operations (default: 900).
+.TP
+.B GAET_TIMEOUT_PER_GB
+Extra dynamic timeout budget added per 1 GB of data (default: 300).
 .TP
 .B GAET_RETENTION_DAYS
 Number of days to retain local .dump backup snapshots (default: 7).

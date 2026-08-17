@@ -267,8 +267,9 @@ Configuration settings are stored in `~/.gaet/.env` (restricted file mode `0600`
 | | `GAET_LOCAL_DB_PASS` | String | `(empty)` | Database user password |
 | **Cloud Remote** | `GAET_REMOTE_URL` | URL | `(empty)` | Cloud PostgreSQL target connection URL |
 | | `GAET_REMOTE_SSLMODE` | String | `require` | SSL connection requirement mode |
-| **Options** | `GAET_RETENTION_DAYS` | Int | `7` | Days to keep `.dump` files before cleanup |
-| | `GAET_PG_TIMEOUT` | Int | `3600` | Max timeout (seconds) for dump/restore ops |
+| **Options**| | `GAET_RETENTION_DAYS` | Int | `7` | Days to keep `.dump` files before cleanup |
+| | `GAET_TIMEOUT` | Int | `900` | Base max timeout (seconds) for dump/restore ops |
+| | `GAET_TIMEOUT_PER_GB` | Int | `300` | Extra dynamic timeout budget added per 1 GB data |
 | | `GAET_TABLES` | String | `(all)` | Comma-separated list of specific tables |
 
 ---
