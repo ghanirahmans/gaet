@@ -1,23 +1,15 @@
 #!/usr/bin/env bash
 # ============================================================================
-# gaet — One-liner installer
-# Usage:        curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
-# Reinstall:    curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+# gaet v2.0 — High-Performance Database Backup & Sync CLI (Go Single Binary)
+# Usage: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
 # ============================================================================
 set -eo pipefail
 
-GAET_DIR="$HOME/.local/bin"
+GAET_BIN_DIR="$HOME/.local/bin"
 GAET_CONFIG="$HOME/.gaet"
-GAET_BRANCH="${GAET_BRANCH:-lts/v1.0}"
-# Resolve commit SHA dynamically to bypass GitHub raw CDN 5-minute cache
-COMMIT_SHA=$(curl -fsSL https://api.github.com/repos/ghanirahmans/gaet/commits/$GAET_BRANCH 2>/dev/null | grep '"sha"' | head -n1 | cut -d'"' -f4 || true)
-if [ -z "$COMMIT_SHA" ]; then
-    COMMIT_SHA="$GAET_BRANCH"
-fi
-RAW_BASE="https://raw.githubusercontent.com/ghanirahmans/gaet/$COMMIT_SHA"
 
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║  gaet - Database Backup & Sync CLI                   ║"
+echo "║  gaet v2.0 - Database Backup & Sync CLI (Golang)     ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 
@@ -30,155 +22,89 @@ if ! command -v curl &>/dev/null; then
 fi
 echo "  [ OK ]  curl"
 
-# ── 1. Check Python ───────────────────────────────────────────────────────
-PYTHON=""
-for cmd in python3 python; do
-    if command -v "$cmd" &>/dev/null; then
-        PYTHON="$cmd"
-        break
-    fi
-done
-if [ -n "$PYTHON" ]; then
-    PYTHON_VER=$($PYTHON --version 2>&1 | awk '{print $2}')
-    echo "  [ OK ]  Python ($PYTHON_VER)"
-else
-    echo "  [FAIL]  Python 3.8+ is required. Install it first."
-    exit 1
-fi
-
-# ── 2. Check PostgreSQL tools ─────────────────────────────────────────────
+# ── 1. Check PostgreSQL tools ─────────────────────────────────────────────
 if command -v pg_dump &>/dev/null; then
     echo "  [ OK ]  pg_dump"
 else
     echo "  [WARN]  PostgreSQL tools (pg_dump) not found."
     echo "          Ubuntu/Debian: sudo apt install postgresql-client"
     echo "          macOS:         brew install postgresql"
-    echo "          Windows:       https://www.postgresql.org/download/"
 fi
 
-# ── Helper: download one file with 2 retries ───────────────────────────────
-# Uses raw.githubusercontent.com (no API rate limit). Retries twice on failure
-# to smooth over transient CDN flakes.
-dl() {
-    local url="$1"; local dst="$2"
-    local i
-    for i in 1 2 3; do
-        if curl -fsSL "$url" -o "$dst" 2>/dev/null; then
-            return 0
-        fi
-        sleep 1
-    done
-    return 1
-}
-
-GAET_APP_DIR="$HOME/.local/share/gaet"
-
-# Clean up legacy un-isolated folders if present
-rm -rf "$GAET_DIR/gaet_pkg" "$GAET_DIR/scripts" "$GAET_DIR/dashboard" "$GAET_DIR/completions" "$GAET_CONFIG/app" 2>/dev/null || true
-
-# ── 3. Create directories ─────────────────────────────────────────────────
-mkdir -p "$GAET_DIR"
+# ── 2. Create directories ─────────────────────────────────────────────────
+mkdir -p "$GAET_BIN_DIR"
 mkdir -p "$GAET_CONFIG"
-mkdir -p "$GAET_APP_DIR"
-mkdir -p "$GAET_APP_DIR/src/gaet"
-mkdir -p "$GAET_APP_DIR/scripts"
-mkdir -p "$GAET_APP_DIR/completions"
-mkdir -p "$GAET_APP_DIR/dashboard/static" "$GAET_APP_DIR/dashboard/public"
 
-# ── 4. Download gaet bundle ───────────────────────────────────────────────
-if dl "$RAW_BASE/gaet.py" "$GAET_APP_DIR/gaet.py"; then
-    chmod +x "$GAET_APP_DIR/gaet.py"
-    echo "  [ OK ]  gaet.py -> $GAET_APP_DIR/gaet.py"
+# Clean up legacy Python application bundle if present
+rm -rf "$HOME/.local/share/gaet" 2>/dev/null || true
+
+# ── 3. Install binary ──────────────────────────────────────────────────────
+# If running in local repository or go toolchain is available, build directly
+if [ -f "go.mod" ] && command -v go &>/dev/null; then
+    echo "  [INFO]  Building gaet binary from source..."
+    go build -ldflags="-s -w" -o "$GAET_BIN_DIR/gaet" ./cmd/gaet
+    echo "  [ OK ]  Built gaet binary -> $GAET_BIN_DIR/gaet"
+elif command -v go &>/dev/null; then
+    echo "  [INFO]  Installing gaet via go install..."
+    GOBIN="$GAET_BIN_DIR" go install github.com/ghanirahmans/gaet/cmd/gaet@latest
+    echo "  [ OK ]  Installed gaet binary -> $GAET_BIN_DIR/gaet"
 else
-    echo "  [FAIL]  Could not download gaet.py from: $RAW_BASE/gaet.py"
-    exit 1
+    # Fallback to downloading GitHub Release binary asset
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64) ARCH="amd64" ;;
+        aarch64|arm64) ARCH="arm64" ;;
+    esac
+    BIN_URL="https://github.com/ghanirahmans/gaet/releases/latest/download/gaet-${OS}-${ARCH}"
+    echo "  [INFO]  Downloading gaet binary (${OS}/${ARCH})..."
+    if curl -fsSL "$BIN_URL" -o "$GAET_BIN_DIR/gaet"; then
+        chmod +x "$GAET_BIN_DIR/gaet"
+        echo "  [ OK ]  Downloaded gaet -> $GAET_BIN_DIR/gaet"
+    else
+        echo "  [WARN]  Could not download pre-compiled binary. Building locally if Go is available..."
+        if command -v go &>/dev/null; then
+            GOBIN="$GAET_BIN_DIR" go install github.com/ghanirahmans/gaet/cmd/gaet@latest
+        else
+            echo "  [FAIL]  Installation failed. Please install Go or check GitHub release assets."
+            exit 1
+        fi
+    fi
 fi
 
-PKG_FILES="__init__.py __main__.py registry.py cli.py core.py detect.py init.py config.py status.py backup.py scheduler.py log.py serve.py export.py update.py remote.py snapshots.py"
-for f in $PKG_FILES; do
-    dl "$RAW_BASE/src/gaet/$f" "$GAET_APP_DIR/src/gaet/$f"
-done
-echo "  [ OK ]  src/gaet -> $GAET_APP_DIR/src/gaet/"
+chmod +x "$GAET_BIN_DIR/gaet" 2>/dev/null || true
 
-for f in status.py scheduler.py service_manager.py installer.py __init__.py; do
-    dl "$RAW_BASE/scripts/$f" "$GAET_APP_DIR/scripts/$f"
-done
-echo "  [ OK ]  scripts -> $GAET_APP_DIR/scripts/"
-
-for f in gaet.bash gaet.zsh gaet.fish gaet.ps1; do
-    dl "$RAW_BASE/completions/$f" "$GAET_APP_DIR/completions/$f"
-done
-echo "  [ OK ]  completions -> $GAET_APP_DIR/completions/"
-
-for f in server.py static/index.html public/gaet-logo.png; do
-    dl "$RAW_BASE/dashboard/$f" "$GAET_APP_DIR/dashboard/$f"
-done
-echo "  [ OK ]  dashboard -> $GAET_APP_DIR/dashboard/"
-
-# ── 5. Create launcher wrapper script in ~/.local/bin/gaet ───────────────
-cat > "$GAET_DIR/gaet" << 'EOF'
-#!/usr/bin/env bash
-exec python3 "$HOME/.local/share/gaet/gaet.py" "$@"
-EOF
-chmod +x "$GAET_DIR/gaet"
-echo "  [ OK ]  CLI Launcher -> $GAET_DIR/gaet"
-
-# ── 6. Create config if not exists ────────────────────────────────────────
+# ── 4. Create config if not exists ────────────────────────────────────────
 if [ ! -f "$GAET_CONFIG/.env" ]; then
     cat > "$GAET_CONFIG/.env" << 'EOF'
 # gaet configuration
 # Docs: https://github.com/ghanirahmans/gaet#configuration
-#
-# MINIMUM required: GAET_REMOTE_URL
-# Everything else has sensible defaults.
 
-# Cloud database (REQUIRED)
-# GAET_REMOTE_URL=postgresql://user:pass@host:5432/db
+# Local database
+GAET_LOCAL_URL=postgresql://postgres@127.0.0.1:5432/postgres
 
-# Local database (default: postgres@127.0.0.1:5432/postgres)
-# GAET_LOCAL_URL=postgresql://postgres:@127.0.0.1:5432/postgres
+# Remote database (Cloud)
+GAET_REMOTE_URL=
 
 # Retention (days)
-# GAET_RETENTION_DAYS=7
-
-# Tables to backup (comma-separated, auto-discovered if empty)
-# GAET_TABLES=
-
-# Dashboard port
-# GAET_DASHBOARD_PORT=9191
+GAET_RETENTION_DAYS=7
 EOF
     echo "  [ OK ]  Config created -> $GAET_CONFIG/.env"
 else
     echo "  [ OK ]  Config exists -> $GAET_CONFIG/.env"
 fi
 
-# ── 7. Check PATH ─────────────────────────────────────────────────────────
-case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*)
-        if echo "$PATH" | tr ';' '\n' | grep -qF "$GAET_DIR"; then
-            echo "  [ OK ]  PATH -> $GAET_DIR is in PATH"
-        else
-            echo "  [WARN]  Add $GAET_DIR to your PATH"
-            echo "          Add this to your shell profile:"
-            echo '          export PATH="$HOME/.local/bin:$PATH"'
-        fi
-        if [ ! -f "$GAET_DIR/gaet.exe" ]; then
-            cp "$GAET_DIR/gaet" "$GAET_DIR/gaet.exe" 2>/dev/null || true
-        fi
-        ;;
-    *)
-        if echo "$PATH" | tr ':' '\n' | grep -qF "$GAET_DIR"; then
-            echo "  [ OK ]  PATH -> $GAET_DIR is in PATH"
-        else
-            echo "  [WARN]  Add $GAET_DIR to your PATH:"
-            echo "          export PATH=\"\$HOME/.local/bin:\$PATH\""
-            echo ""
-            echo "          Add to ~/.bashrc or ~/.zshrc for persistence."
-        fi
-        ;;
-esac
+# ── 5. Check PATH ─────────────────────────────────────────────────────────
+if echo "$PATH" | tr ':' '\n' | grep -qF "$GAET_BIN_DIR"; then
+    echo "  [ OK ]  PATH -> $GAET_BIN_DIR is in PATH"
+else
+    echo "  [WARN]  Add $GAET_BIN_DIR to your PATH:"
+    echo "          export PATH=\"\$HOME/.local/bin:\$PATH\""
+    echo ""
+    echo "          Add to ~/.bashrc or ~/.zshrc for persistence."
+fi
 
-# ── 8. Done ───────────────────────────────────────────────────────────────
+# ── 6. Done ───────────────────────────────────────────────────────────────
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║     Installation complete!                           ║"
