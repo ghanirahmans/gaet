@@ -1,9 +1,9 @@
 # gaet(1) — PostgreSQL Backup & Sync CLI
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
+[![Golang 1.22+](https://img.shields.io/badge/golang-1.22+-blue.svg)](https://go.dev/)
 [![Platform: Linux | macOS | Windows](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-supported-brightgreen.svg)]()
-[![v1.0.0 LTS](https://img.shields.io/badge/v1.0.0-LTS%20Release-blue?label=release)](SUPPORT.md)
+[![v2.0.0 Release](https://img.shields.io/badge/v2.0.0-Golang%20Release-blue?label=release)](SUPPORT.md)
 
 > **gaet** is a zero-dependency PostgreSQL backup and synchronization CLI tool. It handles snapshot retention, local-to-cloud pushes, fetches, and status reporting.
 
@@ -288,16 +288,16 @@ Run the comprehensive health check command to diagnose issues:
 gaet doctor
 ```
 
-For error codes, exit values, and common solutions, consult [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+For error codes, exit values, and common solutions, consult [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ---
 
 ## See Also
 
-- [ROADMAP.md](ROADMAP.md) — Strategic future milestones & roadmap.
+- [docs/roadmap.md](docs/roadmap.md) — Strategic future milestones & roadmap.
 - [AGENTS.md](AGENTS.md) — Architecture guidelines and development standards.
-- [COMMAND_SCOPES.md](COMMAND_SCOPES.md) — Technical scope boundaries and invariants.
-- [QUICKSTART.md](QUICKSTART.md) — 5-minute walkthrough guide.
-- [ARCHITECTURE.md](ARCHITECTURE.md) — Internal system design and module specs.
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — Diagnostic guides and error code index.
+- [docs/command_scopes.md](docs/command_scopes.md) — Technical scope boundaries and invariants.
+- [docs/quickstart.md](docs/quickstart.md) — 5-minute walkthrough guide.
+- [docs/architecture.md](docs/architecture.md) — Internal system design and module specs.
+- [docs/troubleshooting.md](docs/troubleshooting.md) — Diagnostic guides and error code index.
 - Manual Page: `man gaet` (or `man ./gaet.1`).
