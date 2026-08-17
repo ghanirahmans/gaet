@@ -92,7 +92,7 @@ Get up and running in under 2 minutes:
 
 ```bash
 # 1. Install gaet CLI (LTS Release)
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
 
 # 2. Run interactive setup wizard
 gaet init
@@ -112,12 +112,12 @@ gaet status
 
 **Linux / macOS (Bash):**
 ```bash
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.ps1 | iex
 ```
 
 ### Method 2: Build from Source / Go Toolchain
