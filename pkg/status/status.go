@@ -440,7 +440,7 @@ func testLocalDB(psql, host, port, user, db, pass, query string, timeout time.Du
 	if rc == 0 {
 		return strings.TrimSpace(out), true
 	}
-	if pass == "" && (host == "127.0.0.1" || host == "localhost" || strings.HasPrefix(host, "/")) {
+	if host == "127.0.0.1" || host == "localhost" || strings.HasPrefix(host, "/") || host == "" {
 		fbOut, _, fbRc := core.RunCmdSimple(psql,
 			[]string{"-w", "-p", port, "-U", user, "-d", db, "-tAc", query},
 			envDB, timeout)

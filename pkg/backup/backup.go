@@ -83,7 +83,7 @@ func RunPush(opts PushOptions) error {
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n,
 			"--format=custom", "--compress=9", "--file=" + backupFile},
 		envLocal, timeout)
-	if (rc != 0 || !fileExists(backupFile)) && w == "" {
+	if (rc != 0 || !fileExists(backupFile)) && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/")) {
 		fbArgs := []string{"-w", "-p", p, "-U", u, "-d", n,
 			"--format=custom", "--compress=9", "--file=" + backupFile}
 		_, fbErrOut, fbRc := core.RunCmdSimple(tools.PgDump, fbArgs, envLocal, timeout)

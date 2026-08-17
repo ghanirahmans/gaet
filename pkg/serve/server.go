@@ -250,7 +250,7 @@ func handleDoctor(w http.ResponseWriter, r *http.Request) {
 			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
 			envDB, 5*time.Second)
 		localOK = rc == 0 && strings.TrimSpace(out) == "1"
-		if !localOK && wPass == "" {
+		if !localOK && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/") || h == "") {
 			fbOut, _, fbRc := core.RunCmdSimple(tools.Psql,
 				[]string{"-w", "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
 				envDB, 5*time.Second)
@@ -346,7 +346,7 @@ func handleDiff(w http.ResponseWriter, r *http.Request) {
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
 			"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"},
 		envLocal, 8*time.Second)
-	if rcLocal != 0 && wPass == "" {
+	if rcLocal != 0 && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/") || h == "") {
 		fbOut, _, fbRc := core.RunCmdSimple(tools.Psql,
 			[]string{"-w", "-p", p, "-U", u, "-d", n, "-tAc",
 				"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"},
@@ -480,8 +480,8 @@ func handleLocalTest(w http.ResponseWriter, r *http.Request) {
 	}
 	out, errOut, rc := core.RunCmdSimple(tools.Psql, args, envLocal, 8*time.Second)
 
-	// Fallback to local Unix socket auth if TCP fails without a password
-	if rc != 0 && wPass == "" {
+	// Fallback to local Unix socket auth if TCP fails
+	if rc != 0 && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/") || h == "") {
 		fbArgs := []string{"-w", "-d", n, "-tAc", "SELECT 1;"}
 		if p != "" {
 			fbArgs = append([]string{"-p", p, "-U", u}, fbArgs...)
