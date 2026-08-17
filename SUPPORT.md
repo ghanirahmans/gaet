@@ -8,25 +8,26 @@ This document outlines the support policy and maintenance lifecycle for **Gaet**
 
 | Version | Engine | Status | Release Date | Support Until | Notes |
 |:---|:---|:---|:---|:---|:---|
-| **`v1.1.0 LTS`** | **Golang** | 🟢 **Active LTS** | August 2026 | **August 2027** | Official Production Single Binary Release & Active Development |
-| **`v1.0.0 LTS`** | Python | 🟡 **Maintenance** | August 2026 | **August 2027** | Legacy Python Engine (Critical Security & Bug Fixes Only) |
+| **`v1.1.0 LTS`** | **Golang** | 🟢 **Active LTS** | August 2026 | **August 2027+** | Engine Utama Rilis Produksi & Pengembangan Berkelanjutan |
+| **`v1.0.0 LTS`** | Python | 🟡 **Maintenance Mode** | August 2026 | **August 2027** | Dukungan Versi Python Sampai Tahun Depan (Bug/Security Only) |
 
 ---
 
 ## Architecture Transition & Support Policy
 
-1. **Golang Engine (`v1.1.0 LTS`+)**:
-   - Starting with `v1.1.0 LTS`, all active feature development, performance enhancements, and new CLI/Dashboard capabilities are powered exclusively by the Golang single-binary runtime.
+1. 🚀 **Golang Engine (`v1.1.0 LTS`+) — Mesin Utama Utama & Berkelanjutan**:
+   - Mulai versi `v1.1.0 LTS`, seluruh pengembangan fitur baru, peningkatan performa biner tunggal, dan optimasi CLI/Dashboard **akan terus menggunakan dan dikembangkan dengan Golang**.
+   - Golang menjadi standar arsitektur permanen untuk ekosistem Gaet.
 
-2. **Legacy Python Engine (`v1.0.0 LTS`)**:
-   - The legacy Python-based version (`v1.0.x`) has entered **Maintenance Mode**.
-   - Support for the Python engine will end in **August 2027**. During this maintenance period, it will receive critical security patches and high-severity bug fixes only. Users are strongly encouraged to upgrade to `v1.1.0 LTS`.
+2. 🐍 **Python Legacy Engine (`v1.0.0 LTS`) — Dukungan Hingga Tahun Depan**:
+   - Versi berbasis Python (`v1.0.x`) **tetap mendapat dukungan perbaikan bug & keamanan kritis hingga tahun depan (Agustus 2027)**.
+   - Setelah masa dukungan tersebut berakhir di tahun depan, dukungan versi Python akan dihentikan sepenuhnya (EOL) dan seluruh pengguna wajib menggunakan versi **Golang**.
 
 ---
 
 ## Scope of Support for `v1.1.0 LTS`
 
-During the 1-year LTS support window (August 2026 – August 2027), `v1.1.0 LTS` will receive:
+During the 1-year LTS support window (August 2026 – August 2027+), `v1.1.0 LTS` will receive:
 
 1. 🛡️ **Critical Security Patches**: Immediate patch updates for any security vulnerabilities or credential handling bugs.
 2. 🐛 **Bug Fixes**: Patch releases for unexpected CLI errors, cross-platform compatibility issues (Linux, macOS, Windows), or database backup/sync failures.
