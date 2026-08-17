@@ -364,16 +364,46 @@ func runUpdate(_ []string) error {
 
 func runUninstall(args []string) error {
 	save := hasFlag(args, "--save")
+	yes := hasFlag(args, "-y") || hasFlag(args, "--yes")
+
 	core.BoxTitle("gaet uninstall")
 
-	if !hasFlag(args, "-y") && !hasFlag(args, "--yes") {
+	if !yes {
 		if !core.IsStdinTTY() {
 			return core.Die("gaet uninstall in non-interactive mode requires --yes flag", core.ExitConfig)
 		}
-		core.StatusWarn("This action will remove gaet CLI executable, configuration, and backups.")
+
+		if !save {
+			core.Echo("  Select uninstallation mode:")
+			core.Echo(fmt.Sprintf("    %s1.%s Clean Uninstall  (Remove binary, config .env, and backup snapshots)", core.ColorCyan, core.ColorReset))
+			core.Echo(fmt.Sprintf("    %s2.%s Safe Uninstall   (Remove binary only, preserve user data & backups)", core.ColorCyan, core.ColorReset))
+			core.Echo(fmt.Sprintf("    %s0.%s Cancel", core.ColorDim, core.ColorReset))
+			fmt.Println()
+
+			choice := core.SafeInput("  Choice [1/2/0]: ", "0")
+			switch choice {
+			case "1":
+				save = false
+			case "2":
+				save = true
+			case "0", "":
+				core.StatusArrow("Uninstallation cancelled.")
+				return nil
+			default:
+				core.StatusWarn("Invalid choice. Uninstallation cancelled.")
+				return nil
+			}
+		}
+
+		if save {
+			core.StatusWarn("Safe Uninstall: removing gaet CLI executable while preserving user data & backups.")
+		} else {
+			core.StatusWarn("Clean Uninstall: removing gaet CLI executable, configuration, and backup snapshots.")
+		}
+
 		ans := core.SafeInput("  Type 'yes' to confirm: ", "")
 		if ans != "yes" {
-			core.Echo("  Cancelled.")
+			core.StatusArrow("Uninstallation cancelled.")
 			return nil
 		}
 	}
@@ -388,7 +418,7 @@ func runUninstall(args []string) error {
 	for _, name := range []string{"gaet", "gaet.cmd", "gaet.bat", "gaet.exe"} {
 		p := fmt.Sprintf("%s/.local/bin/%s", home, name)
 		if err := os.Remove(p); err == nil {
-			core.StatusOK(fmt.Sprintf("Removed: %s", p))
+			core.StatusOK(fmt.Sprintf("Removed binary: %s", p))
 		}
 	}
 
@@ -404,14 +434,14 @@ func runUninstall(args []string) error {
 	if !save {
 		if _, err := os.Stat(gaetDir); err == nil {
 			os.RemoveAll(gaetDir)
-			core.StatusOK(fmt.Sprintf("Removed user data: %s", gaetDir))
+			core.StatusOK(fmt.Sprintf("Removed user data & backups: %s", gaetDir))
 		}
 	} else {
 		core.StatusOK(fmt.Sprintf("Preserved user data & backups: %s", gaetDir))
 	}
 
 	fmt.Println()
-	core.StatusOK("Uninstall complete.")
+	core.StatusOK("Uninstallation complete.")
 	return nil
 }
 
