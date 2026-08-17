@@ -89,3 +89,9 @@ Gaet aims to evolve from a zero-dependency CLI database backup tool into the **d
 - [ ] **Kubernetes Native Operator & CRD (`GaetBackup`)**: Declarative Kubernetes Operator supporting custom resource definitions for automated cloud-native backup management.
 - [ ] **Multi-Database Cluster Management (`gaet cluster`)**: Centralized single-CLI control plane for managing dozens of PostgreSQL databases simultaneously.
 - [ ] **Storage & Cloud Cost Optimization Advisor (`gaet advisor`)**: Cost optimization engine suggesting retention policy tweaks and compression algorithms to minimize cloud storage bills.
+
+### Phase 17: Cold Storage Archiving, Team RBAC & Workload Replay
+- [ ] **Cold Storage Glacier Archiving (`gaet archive --glacier`)**: Automated lifecycle transitions moving 30+ day old snapshots to AWS Glacier / Deep Archive for ultra-low-cost long-term compliance storage.
+- [ ] **Zero-Trust Team RBAC**: Role-based access control separating developer read-only fetch permissions from admin restore and configuration rights.
+- [ ] **Machine Learning Anomaly Detection (`gaet monitor --ai`)**: ML-based database bloat and growth anomaly detection before production slowdowns occur.
+- [ ] **Benchmark & Workload Replay (`gaet replay <snapshot>`)**: Replay production query workloads on isolated temporary snapshot DBs to benchmark PostgreSQL version upgrades and index strategies.
