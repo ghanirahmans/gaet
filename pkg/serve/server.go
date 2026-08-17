@@ -157,6 +157,10 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	parsed, _ := core.ParseRemoteURL(remoteURL)
 	remoteConfigured := parsed != nil
 
+	prefix := core.GetEnvStr(env, "GAET_SERVICE_PREFIX", core.DefServicePrefix)
+	cronActive := scheduler.IsActive(prefix)
+	cronHours := core.GetEnvInt(env, "GAET_AUTO_BACKUP_HOURS", 6)
+
 	sendJSON(w, http.StatusOK, map[string]any{
 		"local_ok":          localOK,
 		"host":              core.CleanHost(h),
@@ -167,6 +171,9 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		"remote_configured": remoteConfigured,
 		"remote_host":       fmtRemoteHost(parsed),
 		"env_file":          core.EnvFile(),
+		"cron_active":       cronActive,
+		"cron_hours":        cronHours,
+		"scheduler_name":    scheduler.SchedulerName(),
 	})
 }
 

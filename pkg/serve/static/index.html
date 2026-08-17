@@ -1843,13 +1843,14 @@
       document.getElementById('statBackupFoot').textContent = d.last_backup ? `Latest: ${d.last_backup}` : 'Vault: ~/.gaet/backups';
 
       const cronActive = d.cron_active ?? false;
+      const cronHours = d.cron_hours || 6;
       document.getElementById('statCronStatus').textContent = cronActive ? 'Active' : 'Inactive';
-      document.getElementById('statCronFoot').textContent = cronActive ? 'Schedule: Every 6 hours' : 'Mode: On-demand CLI';
+      document.getElementById('statCronFoot').textContent = cronActive ? `Every ${cronHours}h (${d.scheduler_name || 'daemon'})` : 'Mode: On-demand CLI';
 
       const cronTag = document.getElementById('cronTag');
       if (cronTag) {
         cronTag.className = `status-tag ${cronActive ? 'tag-ok' : 'tag-warn'}`;
-        cronTag.textContent = cronActive ? '[ ACTIVE ]' : '[ CRON ]';
+        cronTag.textContent = cronActive ? '[ ONLINE ]' : '[ INACTIVE ]';
       }
 
       // Render Table Matrix
