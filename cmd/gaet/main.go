@@ -364,17 +364,13 @@ func runUpdate(_ []string) error {
 
 func runUninstall(args []string) error {
 	save := hasFlag(args, "--save")
-	mode := "purge"
-	if save {
-		mode = "save"
-	}
-	core.BoxTitle(fmt.Sprintf("gaet uninstall (%s)", mode))
+	core.BoxTitle("gaet uninstall")
 
 	if !hasFlag(args, "-y") && !hasFlag(args, "--yes") {
 		if !core.IsStdinTTY() {
 			return core.Die("gaet uninstall in non-interactive mode requires --yes flag", core.ExitConfig)
 		}
-		core.StatusWarn("PURGE: removing gaet CLI, configuration, and backups.")
+		core.StatusWarn("This action will remove gaet CLI executable, configuration, and backups.")
 		ans := core.SafeInput("  Type 'yes' to confirm: ", "")
 		if ans != "yes" {
 			core.Echo("  Cancelled.")
