@@ -358,10 +358,10 @@ func selectDB(inst detect.PGInstance) string {
 
 func buildEnvContent(h, p, u, n, w, remoteURL, retDays, tablesLine string) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# ══════════════════════════════════════════════════════════════\n"))
-	sb.WriteString(fmt.Sprintf("# gaet — Configuration\n"))
+	sb.WriteString("# ══════════════════════════════════════════════════════════════\n")
+	sb.WriteString("# gaet — Configuration\n")
 	sb.WriteString(fmt.Sprintf("# Generated: %s\n", time.Now().Format("2006-01-02 15:04:05")))
-	sb.WriteString(fmt.Sprintf("# ══════════════════════════════════════════════════════════════\n\n"))
+	sb.WriteString("# ══════════════════════════════════════════════════════════════\n\n")
 
 	sb.WriteString("# Local Database\n")
 	if strings.HasPrefix(h, "/") {
