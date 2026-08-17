@@ -2,6 +2,20 @@
 
 All notable changes to gaet are documented here.
 
+## [1.1.0 LTS] — 2026-08-17
+
+Second Long-Term Support (LTS) Release — Complete Golang Engine Migration & UX Stabilization.
+
+**Platform Support:** Linux ✅ | macOS ✅ | Windows ✅ (100% Feature & Test Parity)
+
+### Highlights & Key Improvements
+- **Default Port Change for `gaet serve`**: Changed default web dashboard port to **`6161`** (`http://127.0.0.1:6161`) to avoid browser security restriction blocks (`ERR_UNSAFE_PORT`) and port collisions.
+- **Auto-Start OS Startup Daemon (`gaet serve --auto` & `--stop`)**: Added native background service registration for the web dashboard across Linux (**systemd** user service), macOS (**launchd** agent), and Windows (**Task Scheduler**).
+- **Browser Auto-Launch & `--no-open`**: `gaet serve` automatically opens the user's default browser on startup, with `--no-open` flag available for headless/background execution.
+- **Interactive `gaet uninstall` Menu**: Replaced plain purge prompt with an interactive choice menu (`1` Clean Uninstall, `2` Safe Uninstall, `0` Cancel [default]).
+- **OS-Specific PG Tools Guidance**: `gaet check` and `gaet doctor` now output exact 1-line installation commands for `pg_dump` and `psql` per operating system (Ubuntu/Debian, Fedora, Arch, macOS Homebrew, Windows Winget/Choco).
+- **Modern Left Accent Block (▌) Styling**: Updated CLI section headers and restored cyan URL formatting for `PrintDocsFooter()`.
+
 ## [1.0.0 LTS] — 2026-08-16
 
 First Official Production-Ready Long-Term Support (LTS) Release. Supported until August 2027.

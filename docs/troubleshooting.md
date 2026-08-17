@@ -154,16 +154,38 @@ gaet set GAET_REMOTE_SSLMODE=disable
 
 ## Dashboard Issues
 
-### `Address already in use` when starting dashboard
+### `pg_dump: command not found` / `PostgreSQL tools not found`
 
-**Cause:** Another process using port 9191.
+**Cause:** PostgreSQL client tools (`pg_dump`, `pg_restore`, `psql`) are not installed on the system PATH.
 
 **Fix:**
 ```bash
-# Find process using the port
-lsof -i :9191
+# Ubuntu / Debian
+sudo apt update && sudo apt install -y postgresql-client
 
-# Kill it or use different port
+# Fedora / RHEL
+sudo dnf install -y postgresql
+
+# Arch Linux
+sudo pacman -S postgresql-libs
+
+# macOS (Homebrew)
+brew install postgresql
+
+# Windows (PowerShell Winget)
+winget install PostgreSQL.PostgreSQL
+```
+
+### `Address already in use` when starting dashboard
+
+**Cause:** Another process is using port 6161.
+
+**Fix:**
+```bash
+# Find process using port 6161
+lsof -i :6161
+
+# Kill it or run gaet serve on a different port
 gaet serve --port 8080
 ```
 
