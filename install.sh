@@ -22,18 +22,15 @@ echo "╚═══════════════════════�
 echo ""
 
 # ── 0. Check prerequisites ─────────────────────────────────────────────────
-echo -n "  Checking curl... "
 if ! command -v curl &>/dev/null; then
-    echo "NOT FOUND"
-    echo "  ✗ curl is required. Install it first."
-    echo "     Ubuntu/Debian: sudo apt install curl"
-    echo "     macOS:         brew install curl"
+    echo "  [FAIL]  curl is required. Install it first."
+    echo "          Ubuntu/Debian: sudo apt install curl"
+    echo "          macOS:         brew install curl"
     exit 1
 fi
-echo "OK"
+echo "  [ OK ]  curl"
 
 # ── 1. Check Python ───────────────────────────────────────────────────────
-echo -n "  Checking Python... "
 PYTHON=""
 for cmd in python3 python; do
     if command -v "$cmd" &>/dev/null; then
@@ -43,23 +40,20 @@ for cmd in python3 python; do
 done
 if [ -n "$PYTHON" ]; then
     PYTHON_VER=$($PYTHON --version 2>&1 | awk '{print $2}')
-    echo "OK ($PYTHON_VER)"
+    echo "  [ OK ]  Python ($PYTHON_VER)"
 else
-    echo "NOT FOUND"
-    echo "  ✗ Python 3.8+ is required. Install it first."
+    echo "  [FAIL]  Python 3.8+ is required. Install it first."
     exit 1
 fi
 
 # ── 2. Check PostgreSQL tools ─────────────────────────────────────────────
-echo -n "  Checking pg_dump... "
 if command -v pg_dump &>/dev/null; then
-    echo "OK"
+    echo "  [ OK ]  pg_dump"
 else
-    echo "NOT FOUND"
-    echo "  ⚠  PostgreSQL tools not found. Install postgresql-client."
-    echo "     Ubuntu/Debian: sudo apt install postgresql-client"
-    echo "     macOS:         brew install postgresql"
-    echo "     Windows:       https://www.postgresql.org/download/"
+    echo "  [WARN]  PostgreSQL tools (pg_dump) not found."
+    echo "          Ubuntu/Debian: sudo apt install postgresql-client"
+    echo "          macOS:         brew install postgresql"
+    echo "          Windows:       https://www.postgresql.org/download/"
 fi
 
 # ── Helper: download one file with 2 retries ───────────────────────────────
@@ -154,21 +148,20 @@ if [ ! -f "$GAET_CONFIG/.env" ]; then
 # Dashboard port
 # GAET_DASHBOARD_PORT=9191
 EOF
-    echo "  Config created: $GAET_CONFIG/.env"
+    echo "  [ OK ]  Config created -> $GAET_CONFIG/.env"
 else
-    echo "  Config exists: $GAET_CONFIG/.env"
+    echo "  [ OK ]  Config exists -> $GAET_CONFIG/.env"
 fi
 
 # ── 7. Check PATH ─────────────────────────────────────────────────────────
-echo ""
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         if echo "$PATH" | tr ';' '\n' | grep -qF "$GAET_DIR"; then
-            echo "  ✓ ~/.local/bin is in PATH"
+            echo "  [ OK ]  PATH -> $GAET_DIR is in PATH"
         else
-            echo "  ⚠  Add ~/.local/bin to your PATH"
-            echo "     Add this to your shell profile:"
-            echo '     export PATH="$HOME/.local/bin:$PATH"'
+            echo "  [WARN]  Add $GAET_DIR to your PATH"
+            echo "          Add this to your shell profile:"
+            echo '          export PATH="$HOME/.local/bin:$PATH"'
         fi
         if [ ! -f "$GAET_DIR/gaet.exe" ]; then
             cp "$GAET_DIR/gaet" "$GAET_DIR/gaet.exe" 2>/dev/null || true
@@ -176,12 +169,12 @@ case "$(uname -s)" in
         ;;
     *)
         if echo "$PATH" | tr ':' '\n' | grep -qF "$GAET_DIR"; then
-            echo "  ✓ ~/.local/bin is in PATH"
+            echo "  [ OK ]  PATH -> $GAET_DIR is in PATH"
         else
-            echo "  ⚠  Add ~/.local/bin to your PATH:"
-            echo "     export PATH=\"\$HOME/.local/bin:\$PATH\""
+            echo "  [WARN]  Add $GAET_DIR to your PATH:"
+            echo "          export PATH=\"\$HOME/.local/bin:\$PATH\""
             echo ""
-            echo "     Add to ~/.bashrc or ~/.zshrc for persistence."
+            echo "          Add to ~/.bashrc or ~/.zshrc for persistence."
         fi
         ;;
 esac
@@ -189,7 +182,7 @@ esac
 # ── 8. Done ───────────────────────────────────────────────────────────────
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║  ✓ Installation complete!                           ║"
+echo "║     Installation complete!                           ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 echo "  Next steps:"
