@@ -46,14 +46,16 @@ func TestRunStatus_NoConfig(t *testing.T) {
 func TestRunStatus_JSONMode(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("GAET_DIR", tmp)
-	// Suppress output noise in JSON mode
+	// Suppress output noise in JSON mode safely using devNull
 	old := os.Stdout
-	_, w, _ := os.Pipe()
-	os.Stdout = w
-	defer func() {
-		w.Close()
-		os.Stdout = old
-	}()
+	nullFile, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err == nil {
+		os.Stdout = nullFile
+		defer func() {
+			nullFile.Close()
+			os.Stdout = old
+		}()
+	}
 
 	if err := status.RunStatus(status.StatusOptions{JSON: true}); err != nil {
 		t.Errorf("RunStatus --json: unexpected error: %v", err)
