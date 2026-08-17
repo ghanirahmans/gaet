@@ -65,3 +65,9 @@ Gaet aims to evolve from a zero-dependency CLI database backup tool into the **d
 - [ ] **Instant Ephemeral Sandbox (`gaet sandbox`)**: One-command disposable PostgreSQL environments pre-loaded with snapshot data that self-destruct upon exit.
 - [ ] **Zero-Downtime Live Migration (`gaet migrate --live`)**: Seamless live replication pipeline between database providers (e.g. AWS RDS to Supabase/Neon) without application downtime.
 - [ ] **Natural Language CLI Assistant (`gaet ask "<query>"`)**: Natural language command parser for intuitive operations and database queries.
+
+### Phase 13: Data Synthesis, Tenant Isolation & Automated Verification
+- [ ] **Smart Synthetic Seed Generator (`gaet seed --synthetic 1000`)**: Schema analysis and realistic synthetic PII-safe data generation for testing environments.
+- [ ] **Automated Restore Verification Test (CI Smoke Test)**: Automated CI/CD pipeline step that provisions isolated temporary DB containers to restore and validate snapshot integrity.
+- [ ] **Multi-Tenant DB Isolator (`gaet tenant backup <tenant-id>`)**: Extract, backup, or restore isolated data for specific SaaS tenants from shared multi-tenant databases.
+- [ ] **One-Click Disaster Failover (`gaet failover`)**: Automated failover to standby cloud database instances during primary provider outages.
