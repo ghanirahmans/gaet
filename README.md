@@ -92,7 +92,7 @@ Get up and running in under 2 minutes:
 
 ```bash
 # 1. Install gaet CLI (LTS Release)
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash
 
 # 2. Run interactive setup wizard
 gaet init
@@ -112,12 +112,12 @@ gaet status
 
 **Linux / macOS (Bash):**
 ```bash
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.ps1 | iex
+irm https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.ps1 | iex
 ```
 
 ### Method 2: Build from Source / Go Toolchain
@@ -137,7 +137,11 @@ go build -ldflags="-s -w" -o ~/.local/bin/gaet ./cmd/gaet
 ### Legacy Python Edition (Maintenance Mode)
 
 > [!WARNING]
-> The Python implementation (`v1.0.0 LTS`) is in maintenance mode. Active feature development has moved exclusively to the Golang Engine (`v1.1.0 LTS+`). Security patches for the Python engine will be maintained until August 2027, but no new features will be added. Refer to the [Legacy Python Guide](docs/legacy-python.md) for details.
+> The Python implementation (`v1.0.0 LTS`) is in maintenance mode. Active feature development has moved exclusively to the Golang Engine (`v1.1.0 LTS+`). Security patches for the Python engine will be maintained until August 2027, but no new features will be added.
+> 
+> - **Legacy Python 1-Liner**: `curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.sh | bash`
+> - **Legacy Python Pip**: `pip install git+https://github.com/ghanirahmans/gaet.git@lts/v1.0`
+> - Refer to the [Legacy Python Guide](docs/legacy-python.md) for full instructions.
 
 ### Shell Auto-Completion Setup
 

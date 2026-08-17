@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # gaet v1.1.0 LTS — PostgreSQL Database Backup & Cloud Sync CLI
-# Usage: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash
 # ============================================================================
 set -eo pipefail
 

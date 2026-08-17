@@ -13,7 +13,7 @@ const (
 	DocsURL        = "https://github.com/ghanirahmans/gaet"
 	TroubleshootURL = "https://github.com/ghanirahmans/gaet/blob/main/docs/troubleshooting.md"
 	GitHubAPI      = "https://api.github.com/repos/ghanirahmans/gaet/releases/latest"
-	GitHubRaw      = "https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1.0"
+	GitHubRaw      = "https://raw.githubusercontent.com/ghanirahmans/gaet/main"
 
 	DefLocalHost     = "127.0.0.1"
 	DefLocalPort     = "5432"

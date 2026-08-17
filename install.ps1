@@ -1,6 +1,6 @@
 # ============================================================================
 # gaet v1.1.0 LTS — PowerShell One-liner Installer (Windows)
-# Usage: iwr -useb https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.ps1 | iex
 # ============================================================================
 $ErrorActionPreference = "Stop"
 

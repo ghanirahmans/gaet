@@ -28,7 +28,7 @@ jobs:
       
       - name: Install gaet
         run: |
-          curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
+          curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash
       
       - name: Configure
         run: |
