@@ -3,9 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Golang 1.22+](https://img.shields.io/badge/golang-1.22+-blue.svg)](https://go.dev/)
 [![Platform: Linux | macOS | Windows](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-supported-brightgreen.svg)]()
-[![v2.0.0 Release](https://img.shields.io/badge/v2.0.0-Golang%20Release-blue?label=release)](SUPPORT.md)
+[![v1.1.0 LTS](https://img.shields.io/badge/v1.1.0-LTS%20Release-blue?label=release)](SUPPORT.md)
 
-> **gaet** is a zero-dependency PostgreSQL backup and synchronization CLI tool. It handles snapshot retention, local-to-cloud pushes, fetches, and status reporting.
+> **gaet** is a zero-dependency PostgreSQL backup and synchronization CLI tool built in Go. It handles snapshot retention, local-to-cloud pushes, fetches, and status reporting.
 
 ---
 
@@ -73,7 +73,7 @@ gaet [<global-options>] <command> [<args>]
 
 ### Architectural Guarantees
 
-1. **Zero External Dependencies**: Implemented strictly using the Python Standard Library (`subprocess`, `urllib`, `argparse`, `pathlib`, `json`). Requires no `pip` packages.
+1. **Zero External Dependencies**: Implemented strictly using the Go Standard Library (`net/http`, `os`, `syscall`, `embed`). Compiled into a fast portable single binary without external runtime dependencies.
 2. **Passwordless Security Model**: PostgreSQL operations (`psql`, `pg_dump`, `pg_restore`) enforce the `-w` (`--no-password`) flag alongside atomic, temporary `PGPASSFILE` instances (`0600` permission level). Plaintext passwords are never passed as command-line flags or logged to history.
 3. **Atomic State & Environment Updates**: Configuration key updates via `gaet set` utilize atomic line-by-line single-pass updates to `~/.gaet/.env` to prevent config corruption.
 4. **Concurrency Safety**: Non-blocking file locks (`~/.gaet/gaet.lock`) prevent overlapping execution during automated scheduled backups or simultaneous manual invocations.
@@ -87,7 +87,7 @@ Get up and running in under 2 minutes:
 
 ```bash
 # 1. Install gaet CLI (LTS Release)
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
 
 # 2. Run interactive setup wizard
 gaet init
@@ -107,12 +107,12 @@ gaet status
 
 **Linux / macOS (Bash):**
 ```bash
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.ps1 | iex
+irm https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.ps1 | iex
 ```
 
 ### Method 2: System Package / Source Installation

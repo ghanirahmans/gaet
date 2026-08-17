@@ -8,13 +8,13 @@ This document outlines the support policy and maintenance lifecycle for **Gaet**
 
 | Version | Status | Release Date | End of Life / Support Until | Notes |
 |:---|:---|:---|:---|:---|
-| **`v1.0.0 LTS`** | 🟢 **Active LTS** | August 2026 | **August 2027** | First Official Production Release with 1-Year Full Support |
+| **`v1.1.0 LTS`** | 🟢 **Active LTS** | August 2026 | **August 2027** | Official Production Go Single Binary Release |
 
 ---
 
-## Scope of Support for `v1.0.0 LTS`
+## Scope of Support for `v1.1.0 LTS`
 
-During the 1-year LTS support window (August 2026 – August 2027), `v1.0.0 LTS` will receive:
+During the 1-year LTS support window (August 2026 – August 2027), `v1.1.0 LTS` will receive:
 
 1. 🛡️ **Critical Security Patches**: Immediate patch updates (`v1.0.x`) for any security vulnerabilities or authentication bugs.
 2. 🐛 **Bug Fixes**: Patch releases for unexpected CLI errors, cross-platform compatibility issues (Linux, macOS, Windows), or database backup/sync failures.
