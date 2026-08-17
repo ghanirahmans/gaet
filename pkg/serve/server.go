@@ -25,8 +25,10 @@ var embeddedAssets embed.FS
 
 // ServeOptions holds flags for `gaet serve`.
 type ServeOptions struct {
-	Host string
-	Port int
+	Host   string
+	Port   int
+	NoOpen bool
+	Auto   bool
 }
 
 // RunServe starts the embedded web dashboard HTTP server.
@@ -40,10 +42,25 @@ func RunServe(opts ServeOptions) error {
 	}
 
 	addr := fmt.Sprintf("%s:%d", opts.Host, opts.Port)
+	url := fmt.Sprintf("http://%s", addr)
+
+	if opts.Auto {
+		env, _ := core.LoadEnv(core.EnvFile())
+		prefix := core.GetEnvStr(env, "GAET_SERVICE_PREFIX", core.DefServicePrefix)
+		return scheduler.EnableServeAuto(prefix, opts.Host, opts.Port, "")
+	}
+
 	core.BoxTitle("gaet serve")
-	core.StatusOK(fmt.Sprintf("Dashboard active at http://%s", addr))
+	core.StatusOK(fmt.Sprintf("Dashboard active at %s", url))
 	core.StatusArrow("Press Ctrl+C to stop dashboard server")
 	fmt.Println()
+
+	if !opts.NoOpen && !core.IsPlain() && !core.Quiet {
+		go func() {
+			time.Sleep(200 * time.Millisecond)
+			core.OpenBrowser(url)
+		}()
+	}
 
 	mux := http.NewServeMux()
 

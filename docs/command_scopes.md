@@ -66,7 +66,7 @@ This document defines the scope, responsibilities, input/output behaviors, and o
 |:---|:---|:---|:---|:---|:---|
 | **`gaet auto`** | Enables automated backup scheduler using native OS service daemons (systemd/launchd/cron). | Service Control | **No** | `0` / `1` | Configures OS background service timers for periodic backups. |
 | **`gaet stop`** | Disables background automated backup service daemons. | Service Control | **No** | `0` | Removes registered background service daemons cleanly. |
-| **`gaet serve`** | Launches local web dashboard HTTP server (`//go:embed` static UI & REST API). | Service Run | **No** (Blocking process) | `0` / `1` | Serves monitoring dashboard UI and REST API on configured port. |
+| **`gaet serve`** | Launches local web dashboard HTTP server (default port `6161`). Supports `--no-open` and `--auto` (OS startup daemon). | Service Run | **No** (Blocking process) | `0` / `1` | Serves monitoring dashboard UI and REST API on configured port. |
 
 ---
 

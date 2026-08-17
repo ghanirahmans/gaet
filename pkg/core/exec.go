@@ -6,8 +6,25 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"time"
 )
+
+// OpenBrowser opens a URL in the user's default web browser.
+func OpenBrowser(url string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		return fmt.Errorf("unsupported platform")
+	}
+	return cmd.Start()
+}
 
 // ExecResult holds the stdout, stderr, and exit code of a subprocess.
 type ExecResult struct {
