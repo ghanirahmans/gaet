@@ -4,6 +4,7 @@ package core
 import (
 	"fmt"
 	"os"
+	"runtime"
 )
 
 // Color control — enabled when stdout is a TTY unless NO_COLOR is set.
@@ -138,9 +139,30 @@ func BoxSection(title string) {
 
 // PrintDocsFooter prints the documentation URL footer.
 func PrintDocsFooter() {
-	if IsPlain() || Quiet {
+	if Quiet {
 		return
 	}
-	fmt.Printf("\n  %sDocumentation:%s %shttps://github.com/ghanirahmans/gaet%s\n",
-		ColorDim, ColorReset, ColorCyan, ColorReset)
+	fmt.Println()
+	Echo(fmt.Sprintf("  %sDocumentation: %s%s", ColorDim, DocsURL, ColorReset))
+	Echo(fmt.Sprintf("  %sTroubleshooting: %s%s", ColorDim, TroubleshootURL, ColorReset))
+	fmt.Println()
+}
+
+// PrintPGToolsInstructions prints OS-specific commands to install PostgreSQL client tools.
+func PrintPGToolsInstructions() {
+	if Quiet {
+		return
+	}
+	StatusInfo("How to install PostgreSQL client tools (pg_dump, pg_restore, psql):")
+	switch runtime.GOOS {
+	case "linux":
+		StatusArrow("Ubuntu/Debian:  sudo apt update && sudo apt install -y postgresql-client")
+		StatusArrow("Fedora/RHEL:    sudo dnf install -y postgresql")
+		StatusArrow("Arch Linux:     sudo pacman -S postgresql-libs")
+	case "darwin":
+		StatusArrow("macOS (Homebrew): brew install postgresql  (or brew install libpq)")
+	case "windows":
+		StatusArrow("Windows (Winget): winget install PostgreSQL.PostgreSQL")
+		StatusArrow("Windows (Choco):  choco install postgresql")
+	}
 }
