@@ -6,10 +6,10 @@ This document outlines the support policy and maintenance lifecycle for **Gaet**
 
 ## Active LTS Releases
 
-| Version | Engine | Status | Release Date | Support Until | Notes |
-|:---|:---|:---|:---|:---|:---|
-| **`v1.1.0 LTS`** | **Golang** | 🟢 **Active LTS** | August 2026 | **August 2027+** | Engine Utama Rilis Produksi & Pengembangan Berkelanjutan |
-| **`v1.0.0 LTS`** | Python | 🟡 **Maintenance Mode** | August 2026 | **August 2027** | Dukungan Versi Python Sampai Tahun Depan (Bug/Security Only) |
+| Version | Engine | Recommendation | Status | Release Date | Support Until | Notes |
+|:---|:---|:---|:---|:---|:---|:---|
+| **`v1.1.0 LTS`** | **Golang** | 🟢 **RECOMMENDED** | 🟢 **Active LTS** | August 2026 | **August 2027+** | Engine Utama Single-Binary Rilis Produksi & Pengembangan Berkelanjutan |
+| **`v1.0.0 LTS`** | Python | 🟡 **ALTERNATIVE** | 🟡 **Maintenance** | August 2026 | **August 2027** | Engine Alternative/Legacy dengan Dukungan Hingga Tahun Depan |
 
 ---
 

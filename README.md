@@ -1,11 +1,16 @@
 # gaet(1) — PostgreSQL Backup & Sync CLI
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Golang 1.22+](https://img.shields.io/badge/golang-1.22+-blue.svg)](https://go.dev/)
+[![Engine: Golang](https://img.shields.io/badge/engine-Golang%20(Recommended)-brightgreen.svg)](SUPPORT.md)
+[![Alternative: Python](https://img.shields.io/badge/alternative-Python%20(Legacy)-yellow.svg)](SUPPORT.md)
 [![Platform: Linux | macOS | Windows](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-supported-brightgreen.svg)]()
 [![v1.1.0 LTS](https://img.shields.io/badge/v1.1.0-LTS%20Release-blue?label=release)](SUPPORT.md)
 
-> **gaet** is a zero-dependency PostgreSQL backup and synchronization CLI tool built in Go. It handles snapshot retention, local-to-cloud pushes, fetches, and status reporting.
+> **gaet** is a high-performance PostgreSQL database backup and cloud synchronization CLI.
+> 
+> 💡 **Engine Options**:
+> - 🟢 **Single-Binary Engine (Golang)**: **[RECOMMENDED]** Fast, zero-dependency portable single binary for active production & ongoing development.
+> - 🟡 **Legacy Engine (Python)**: **[ALTERNATIVE]** Maintained for backward compatibility until August 2027.
 
 ---
 
