@@ -1,16 +1,16 @@
 # gaet(1) — PostgreSQL Backup & Sync CLI
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Engine: Golang](https://img.shields.io/badge/engine-Golang%20(Recommended)-brightgreen.svg)](SUPPORT.md)
-[![Alternative: Python](https://img.shields.io/badge/alternative-Python%20(Legacy)-yellow.svg)](SUPPORT.md)
+[![Engine: Go](https://img.shields.io/badge/engine-Go%20(Recommended)-brightgreen.svg)](SUPPORT.md)
+[![Alternative: Python](https://img.shields.io/badge/legacy-Python%20(Alternative)-yellow.svg)](SUPPORT.md)
 [![Platform: Linux | macOS | Windows](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-supported-brightgreen.svg)]()
-[![v1.1.0 LTS](https://img.shields.io/badge/v1.1.0-LTS%20Release-blue?label=release)](SUPPORT.md)
+[![v1.1.0 LTS](https://img.shields.io/badge/v1.1.0-LTS-blue?label=release)](SUPPORT.md)
 
-> **gaet** is a high-performance PostgreSQL database backup and cloud synchronization CLI.
+> **gaet** is a zero-dependency PostgreSQL database backup and cloud synchronization CLI.
 > 
-> 💡 **Engine Options**:
-> - 🟢 **Single-Binary Engine (Golang)**: **[RECOMMENDED]** Fast, zero-dependency portable single binary for active production & ongoing development.
-> - 🟡 **Legacy Engine (Python)**: **[ALTERNATIVE]** Maintained for backward compatibility until August 2027.
+> **Architectural Editions**:
+> - **Go Engine (`v1.1.0 LTS`) — Recommended**: Single portable binary for active production and ongoing feature development.
+> - **Python Engine (`v1.0.0 LTS`) — Legacy Alternative**: Maintained for backwards compatibility until August 2027.
 
 ---
 
