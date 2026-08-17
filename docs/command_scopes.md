@@ -54,7 +54,7 @@ This document defines the scope, responsibilities, input/output behaviors, and o
 |:---|:---|:---|:---|:---|:---|
 | **`gaet get`** | Reads and displays `.env` configuration keys. | Config Read | **No** | `0` | Read-only. Supports `--list` to view configuration schema reference. |
 | **`gaet set`** | Sets or updates `KEY=VALUE` variables in `.env` using single-pass atomic file writes. | Config Write | **No** | `0` / `2` (Invalid Format) | Modifies specified keys without launching interactive setup wizard. |
-| **`gaet remote`** | Manages Cloud DB connection URL (`show`, `set-url`, `remove`). | Config Management | **No** | `0` / `80` | Validates PostgreSQL URL formatting and tests connectivity. |
+| **`gaet remote`** | Manages Cloud DB connection URL (`show`, `set-url`, `remove`). | Config Management | **No** | `0` / `80` | Validates database URL formatting and tests connectivity. |
 | **`gaet export`** | Exports `.env` variables as shell environment statements (`export GAET_...`). | Config Utility | **No** | `0` | Outputs shell-compatible export statements to stdout. |
 | **`gaet completion`** | Generates shell autocompletion scripts (bash, zsh, fish, powershell). | Shell Utility | **No** | `0` | Outputs shell autocompletion logic to stdout. |
 
@@ -72,6 +72,6 @@ This document defines the scope, responsibilities, input/output behaviors, and o
 
 ## Security & Execution Rules
 
-1. **Passwordless Executions (`-w`)**: All PostgreSQL tools (`psql`, `pg_dump`, `pg_restore`) execute with `-w` (`--no-password`) alongside short-lived, isolated `PGPASSFILE` buffers (`0600` permissions). Passwords are never exposed in process lists or CLI arguments.
+1. **Passwordless Executions (`-w`)**: All database client tools (`psql`, `pg_dump`, `pg_restore`) execute with `-w` (`--no-password`) alongside short-lived, isolated `PGPASSFILE` buffers (`0600` permissions). Passwords are never exposed in process lists or CLI arguments.
 2. **Path Standard Compliance**: All runtime configurations respect `GAET_DIR` and adhere to standard user paths (`~/.gaet/.env`).
 3. **Non-Interactive Guard**: In non-TTY / CI environments, destructive operations (`fetch`, `restore`, `uninstall`) require `-y` / `--yes` flag to proceed.

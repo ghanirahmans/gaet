@@ -181,7 +181,7 @@ The visual identity of Gaet is **Operations-First, High-Density, and Terminal-In
 ### ❌ Anti-AI-Slop Rules
 1. **NO Generic SaaS Gradients**: Do NOT add purple-pink decorative gradients to cards. Use solid dark/light card backgrounds (`var(--bg-card)`).
 2. **NO Floating 3D Blobs**: Do NOT introduce decorative animated background spheres or irrelevant 3D illustrations.
-3. **NO Fake Numbers**: Every number displayed in stat cards or tables MUST reflect live PostgreSQL CLI & database state.
+3. **NO Fake Numbers**: Every number displayed in stat cards or tables MUST reflect live DB CLI & database state.
 4. **NO Arbitrary Glassmorphism Overuse**: Glassmorphism is strictly reserved for the sticky top header and stat card containers.
 
 ### 🛑 "Do Not Invent" Rules
