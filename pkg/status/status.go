@@ -40,6 +40,7 @@ func RunCheck(opts CheckOptions) error {
 		return nil
 	}
 
+	core.BoxTitle("gaet check")
 	result := runCheckInner(env, tools, false)
 	if !result["ok"].(bool) {
 		core.PrintDocsFooter()

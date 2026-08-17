@@ -65,6 +65,7 @@ func DisableServeAuto(prefix string) error {
 
 // DisableAuto deactivates the platform scheduler for both auto-backup and serve.
 func DisableAuto(prefix string) error {
+	core.BoxTitle("gaet stop")
 	switch runtime.GOOS {
 	case "linux":
 		return disableSystemd(prefix)
