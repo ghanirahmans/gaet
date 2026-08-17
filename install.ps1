@@ -8,6 +8,14 @@ $ErrorActionPreference = "Stop"
 
 $GAET_DIR = "$env:USERPROFILE\.local\bin"
 $GAET_CONFIG = "$env:USERPROFILE\.gaet"
+$GAET_APP_DIR = if ($env:LOCALAPPDATA) { "$env:LOCALAPPDATA\gaet" } else { "$env:USERPROFILE\AppData\Local\gaet" }
+
+# Clean up legacy un-isolated folders if present
+Remove-Item -Recurse -Force "$GAET_DIR\gaet_pkg" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "$GAET_DIR\scripts" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "$GAET_DIR\dashboard" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "$GAET_DIR\completions" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "$GAET_CONFIG\app" -ErrorAction SilentlyContinue
 
 # Use TLS 1.2 for GitHub
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -71,12 +79,17 @@ try {
 # ── 3. Create directories ─────────────────────────────────────────────────
 New-Item -ItemType Directory -Force -Path $GAET_DIR | Out-Null
 New-Item -ItemType Directory -Force -Path $GAET_CONFIG | Out-Null
-New-Item -ItemType Directory -Force -Path "$GAET_DIR\scripts" | Out-Null
+New-Item -ItemType Directory -Force -Path $GAET_APP_DIR | Out-Null
+New-Item -ItemType Directory -Force -Path "$GAET_APP_DIR\scripts" | Out-Null
+New-Item -ItemType Directory -Force -Path "$GAET_APP_DIR\src\gaet" | Out-Null
+New-Item -ItemType Directory -Force -Path "$GAET_APP_DIR\completions" | Out-Null
+New-Item -ItemType Directory -Force -Path "$GAET_APP_DIR\dashboard\static" | Out-Null
+New-Item -ItemType Directory -Force -Path "$GAET_APP_DIR\dashboard\public" | Out-Null
 
-# ── 4. Download gaet CLI (gaet.py) ───────────────────────────────────────
+# ── 4. Download gaet app bundle ───────────────────────────────────────────
 Write-Host "  Downloading gaet.py... " -NoNewline
 try {
-    Invoke-WebRequest -Uri "$GITHUB_RAW/gaet.py" -OutFile "$GAET_DIR\gaet.py" -UseBasicParsing
+    Invoke-WebRequest -Uri "$GITHUB_RAW/gaet.py" -OutFile "$GAET_APP_DIR\gaet.py" -UseBasicParsing
     Write-Host " OK" -ForegroundColor Green
 } catch {
     Write-Host " FAILED" -ForegroundColor Red
@@ -87,8 +100,7 @@ try {
 }
 
 # ── 4b. Download gaet_pkg ───────────────────────────────────────────────
-$pkgDir = "$GAET_DIR\gaet_pkg\gaet"
-New-Item -ItemType Directory -Force -Path $pkgDir | Out-Null
+$pkgDir = "$GAET_APP_DIR\src\gaet"
 $pkgFiles = @(
     "__init__.py", "__main__.py", "registry.py", "cli.py", "core.py",
     "detect.py", "init.py", "config.py", "status.py", "backup.py",
@@ -107,16 +119,14 @@ foreach ($f in $pkgFiles) {
 $scripts = @("status.py", "scheduler.py", "service_manager.py", "installer.py", "__init__.py")
 foreach ($f in $scripts) {
     try {
-        Invoke-WebRequest -Uri "$GITHUB_RAW/scripts/$f" -OutFile "$GAET_DIR\scripts\$f" -UseBasicParsing
+        Invoke-WebRequest -Uri "$GITHUB_RAW/scripts/$f" -OutFile "$GAET_APP_DIR\scripts\$f" -UseBasicParsing
     } catch {
         Write-Host "  ⚠  Failed to download scripts/$f" -ForegroundColor Yellow
     }
 }
-Write-Host "  Scripts downloaded"
 
 # ── 5a. Download completions ──────────────────────────────────────────────
-$compDir = "$GAET_DIR\completions"
-New-Item -ItemType Directory -Force -Path $compDir | Out-Null
+$compDir = "$GAET_APP_DIR\completions"
 $compFiles = @("gaet.bash", "gaet.zsh", "gaet.fish", "gaet.ps1")
 foreach ($f in $compFiles) {
     try {
@@ -125,14 +135,9 @@ foreach ($f in $compFiles) {
         Write-Host "  ⚠  Failed to download completions/$f" -ForegroundColor Yellow
     }
 }
-Write-Host "  Completions downloaded"
 
 # ── 5b. Download dashboard ────────────────────────────────────────────────
-$dashboardDir = "$GAET_DIR\dashboard"
-New-Item -ItemType Directory -Force -Path $dashboardDir | Out-Null
-New-Item -ItemType Directory -Force -Path "$dashboardDir\static" | Out-Null
-New-Item -ItemType Directory -Force -Path "$dashboardDir\public" | Out-Null
-
+$dashboardDir = "$GAET_APP_DIR\dashboard"
 $dashboardFiles = @("server.py", "static/index.html", "public/gaet-logo.png")
 foreach ($f in $dashboardFiles) {
     try {
@@ -141,13 +146,12 @@ foreach ($f in $dashboardFiles) {
         Write-Host "  ⚠  Failed to download dashboard/$f" -ForegroundColor Yellow
     }
 }
-Write-Host "  Dashboard downloaded"
+Write-Host "  App bundle downloaded ($GAET_APP_DIR)" -ForegroundColor Green
 
 # ── 6. Create gaet.cmd wrapper ────────────────────────────────────────────
-# This lets users run `gaet` directly from anywhere
 $wrapperContent = @"
 @echo off
-python "%~dp0gaet.py" %*
+python "$GAET_APP_DIR\gaet.py" %*
 "@
 $wrapperContent | Out-File -FilePath "$GAET_DIR\gaet.cmd" -Encoding ASCII
 Write-Host "  Wrapper created: $GAET_DIR\gaet.cmd"

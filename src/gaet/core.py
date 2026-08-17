@@ -93,6 +93,18 @@ HOME = Path.home()
 
 GAET_DIR = Path(os.environ.get("GAET_DIR", HOME / ".gaet"))
 
+def get_app_dir() -> Path:
+    if "GAET_APP_DIR" in os.environ:
+        return Path(os.environ["GAET_APP_DIR"])
+    if IS_WINDOWS:
+        local_appdata = os.environ.get("LOCALAPPDATA")
+        if local_appdata:
+            return Path(local_appdata) / "gaet"
+        return HOME / "AppData" / "Local" / "gaet"
+    return HOME / ".local" / "share" / "gaet"
+
+GAET_APP_DIR = get_app_dir()
+
 BACKUP_DIR = GAET_DIR / "backups"
 
 LOG_FILE = BACKUP_DIR / "gaet.log"
