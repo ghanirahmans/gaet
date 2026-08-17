@@ -1,5 +1,5 @@
 // Package status_test tests gaet status, check, and doctor without a real database.
-package status_test
+package tests
 
 import (
 	"os"

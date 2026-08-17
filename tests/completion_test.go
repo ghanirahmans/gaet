@@ -1,5 +1,5 @@
 // Package completion_test tests the completion command output.
-package completion_test
+package tests
 
 import (
 	"strings"

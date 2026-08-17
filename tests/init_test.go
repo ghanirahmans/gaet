@@ -1,5 +1,5 @@
 // Package gaetinit_test tests gaet init wizard non-interactive mode and presets.
-package gaetinit_test
+package tests
 
 import (
 	"os"

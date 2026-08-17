@@ -1,5 +1,5 @@
 // Package snapshots_test tests the gaet snapshots command.
-package snapshots_test
+package tests
 
 import (
 	"os"

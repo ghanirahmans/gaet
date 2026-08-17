@@ -1,5 +1,5 @@
 // Package detect_test tests local PostgreSQL instance detection routines.
-package detect_test
+package tests
 
 import (
 	"testing"

@@ -1,5 +1,5 @@
 // Package serve_test tests embedded web dashboard HTTP endpoints.
-package serve_test
+package tests
 
 import (
 	"encoding/json"
