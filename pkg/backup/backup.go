@@ -237,7 +237,7 @@ func RunFetch(opts FetchOptions) error {
 	_, errOut3, rc3 := core.RunCmdSimple(tools.PgRestore,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, fetchFile},
 		envLocal, timeout)
-	if rc3 != 0 && w == "" {
+	if rc3 != 0 && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/")) {
 		fbArgs := []string{"-w", "-p", p, "-U", u, "-d", n, fetchFile}
 		_, fbErrOut3, fbRc3 := core.RunCmdSimple(tools.PgRestore, fbArgs, envLocal, timeout)
 		if fbRc3 == 0 {
@@ -373,7 +373,7 @@ func RunRestore(opts RestoreOptions) error {
 	_, errOut, rc := core.RunCmdSimple(tools.PgRestore,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, target},
 		envLocal, timeout)
-	if rc != 0 && w == "" {
+	if rc != 0 && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/")) {
 		fbArgs := []string{"-w", "-p", p, "-U", u, "-d", n, target}
 		_, fbErrOut, fbRc := core.RunCmdSimple(tools.PgRestore, fbArgs, envLocal, timeout)
 		if fbRc == 0 {
@@ -489,7 +489,7 @@ func resetTargetObjects(psql, host, port, user, db, passwd, sslMode string) (boo
 	_, errOut, rc := core.RunCmdSimple(psql,
 		[]string{"-w", "-h", host, "-p", port, "-U", user, "-d", db, "-v", "ON_ERROR_STOP=1", "-c", sql},
 		env, 30*time.Second)
-	if rc != 0 && passwd == "" && (host == "127.0.0.1" || host == "localhost" || strings.HasPrefix(host, "/")) {
+	if rc != 0 && (host == "127.0.0.1" || host == "localhost" || strings.HasPrefix(host, "/")) {
 		_, fbErrOut, fbRc := core.RunCmdSimple(psql,
 			[]string{"-w", "-p", port, "-U", user, "-d", db, "-v", "ON_ERROR_STOP=1", "-c", sql},
 			env, 30*time.Second)
