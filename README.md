@@ -134,6 +134,11 @@ cd gaet
 go build -ldflags="-s -w" -o ~/.local/bin/gaet ./cmd/gaet
 ```
 
+### Legacy Python Edition (Maintenance Mode)
+
+> [!WARNING]
+> The Python implementation (`v1.0.0 LTS`) is in maintenance mode. Active feature development has moved exclusively to the Golang Engine (`v1.1.0 LTS+`). Security patches for the Python engine will be maintained until August 2027, but no new features will be added. Refer to the [Legacy Python Guide](docs/legacy-python.md) for details.
+
 ### Shell Auto-Completion Setup
 
 Generate shell auto-completion for your active terminal environment:
