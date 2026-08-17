@@ -62,7 +62,10 @@ func runCheckInner(env map[string]string, tools core.PGTools, silent bool) map[s
 	}
 	if !toolsOK {
 		result["ok"] = false
-		print(func() { core.StatusFail("PostgreSQL tools not found (pg_dump, pg_restore, psql)") })
+		print(func() {
+			core.StatusFail("PostgreSQL tools not found (pg_dump, pg_restore, psql)")
+			core.PrintPGToolsInstructions()
+		})
 	} else {
 		print(func() {
 			core.StatusOK("PostgreSQL tools found")
