@@ -95,3 +95,9 @@ Gaet aims to evolve from a zero-dependency CLI database backup tool into the **d
 - [ ] **Zero-Trust Team RBAC**: Role-based access control separating developer read-only fetch permissions from admin restore and configuration rights.
 - [ ] **Machine Learning Anomaly Detection (`gaet monitor --ai`)**: ML-based database bloat and growth anomaly detection before production slowdowns occur.
 - [ ] **Benchmark & Workload Replay (`gaet replay <snapshot>`)**: Replay production query workloads on isolated temporary snapshot DBs to benchmark PostgreSQL version upgrades and index strategies.
+
+### Phase 18: Mind-Blowing Time-Travel & Autonomous Healer Engine
+- [ ] **Visual Terminal Time-Travel Scrubbing (`gaet rewind`)**: Interactive terminal time scrubbing bar to inspect table state changes second-by-second in real-time.
+- [ ] **Instant Zero-Copy CoW Branching (`gaet branch <name>`)**: OS-level Copy-on-Write (ZFS/Btrfs/APFS) instant 0.2-second database branching with 0 MB storage overhead.
+- [ ] **Autonomous AI Database Auto-Healer (`gaet heal`)**: Automated live database repair stitching clean snapshot data with uncorrupted WAL logs during crashes or index corruption.
+- [ ] **Hardware-Enforced Confidential Enclave Encryption**: Intel SGX / AWS Nitro Enclaves hardware-isolated encryption preventing memory inspection by root or cloud providers.
