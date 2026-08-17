@@ -8,8 +8,6 @@ import (
 	"unsafe"
 )
 
-type termios = syscall.Termios
-
 func tcGetAttr(f *os.File) (syscall.Termios, error) {
 	var t syscall.Termios
 	_, _, errno := syscall.Syscall(
