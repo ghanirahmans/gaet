@@ -91,55 +91,44 @@ mkdir -p "$GAET_APP_DIR/scripts"
 mkdir -p "$GAET_APP_DIR/completions"
 mkdir -p "$GAET_APP_DIR/dashboard/static" "$GAET_APP_DIR/dashboard/public"
 
-# ── 4. Download gaet app bundle ───────────────────────────────────────────
-echo -n "  Downloading gaet app bundle..."
+# ── 4. Download gaet bundle ───────────────────────────────────────────────
+echo "  Downloading gaet bundle..."
 if dl "$RAW_BASE/gaet.py" "$GAET_APP_DIR/gaet.py"; then
     chmod +x "$GAET_APP_DIR/gaet.py"
+    echo "  [ OK ]  gaet.py -> $GAET_APP_DIR/gaet.py"
 else
-    echo " FAILED"
-    echo "  ✗ Could not download gaet.py from: $RAW_BASE/gaet.py"
+    echo "  [FAIL]  Could not download gaet.py from: $RAW_BASE/gaet.py"
     exit 1
 fi
 
 PKG_FILES="__init__.py __main__.py registry.py cli.py core.py detect.py init.py config.py status.py backup.py scheduler.py log.py serve.py export.py update.py remote.py snapshots.py"
-PKG_OK=0
 for f in $PKG_FILES; do
-    if dl "$RAW_BASE/src/gaet/$f" "$GAET_APP_DIR/src/gaet/$f"; then
-        PKG_OK=$((PKG_OK + 1))
-    fi
+    dl "$RAW_BASE/src/gaet/$f" "$GAET_APP_DIR/src/gaet/$f"
 done
+echo "  [ OK ]  src/gaet -> $GAET_APP_DIR/src/gaet/"
 
-SCRIPTS_OK=0
 for f in status.py scheduler.py service_manager.py installer.py __init__.py; do
-    if dl "$RAW_BASE/scripts/$f" "$GAET_APP_DIR/scripts/$f"; then
-        SCRIPTS_OK=$((SCRIPTS_OK + 1))
-    fi
+    dl "$RAW_BASE/scripts/$f" "$GAET_APP_DIR/scripts/$f"
 done
+echo "  [ OK ]  scripts -> $GAET_APP_DIR/scripts/"
 
-COMP_OK=0
 for f in gaet.bash gaet.zsh gaet.fish gaet.ps1; do
-    if dl "$RAW_BASE/completions/$f" "$GAET_APP_DIR/completions/$f"; then
-        COMP_OK=$((COMP_OK + 1))
-    fi
+    dl "$RAW_BASE/completions/$f" "$GAET_APP_DIR/completions/$f"
 done
+echo "  [ OK ]  completions -> $GAET_APP_DIR/completions/"
 
-DASH_OK=0
 for f in server.py static/index.html public/gaet-logo.png; do
-    if dl "$RAW_BASE/dashboard/$f" "$GAET_APP_DIR/dashboard/$f"; then
-        DASH_OK=$((DASH_OK + 1))
-    fi
+    dl "$RAW_BASE/dashboard/$f" "$GAET_APP_DIR/dashboard/$f"
 done
-
-echo " OK ($PKG_OK pkg, $SCRIPTS_OK scripts, $DASH_OK dash)"
+echo "  [ OK ]  dashboard -> $GAET_APP_DIR/dashboard/"
 
 # ── 5. Create launcher wrapper script in ~/.local/bin/gaet ───────────────
-echo -n "  Creating launcher binary..."
 cat > "$GAET_DIR/gaet" << 'EOF'
 #!/usr/bin/env bash
 exec python3 "$HOME/.local/share/gaet/gaet.py" "$@"
 EOF
 chmod +x "$GAET_DIR/gaet"
-echo " OK (~/.local/bin/gaet)"
+echo "  [ OK ]  CLI Launcher -> $GAET_DIR/gaet"
 
 # ── 6. Create config if not exists ────────────────────────────────────────
 if [ ! -f "$GAET_CONFIG/.env" ]; then
