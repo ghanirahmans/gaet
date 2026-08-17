@@ -320,7 +320,7 @@ func dispatch(command string, args []string) error {
 		core.StatusFail(fmt.Sprintf("Unknown command '%s'", command))
 		fmt.Println()
 		printHelp(nil)
-		return core.Die(fmt.Sprintf("unknown command: %s", command), core.ExitUsage)
+		return core.Die("", core.ExitUsage)
 	}
 }
 

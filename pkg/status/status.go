@@ -53,6 +53,7 @@ func runCheckInner(env map[string]string, tools core.PGTools, silent bool) map[s
 	print := func(fn func()) { if !silent { fn() } }
 	result := map[string]any{"ok": true, "checks": map[string]any{}}
 	checks := result["checks"].(map[string]any)
+	var failedChecks []string
 
 	// Tools
 	toolsOK := tools.PgDump != "" && tools.PgRestore != "" && tools.Psql != ""
@@ -62,6 +63,7 @@ func runCheckInner(env map[string]string, tools core.PGTools, silent bool) map[s
 	}
 	if !toolsOK {
 		result["ok"] = false
+		failedChecks = append(failedChecks, "PostgreSQL client tools (pg_dump, pg_restore, psql)")
 		print(func() {
 			core.StatusFail("PostgreSQL tools not found (pg_dump, pg_restore, psql)")
 			core.PrintPGToolsInstructions()
@@ -90,6 +92,7 @@ func runCheckInner(env map[string]string, tools core.PGTools, silent bool) map[s
 		print(func() { core.StatusOK(fmt.Sprintf("Local database %s@%s:%s/%s", u, h, p, n)) })
 	} else {
 		result["ok"] = false
+		failedChecks = append(failedChecks, fmt.Sprintf("Local database connection (%s:%s/%s)", h, p, n))
 		print(func() { core.StatusFail(fmt.Sprintf("Cannot connect to local database %s:%s/%s", h, p, n)) })
 	}
 
@@ -112,6 +115,7 @@ func runCheckInner(env map[string]string, tools core.PGTools, silent bool) map[s
 			print(func() { core.StatusOK(fmt.Sprintf("Cloud database %s@%s/%s", parsed.User, parsed.Host, parsed.DB)) })
 		} else {
 			result["ok"] = false
+			failedChecks = append(failedChecks, fmt.Sprintf("Cloud database connection (%s@%s/%s)", parsed.User, parsed.Host, parsed.DB))
 			print(func() {
 				core.StatusFail(fmt.Sprintf("Cannot connect to cloud database %s@%s/%s", parsed.User, parsed.Host, parsed.DB))
 			})
@@ -129,10 +133,13 @@ func runCheckInner(env map[string]string, tools core.PGTools, silent bool) map[s
 	print(func() {
 		core.StatusOK(fmt.Sprintf("Backup directory: %s (%d snapshots)", backupDir, len(matches)))
 		fmt.Println()
-		if result["ok"].(bool) {
+		if len(failedChecks) == 0 {
 			core.StatusOK("All checks passed!")
 		} else {
-			core.StatusWarn("Some checks failed — fix before backup.")
+			core.StatusWarn(fmt.Sprintf("Checks failed (%d issue(s) found):", len(failedChecks)))
+			for _, item := range failedChecks {
+				core.StatusArrow(fmt.Sprintf("Failed: %s", item))
+			}
 		}
 	})
 	return result
