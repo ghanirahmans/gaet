@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+// DBConnInfo connection info parsed from a database connection URL.
+type DBConnInfo = PGConnInfo
+
+// ParseConnURL parses a database URL (e.g. postgresql://, mysql://).
+func ParseConnURL(url string) (*DBConnInfo, error) {
+	return ParseRemoteURL(url)
+}
+
 // PostgreSQL connection info parsed from a URL.
 type PGConnInfo struct {
 	User     string

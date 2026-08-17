@@ -9,6 +9,14 @@ import (
 	"strings"
 )
 
+// DBTools holds paths to client binaries (dump, restore, cli).
+type DBTools = PGTools
+
+// FindDBTools locates database client tools.
+func FindDBTools(env map[string]string) DBTools {
+	return FindPGTools(env)
+}
+
 // PGTools holds paths to pg_dump, pg_restore, psql.
 type PGTools struct {
 	PgDump    string

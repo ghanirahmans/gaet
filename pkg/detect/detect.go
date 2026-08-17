@@ -10,6 +10,14 @@ import (
 	"github.com/ghanirahmans/gaet/pkg/core"
 )
 
+// DBInstance holds information about a discovered database instance.
+type DBInstance = PGInstance
+
+// DetectLocalDB discovers running database instances.
+func DetectLocalDB(psqlPath string) []DBInstance {
+	return DetectLocalPG(psqlPath)
+}
+
 // PGInstance holds information about a discovered PostgreSQL instance.
 type PGInstance struct {
 	Host      string   `json:"host"`

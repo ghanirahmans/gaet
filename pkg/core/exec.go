@@ -80,6 +80,11 @@ func RunCmdSimple(name string, args []string, env map[string]string, timeout tim
 	return r.Stdout, r.Stderr, r.ExitCode
 }
 
+// DBEnv builds credentials environment variables map for client tools.
+func DBEnv(user, password, sslMode string) map[string]string {
+	return PGEnv(user, password, sslMode)
+}
+
 // PGEnv builds a PGPASSWORD env map for pg_* tools.
 func PGEnv(user, password, sslMode string) map[string]string {
 	env := map[string]string{}

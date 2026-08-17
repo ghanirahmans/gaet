@@ -138,12 +138,12 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	env, _ := core.LoadEnv(core.EnvFile())
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 	h, p, u, n, ww := core.GetLocalDB(env)
 
 	localOK := false
 	if tools.Psql != "" {
-		envDB := core.PGEnv(u, ww, "")
+		envDB := core.DBEnv(u, ww, "")
 		out, _, rc := core.RunCmdSimple(tools.Psql,
 			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
 			envDB, 5*time.Second)
@@ -338,21 +338,21 @@ func handleDoctor(w http.ResponseWriter, r *http.Request) {
 		sb.WriteString(fmt.Sprintf("[FAIL] Configuration file : %s (Missing)\n", core.EnvFile()))
 	}
 
-	// 2. PostgreSQL Binaries
+	// 2. Database Binaries
 	if tools.PgDump != "" && tools.PgRestore != "" && tools.Psql != "" {
-		sb.WriteString("[ OK ] PostgreSQL binaries  : Found (pg_dump, pg_restore, psql)\n")
+		sb.WriteString("[ OK ] Database client tools: Found (pg_dump, pg_restore, psql)\n")
 		sb.WriteString(fmt.Sprintf("       - psql       : %s\n", tools.Psql))
 		sb.WriteString(fmt.Sprintf("       - pg_dump    : %s\n", tools.PgDump))
 		sb.WriteString(fmt.Sprintf("       - pg_restore : %s\n", tools.PgRestore))
 	} else {
 		issues++
-		sb.WriteString("[FAIL] PostgreSQL binaries  : Missing pg_dump/pg_restore/psql\n")
+		sb.WriteString("[FAIL] Database client tools: Missing pg_dump/pg_restore/psql\n")
 	}
 
-	// 3. Local PostgreSQL DB
+	// 3. Local Database
 	localOK := false
 	if tools.Psql != "" {
-		envDB := core.PGEnv(u, wPass, "")
+		envDB := core.DBEnv(u, wPass, "")
 		out, _, rc := core.RunCmdSimple(tools.Psql,
 			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
 			envDB, 5*time.Second)

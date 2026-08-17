@@ -50,7 +50,7 @@ func RunCheck(opts CheckOptions) error {
 	return nil
 }
 
-func runCheckInner(env map[string]string, tools core.PGTools, silent bool) map[string]any {
+func runCheckInner(env map[string]string, tools core.DBTools, silent bool) map[string]any {
 	print := func(fn func()) { if !silent { fn() } }
 	result := map[string]any{"ok": true, "checks": map[string]any{}}
 	checks := result["checks"].(map[string]any)
@@ -64,14 +64,14 @@ func runCheckInner(env map[string]string, tools core.PGTools, silent bool) map[s
 	}
 	if !toolsOK {
 		result["ok"] = false
-		failedChecks = append(failedChecks, "PostgreSQL client tools (pg_dump, pg_restore, psql)")
+		failedChecks = append(failedChecks, "Database client tools (pg_dump, pg_restore, psql)")
 		print(func() {
-			core.StatusFail("PostgreSQL tools not found (pg_dump, pg_restore, psql)")
+			core.StatusFail("Database client tools not found (pg_dump, pg_restore, psql)")
 			core.PrintPGToolsInstructions()
 		})
 	} else {
 		print(func() {
-			core.StatusOK("PostgreSQL tools found")
+			core.StatusOK("Database client tools found")
 			core.StatusArrow(fmt.Sprintf("pg_dump    %s", tools.PgDump))
 			core.StatusArrow(fmt.Sprintf("pg_restore %s", tools.PgRestore))
 			core.StatusArrow(fmt.Sprintf("psql       %s", tools.Psql))
@@ -409,7 +409,7 @@ func RunDoctor(opts DoctorOptions) error {
 }
 
 // CheckLocalDB verifies local DB connection; returns (host,port,user,db,pass) or error.
-func CheckLocalDB(env map[string]string, tools core.PGTools) (h, p, u, n, w string, err error) {
+func CheckLocalDB(env map[string]string, tools core.DBTools) (h, p, u, n, w string, err error) {
 	h, p, u, n, w = core.GetLocalDB(env)
 	if tools.Psql == "" {
 		err = core.Die("psql not found", core.ExitTools)
@@ -422,7 +422,7 @@ func CheckLocalDB(env map[string]string, tools core.PGTools) (h, p, u, n, w stri
 	return
 }
 
-func buildStatusJSON(env map[string]string, tools core.PGTools) map[string]any {
+func buildStatusJSON(env map[string]string, tools core.DBTools) map[string]any {
 	h, p, u, n, w := core.GetLocalDB(env)
 	result := map[string]any{"local": map[string]any{"host": h, "port": p, "user": u, "db": n}, "ok": false}
 	if tools.Psql != "" {
