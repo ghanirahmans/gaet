@@ -294,6 +294,8 @@ For error codes, exit values, and common solutions, consult [TROUBLESHOOTING.md]
 
 ## See Also
 
+- [ROADMAP.md](ROADMAP.md) — Strategic future milestones & roadmap.
+- [AGENTS.md](AGENTS.md) — Architecture guidelines and development standards.
 - [COMMAND_SCOPES.md](COMMAND_SCOPES.md) — Technical scope boundaries and invariants.
 - [QUICKSTART.md](QUICKSTART.md) — 5-minute walkthrough guide.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — Internal system design and module specs.
