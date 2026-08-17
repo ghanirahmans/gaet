@@ -21,14 +21,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          python-version: '3.11'
+          go-version: '1.22'
       
       - name: Install gaet
         run: |
-          curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+          curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
       
       - name: Configure
         run: |
@@ -205,7 +205,7 @@ Or clone repo directly:
 ```bash
 git clone https://github.com/ghanirahmans/gaet.git
 cd gaet
-pip install -e .
+go build -ldflags="-s -w" -o ~/.local/bin/gaet ./cmd/gaet
 ```
 
 ### "pg_dump not found in PATH"
