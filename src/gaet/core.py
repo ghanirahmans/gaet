@@ -131,6 +131,8 @@ DEF_AUTO_INTERVAL = 6
 
 DEF_DASHBOARD_PORT = 9191
 
+subparsers: Any = None
+
 DEF_DASHBOARD_HOST = "127.0.0.1"
 
 DEF_REMOTE_SSLMODE = "prefer"
@@ -1217,7 +1219,7 @@ def cleanup_pg_env(env: Dict[str, str]) -> None:
             pass
 
 try:
-    from scripts.scheduler import (
+    from scripts.scheduler import (  # type: ignore[import-not-found,import-untyped] # pyright: ignore[reportMissingImports]
         scheduler_is_active,
         scheduler_enable,
         scheduler_disable,
@@ -1311,7 +1313,7 @@ except ImportError:
         return "unknown"
 
 try:
-    from scripts import service_manager as _svc_mod
+    from scripts import service_manager as _svc_mod  # type: ignore[import-not-found,import-untyped] # pyright: ignore[reportMissingImports]
     _svc_available = True
 except ImportError:
     _svc_available = False
