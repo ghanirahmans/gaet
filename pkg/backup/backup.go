@@ -62,7 +62,14 @@ func RunPush(opts PushOptions) error {
 	}
 	defer lock.Release()
 
-	core.AppendLog("Push: local -> cloud")
+	core.WriteJSONLog(core.LogEntry{
+		Level:    "INFO",
+		Category: "BACKUP",
+		Action:   "PUSH",
+		Status:   "STARTED",
+		Message:  fmt.Sprintf("Push started: %s@%s:%s/%s", u, h, p, n),
+		Details:  map[string]interface{}{"host": h, "port": p, "database": n},
+	})
 	core.BoxTitle("gaet push")
 
 	backupDir := core.BackupDir()
@@ -110,7 +117,14 @@ func RunPush(opts PushOptions) error {
 	core.StatusOK("Synchronization complete!")
 	applyRetention(env, backupDir)
 	core.StatusOK(fmt.Sprintf("Push complete — %.1f MB synced to %s@%s/%s", sizeMB, parsed.User, parsed.Host, parsed.DB))
-	core.AppendLog("Push complete")
+	core.WriteJSONLog(core.LogEntry{
+		Level:    "INFO",
+		Category: "BACKUP",
+		Action:   "PUSH",
+		Status:   "SUCCESS",
+		Message:  fmt.Sprintf("Push complete — %.1f MB synced to %s@%s/%s", sizeMB, parsed.User, parsed.Host, parsed.DB),
+		Details:  map[string]interface{}{"size_mb": sizeMB, "snapshot": filepath.Base(backupFile)},
+	})
 
 	if opts.JSON {
 		return jsonPrint(map[string]any{"command": "push", "ok": true, "size_mb": sizeMB})
@@ -176,7 +190,13 @@ func RunFetch(opts FetchOptions) error {
 	}
 	defer lock.Release()
 
-	core.AppendLog("Fetch: cloud -> local")
+	core.WriteJSONLog(core.LogEntry{
+		Level:    "INFO",
+		Category: "BACKUP",
+		Action:   "FETCH",
+		Status:   "STARTED",
+		Message:  fmt.Sprintf("Fetch started: cloud -> local DB '%s'", n),
+	})
 	core.BoxTitle("gaet fetch")
 	ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
 	backupDir := core.BackupDir()
@@ -211,7 +231,14 @@ func RunFetch(opts FetchOptions) error {
 		return core.Die(fmt.Sprintf("Local restore failed (rc=%d): %s", rc3, lastNLines(errOut3, 3)), core.ExitLocalDown)
 	}
 	core.StatusOK(fmt.Sprintf("Fetch complete — local database '%s' updated", n))
-	core.AppendLog("Fetch complete")
+	core.WriteJSONLog(core.LogEntry{
+		Level:    "INFO",
+		Category: "BACKUP",
+		Action:   "FETCH",
+		Status:   "SUCCESS",
+		Message:  fmt.Sprintf("Fetch complete — local database '%s' updated", n),
+		Details:  map[string]interface{}{"database": n},
+	})
 	return nil
 }
 
@@ -300,7 +327,14 @@ func RunRestore(opts RestoreOptions) error {
 	defer lock.Release()
 
 	core.BoxTitle("gaet restore")
-	core.AppendLog(fmt.Sprintf("Restore local DB from snapshot: %s", filepath.Base(target)))
+	core.WriteJSONLog(core.LogEntry{
+		Level:    "INFO",
+		Category: "BACKUP",
+		Action:   "RESTORE",
+		Status:   "STARTED",
+		Message:  fmt.Sprintf("Restore started from %s", filepath.Base(target)),
+		Details:  map[string]interface{}{"target": filepath.Base(target), "database": n},
+	})
 	core.StatusInfo("Verifying snapshot integrity...")
 	_, _, rcCheck := core.RunCmdSimple(tools.PgRestore, []string{"--list", target}, nil, 30*time.Second)
 	if rcCheck != 0 {
@@ -325,7 +359,14 @@ func RunRestore(opts RestoreOptions) error {
 	core.Echo("")
 	core.BoxSection("Restore Summary")
 	core.StatusOK(fmt.Sprintf("Database '%s' restored from %s", n, filepath.Base(target)))
-	core.AppendLog(fmt.Sprintf("Restore complete (%s)", filepath.Base(target)))
+	core.WriteJSONLog(core.LogEntry{
+		Level:    "INFO",
+		Category: "BACKUP",
+		Action:   "RESTORE",
+		Status:   "SUCCESS",
+		Message:  fmt.Sprintf("Restore complete from %s", filepath.Base(target)),
+		Details:  map[string]interface{}{"target": filepath.Base(target), "database": n},
+	})
 	return nil
 }
 

@@ -34,6 +34,13 @@ func RunRemote(action, urlArg string, jsonOut bool) error {
 		if err := core.SetEnvKey(core.EnvFile(), "GAET_REMOTE_URL", urlArg); err != nil {
 			return err
 		}
+		core.WriteJSONLog(core.LogEntry{
+			Level:    "INFO",
+			Category: "REMOTE",
+			Action:   "REMOTE_SET",
+			Status:   "SUCCESS",
+			Message:  "GAET_REMOTE_URL updated successfully",
+		})
 		core.StatusOK("GAET_REMOTE_URL updated successfully")
 		return nil
 
@@ -41,6 +48,13 @@ func RunRemote(action, urlArg string, jsonOut bool) error {
 		if err := core.SetEnvKey(core.EnvFile(), "GAET_REMOTE_URL", ""); err != nil {
 			return err
 		}
+		core.WriteJSONLog(core.LogEntry{
+			Level:    "INFO",
+			Category: "REMOTE",
+			Action:   "REMOTE_REMOVE",
+			Status:   "SUCCESS",
+			Message:  "GAET_REMOTE_URL removed from .env",
+		})
 		core.StatusOK("GAET_REMOTE_URL removed from .env")
 		return nil
 

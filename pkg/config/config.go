@@ -183,6 +183,14 @@ func RunSet(vars []string, showList bool) error {
 		return err
 	}
 
+	core.WriteJSONLog(core.LogEntry{
+		Level:    "INFO",
+		Category: "CONFIG",
+		Action:   "CONFIG_SET",
+		Status:   "SUCCESS",
+		Message:  fmt.Sprintf("Updated %d config key(s)", len(updates)+len(deletions)),
+	})
+
 	core.BoxTitle("gaet set")
 	for k, v := range updates {
 		display := maskValue(k, v)
