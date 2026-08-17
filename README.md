@@ -238,6 +238,19 @@ gaet completion fish > ~/.config/fish/completions/gaet.fish
 - **Snapshot Restore Modal**: Interactive one-click database restore confirmation (`restoreModal`) with file size validation and overwrite safety alerts.
 - **Health & Storage Meter**: Real-time total snapshot volume counter (MB), table schema integrity coverage, and quick auto-backup timer toggle.
 
+#### 🌐 Web Application Integration (Next.js, React, Node.js, Python)
+`gaet serve` includes native **CORS preflight (`OPTIONS`) handling** and structured JSON endpoints, enabling seamless sidecar integration with any web framework:
+
+```typescript
+// Next.js App Router API Route example:
+export async function POST() {
+  const res = await fetch('http://127.0.0.1:6161/api/push', { method: 'POST' });
+  const data = await res.json();
+  return Response.json(data);
+}
+```
+📖 Refer to the comprehensive [REST API & Sidecar Integration Guide](docs/rest-api-integration.md) for React, Express, and Python examples.
+
 ---
 
 ## Configuration Reference
