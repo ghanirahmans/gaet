@@ -114,12 +114,18 @@ func BoxTitle(title string) {
 		return
 	}
 	width := 60
-	pad := (width - len(title) - 2) / 2
+	leftPad := 2
+	rightPad := width - leftPad - len(title)
+	if rightPad < 0 {
+		rightPad = 0
+	}
 	line := strings.Repeat("─", width)
 	fmt.Printf("\n  %s┌%s┐%s\n", ColorBold, line, ColorReset)
-	fmt.Printf("  %s│%s %s%-*s %s%s│%s\n",
+	fmt.Printf("  %s│%s%s%s%s%s%s%s│%s\n",
 		ColorBold, ColorReset,
-		ColorBCyan, pad*2+len(title), title, ColorReset,
+		strings.Repeat(" ", leftPad),
+		ColorBCyan, title, ColorReset,
+		strings.Repeat(" ", rightPad),
 		ColorBold, ColorReset)
 	fmt.Printf("  %s└%s┘%s\n\n", ColorBold, line, ColorReset)
 }
