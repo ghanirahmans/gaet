@@ -77,3 +77,9 @@ Gaet aims to evolve from a zero-dependency CLI database backup tool into the **d
 - [ ] **Edge Database Sync Bridge**: Offline-first synchronization engine bridging local edge DBs (SQLite, PGLite, WASM, Turso) with central PostgreSQL instances.
 - [ ] **Automated Time-Series Partitioning (`gaet partition`)**: Automated table partitioning for giant audit log and time-series tables.
 - [ ] **Financial & Compliance Audit Export (`gaet audit-export`)**: Structured Parquet/CSV data exports formatted for SOC2, ISO27001, and HIPAA compliance audits.
+
+### Phase 15: AI Vector Storage, Plugin Ecosystem & TUI
+- [ ] **AI Vector Backup Support (`gaet pgvector`)**: Dedicated handling for `pgvector` extensions preserving HNSW/IVFFlat index structures across backups and restores.
+- [ ] **Extensible Plugin Architecture (`gaet plugin`)**: Standard-library-based hook and plugin system for third-party storage adapters, notification channels, and data transformers.
+- [ ] **Geo-Redundant Multi-Cloud Mirroring**: Parallel backup mirroring across multiple international cloud regions and providers.
+- [ ] **Interactive Terminal UI (`gaet tui`)**: Rich curses-based text interface for SSH power users to inspect snapshots, logs, and sync status without starting a web server.
