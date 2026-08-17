@@ -25,7 +25,7 @@ const (
 	DefDashboardPort = 6161
 	DefDashboardHost = "127.0.0.1"
 	DefRemoteSSLMode = "prefer"
-	DefPGTimeout     = 120
+	DefPGTimeout     = 900
 	DefServicePrefix = "gaet"
 )
 

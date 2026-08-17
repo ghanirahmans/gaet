@@ -32,7 +32,7 @@ func RunPush(opts PushOptions) error {
 		remoteURL = core.GetEnvStr(env, "GAET_SUPABASE_URL", "")
 	}
 	parsed, _ := core.ParseRemoteURL(remoteURL)
-	timeout := time.Duration(core.GetEnvInt(env, "GAET_PG_TIMEOUT", core.DefPGTimeout)) * time.Second
+	timeout := core.GetDynamicPGTimeout(env, 0)
 
 	if opts.DryRun {
 		core.BoxTitle("gaet push --dry-run")
@@ -164,7 +164,7 @@ func RunFetch(opts FetchOptions) error {
 		remoteURL = core.GetEnvStr(env, "GAET_SUPABASE_URL", "")
 	}
 	parsed, _ := core.ParseRemoteURL(remoteURL)
-	timeout := time.Duration(core.GetEnvInt(env, "GAET_PG_TIMEOUT", core.DefPGTimeout)) * time.Second
+	timeout := core.GetDynamicPGTimeout(env, 0)
 
 	if opts.DryRun {
 		core.BoxTitle("gaet fetch --dry-run")
@@ -315,7 +315,7 @@ func RunRestore(opts RestoreOptions) error {
 	}
 	sizeMB := float64(fi.Size()) / 1024 / 1024
 	h, p, u, n, w := core.GetLocalDB(env)
-	timeout := time.Duration(core.GetEnvInt(env, "GAET_PG_TIMEOUT", core.DefPGTimeout)) * time.Second
+	timeout := core.GetDynamicPGTimeout(env, fi.Size())
 
 	if opts.DryRun {
 		core.BoxTitle("gaet restore --dry-run")
@@ -421,7 +421,7 @@ func RunPushCron() error {
 	}
 	h, p, u, n, w := core.GetLocalDB(env)
 	ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-	timeout := time.Duration(core.GetEnvInt(env, "GAET_PG_TIMEOUT", core.DefPGTimeout)) * time.Second
+	timeout := core.GetDynamicPGTimeout(env, 0)
 
 	lock, lErr := core.AcquireLock()
 	if lErr != nil {
