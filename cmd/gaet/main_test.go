@@ -14,14 +14,21 @@ import (
 // binaryPath returns path to the gaet binary built in the project root.
 func binaryPath(t *testing.T) string {
 	t.Helper()
-	// Try pre-built binary from project root first
 	root := projectRoot(t)
 	bin := filepath.Join(root, "gaet")
 	if _, err := os.Stat(bin); err == nil {
 		return bin
 	}
-	t.Fatalf("gaet binary not found at %s — run: go build -o gaet ./cmd/gaet", bin)
-	return ""
+	// Auto-build binary if missing
+	cmd := exec.Command("go", "build", "-o", bin, "./cmd/gaet")
+	cmd.Dir = root
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to auto-build gaet binary for test: %v", err)
+	}
+	t.Cleanup(func() {
+		os.Remove(bin)
+	})
+	return bin
 }
 
 func projectRoot(t *testing.T) string {
