@@ -29,6 +29,7 @@ type ServeOptions struct {
 	Port   int
 	NoOpen bool
 	Auto   bool
+	Stop   bool
 }
 
 // RunServe starts the embedded web dashboard HTTP server.
@@ -39,6 +40,12 @@ func RunServe(opts ServeOptions) error {
 	if opts.Port == 0 {
 		env, _ := core.LoadEnv(core.EnvFile())
 		opts.Port = core.GetEnvInt(env, "GAET_DASHBOARD_PORT", core.DefDashboardPort)
+	}
+
+	if opts.Stop {
+		env, _ := core.LoadEnv(core.EnvFile())
+		prefix := core.GetEnvStr(env, "GAET_SERVICE_PREFIX", core.DefServicePrefix)
+		return scheduler.DisableServeAuto(prefix)
 	}
 
 	addr := fmt.Sprintf("%s:%d", opts.Host, opts.Port)

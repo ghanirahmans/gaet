@@ -258,6 +258,7 @@ func dispatch(command string, args []string) error {
 		host := core.GetEnvStr(env, "GAET_DASHBOARD_HOST", core.DefDashboardHost)
 		noOpen := hasFlag(args, "--no-open")
 		auto := hasFlag(args, "--auto")
+		stop := hasFlag(args, "--stop") || hasFlag(args, "--disable")
 		for i, a := range args {
 			if a == "--port" && i+1 < len(args) {
 				fmt.Sscanf(args[i+1], "%d", &port)
@@ -270,7 +271,7 @@ func dispatch(command string, args []string) error {
 				host = strings.TrimPrefix(a, "--host=")
 			}
 		}
-		return serve.RunServe(serve.ServeOptions{Host: host, Port: port, NoOpen: noOpen, Auto: auto})
+		return serve.RunServe(serve.ServeOptions{Host: host, Port: port, NoOpen: noOpen, Auto: auto, Stop: stop})
 
 	// ── log ───────────────────────────────────────────────────────────
 	case "log":
@@ -545,7 +546,7 @@ func printCommandHelp(cmd string) {
 		"set":        "gaet set KEY=value [...]\n  Update configuration variables in .env.",
 		"auto":       "gaet auto [interval_hours]\n  Enable auto-backup scheduler (default: 6h).",
 		"stop":       "gaet stop\n  Stop auto-backup scheduler.",
-		"serve":      "gaet serve [--port=6161] [--host=127.0.0.1] [--no-open] [--auto]\n  Start embedded web dashboard.",
+		"serve":      "gaet serve [--port=6161] [--host=127.0.0.1] [--no-open] [--auto] [--stop]\n  Start embedded web dashboard.",
 		"log":        "gaet log [N] [--filter=KW] [--since=DATE] [--follow]\n  View backup log.",
 		"completion": "gaet completion [bash|zsh|fish|powershell]\n  Generate shell autocompletion script.",
 		"init":       "gaet init [--preset=name] [-y/--yes]\n  Interactive first-run setup wizard.",

@@ -49,6 +49,20 @@ func EnableServeAuto(prefix string, host string, port int, cliPath string) error
 	}
 }
 
+// DisableServeAuto deactivates the platform scheduler specifically for gaet serve.
+func DisableServeAuto(prefix string) error {
+	switch runtime.GOOS {
+	case "linux":
+		return disableServeSystemd(prefix)
+	case "darwin":
+		return disableServeLaunchd(prefix)
+	case "windows":
+		return disableServeTaskScheduler(prefix)
+	default:
+		return nil
+	}
+}
+
 // DisableAuto deactivates the platform scheduler for both auto-backup and serve.
 func DisableAuto(prefix string) error {
 	switch runtime.GOOS {
@@ -187,6 +201,14 @@ WantedBy=default.target
 	return nil
 }
 
+func disableServeSystemd(prefix string) error {
+	serveName := prefix + "-serve"
+	core.RunCmdSimple("systemctl", []string{"--user", "disable", "--now", serveName + ".service"}, nil, 15e9)
+	core.RunCmdSimple("systemctl", []string{"--user", "daemon-reload"}, nil, 10e9)
+	core.StatusOK("Dashboard auto-start service stopped (systemd)")
+	return nil
+}
+
 func systemdIsActive(prefix string) bool {
 	_, _, rc := core.RunCmdSimple("systemctl",
 		[]string{"--user", "is-active", prefix + "-backup.timer"}, nil, 5e9)
@@ -261,6 +283,15 @@ func enableServeLaunchd(prefix string, host string, port int, cliPath string) er
 	return nil
 }
 
+func disableServeLaunchd(prefix string) error {
+	labelServe := "com." + prefix + ".serve"
+	plistServe := filepath.Join(mustHomeDir(), "Library", "LaunchAgents", labelServe+".plist")
+	core.RunCmdSimple("launchctl", []string{"unload", plistServe}, nil, 10e9)
+	os.Remove(plistServe)
+	core.StatusOK("Dashboard auto-start service stopped (launchd)")
+	return nil
+}
+
 func disableLaunchd(prefix string) error {
 	labelBackup := "com." + prefix + ".backup"
 	labelServe := "com." + prefix + ".serve"
@@ -307,6 +338,12 @@ func enableServeTaskScheduler(prefix string, host string, port int, cliPath stri
 		return core.Die(fmt.Sprintf("Failed to create task: %s", errOut), core.ExitGeneral)
 	}
 	core.StatusOK(fmt.Sprintf("Dashboard auto-start enabled at OS boot via Task Scheduler (http://%s:%d)", host, port))
+	return nil
+}
+
+func disableServeTaskScheduler(prefix string) error {
+	core.RunCmdSimple("schtasks", []string{"/Delete", "/TN", prefix + "-serve", "/F"}, nil, 10e9)
+	core.StatusOK("Dashboard auto-start service stopped (Task Scheduler)")
 	return nil
 }
 
