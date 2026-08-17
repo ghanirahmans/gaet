@@ -39,20 +39,17 @@ Write-Host "╚═════════════════════�
 Write-Host ""
 
 # ── 1. Check Python ───────────────────────────────────────────────────────
-Write-Host "  Checking Python... " -NoNewline
 try {
     $pythonVer = python --version 2>&1 | Select-String -Pattern "Python (\d+\.\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
-    Write-Host "OK ($pythonVer)" -ForegroundColor Green
+    Write-Host "  [ OK ]  Python ($pythonVer)" -ForegroundColor Green
 } catch {
-    Write-Host "NOT FOUND" -ForegroundColor Red
-    Write-Host "  ✗ Python 3.8+ is required. Install from https://python.org"
+    Write-Host "  [FAIL]  Python 3.8+ is required. Install from https://python.org" -ForegroundColor Red
     Write-Host ""
     Read-Host "Press Enter to exit"
     return
 }
 
 # ── 2. Check PostgreSQL tools ─────────────────────────────────────────────
-Write-Host "  Checking pg_dump... " -NoNewline
 try {
     $pgDumpPath = (Get-Command pg_dump -ErrorAction SilentlyContinue).Source
     if (-not $pgDumpPath) {
@@ -67,13 +64,12 @@ try {
         }
     }
     if ($pgDumpPath) {
-        Write-Host "OK" -ForegroundColor Green
+        Write-Host "  [ OK ]  pg_dump" -ForegroundColor Green
     } else {
         throw "Not found"
     }
 } catch {
-    Write-Host "NOT FOUND" -ForegroundColor Yellow
-    Write-Host "  ⚠  PostgreSQL tools not found. Download from https://www.postgresql.org/download/windows/"
+    Write-Host "  [WARN]  pg_dump not found (PostgreSQL tools recommended)" -ForegroundColor Yellow
 }
 
 # ── 3. Create directories ─────────────────────────────────────────────────
@@ -87,12 +83,12 @@ New-Item -ItemType Directory -Force -Path "$GAET_APP_DIR\dashboard\static" | Out
 New-Item -ItemType Directory -Force -Path "$GAET_APP_DIR\dashboard\public" | Out-Null
 
 # ── 4. Download gaet app bundle ───────────────────────────────────────────
-Write-Host "  Downloading gaet.py... " -NoNewline
+Write-Host "  Downloading gaet bundle..."
 try {
     Invoke-WebRequest -Uri "$GITHUB_RAW/gaet.py" -OutFile "$GAET_APP_DIR\gaet.py" -UseBasicParsing
-    Write-Host " OK" -ForegroundColor Green
+    Write-Host "  [ OK ]  gaet.py -> $GAET_APP_DIR\gaet.py" -ForegroundColor Green
 } catch {
-    Write-Host " FAILED" -ForegroundColor Red
+    Write-Host "  [FAIL]  Could not download gaet.py" -ForegroundColor Red
     Write-Host "  ✗ Download failed. Check your internet connection."
     Write-Host ""
     Read-Host "Press Enter to exit"
@@ -114,6 +110,7 @@ foreach ($f in $pkgFiles) {
         Write-Host "  ⚠  Failed to download src/gaet/$f" -ForegroundColor Yellow
     }
 }
+Write-Host "  [ OK ]  src/gaet -> $GAET_APP_DIR\src\gaet\" -ForegroundColor Green
 
 # ── 5. Download scripts ───────────────────────────────────────────────────
 $scripts = @("status.py", "scheduler.py", "service_manager.py", "installer.py", "__init__.py")
@@ -124,6 +121,7 @@ foreach ($f in $scripts) {
         Write-Host "  ⚠  Failed to download scripts/$f" -ForegroundColor Yellow
     }
 }
+Write-Host "  [ OK ]  scripts -> $GAET_APP_DIR\scripts\" -ForegroundColor Green
 
 # ── 5a. Download completions ──────────────────────────────────────────────
 $compDir = "$GAET_APP_DIR\completions"
@@ -135,6 +133,7 @@ foreach ($f in $compFiles) {
         Write-Host "  ⚠  Failed to download completions/$f" -ForegroundColor Yellow
     }
 }
+Write-Host "  [ OK ]  completions -> $GAET_APP_DIR\completions\" -ForegroundColor Green
 
 # ── 5b. Download dashboard ────────────────────────────────────────────────
 $dashboardDir = "$GAET_APP_DIR\dashboard"
@@ -146,7 +145,7 @@ foreach ($f in $dashboardFiles) {
         Write-Host "  ⚠  Failed to download dashboard/$f" -ForegroundColor Yellow
     }
 }
-Write-Host "  App bundle downloaded ($GAET_APP_DIR)" -ForegroundColor Green
+Write-Host "  [ OK ]  dashboard -> $GAET_APP_DIR\dashboard\" -ForegroundColor Green
 
 # ── 6. Create gaet.cmd wrapper ────────────────────────────────────────────
 $wrapperContent = @"
@@ -154,7 +153,7 @@ $wrapperContent = @"
 python "$GAET_APP_DIR\gaet.py" %*
 "@
 $wrapperContent | Out-File -FilePath "$GAET_DIR\gaet.cmd" -Encoding ASCII
-Write-Host "  Wrapper created: $GAET_DIR\gaet.cmd"
+Write-Host "  [ OK ]  CLI Launcher -> $GAET_DIR\gaet.cmd" -ForegroundColor Green
 
 # ── 7. Create config if not exists ────────────────────────────────────────
 $envFile = "$GAET_CONFIG\.env"
@@ -179,24 +178,23 @@ if (-not (Test-Path $envFile)) {
 # GAET_DASHBOARD_PORT=9191
 "@
     $configContent | Out-File -FilePath $envFile -Encoding UTF8
-    Write-Host "  Config created: $envFile"
+    Write-Host "  [ OK ]  Config created -> $envFile" -ForegroundColor Green
 } else {
-    Write-Host "  Config exists: $envFile"
+    Write-Host "  [ OK ]  Config exists -> $envFile" -ForegroundColor Green
 }
 
 # ── 8. Add to PATH if not already there ──────────────────────────────────
-Write-Host ""
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($userPath -like "*$GAET_DIR*") {
-    Write-Host "  ✓ $GAET_DIR is in PATH" -ForegroundColor Green
+    Write-Host "  [ OK ]  PATH -> $GAET_DIR is in PATH" -ForegroundColor Green
 } else {
     # Add to PATH for current session
     $env:Path = "$GAET_DIR;$env:Path"
 
     # Add to persistent User PATH
     [Environment]::SetEnvironmentVariable("Path", "$GAET_DIR;$userPath", "User")
-    Write-Host "  ✓ Added $GAET_DIR to PATH" -ForegroundColor Green
-    Write-Host "    (restart your terminal to use 'gaet' from anywhere)" -ForegroundColor Yellow
+    Write-Host "  [ OK ]  Added $GAET_DIR to PATH" -ForegroundColor Green
+    Write-Host "          (restart your terminal to use 'gaet' from anywhere)" -ForegroundColor Yellow
 }
 
 # ── 9. Done ───────────────────────────────────────────────────────────────
