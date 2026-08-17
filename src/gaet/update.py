@@ -5,6 +5,7 @@ import shutil
 import sys
 import time
 import tarfile
+import textwrap
 from datetime import datetime
 from .core import C, D, DEF_SERVICE_PREFIX, G, GAET_DIR, GITHUB_API, GITHUB_RAW, HOME, IS_LINUX, IS_MACOS, IS_WINDOWS, NAME, NC, Path, Y, _gh_download, _raw_download, argparse, box_section, box_title, die, echo, get_env_str, load_env, run_cmd, safe_input, scheduler_disable, scheduler_is_active, shutil, status_arrow, status_fail, status_info, status_ok, status_warn, sys, time
 from .scheduler import _svc_is_running, _svc_stop
@@ -140,25 +141,25 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     
     bin_dir = Path.home() / ".local" / "bin"
     
-    # Remove gaet CLI
-    gaet_bin = bin_dir / "gaet"
-    if gaet_bin.exists():
-        gaet_bin.unlink()
-        echo(f"    {G}✓{NC} Removed: {gaet_bin}")
+    # Remove gaet CLI binary launcher
+    for bname in ["gaet", "gaet.cmd", "gaet.bat", "gaet.exe"]:
+        bfile = bin_dir / bname
+        if bfile.exists():
+            bfile.unlink()
+            echo(f"    {G}✓{NC} Removed: {bfile}")
     
-    # Remove scripts directory
-    scripts_dir = bin_dir / "scripts"
-    if scripts_dir.exists():
-        shutil.rmtree(scripts_dir, ignore_errors=True)
-        echo(f"    {G}✓{NC} Removed: {scripts_dir}")
-    
-    # Remove the installed gaet package (v3 src-layout installs it under
-    # gaet_pkg/gaet; a directory named `gaet/` next to the `gaet` binary is
-    # impossible on disk, so the package dir lives in gaet_pkg/).
-    pkg_dir = bin_dir / "gaet_pkg"
-    if pkg_dir.exists():
-        shutil.rmtree(pkg_dir, ignore_errors=True)
-        echo(f"    {G}✓{NC} Removed: {pkg_dir}")
+    # Remove legacy un-isolated directories from ~/.local/bin if present
+    for leg in ["scripts", "gaet_pkg", "dashboard", "completions"]:
+        leg_dir = bin_dir / leg
+        if leg_dir.exists():
+            shutil.rmtree(leg_dir, ignore_errors=True)
+            echo(f"    {G}✓{NC} Removed legacy: {leg_dir}")
+
+    # Remove isolated app bundle directory ~/.gaet/app
+    app_dir = GAET_DIR / "app"
+    if app_dir.exists():
+        shutil.rmtree(app_dir, ignore_errors=True)
+        echo(f"    {G}✓{NC} Removed app bundle: {app_dir}")
     
     # ── 4. Purge mode: remove service files + config ────────────────
     if purge:
@@ -217,91 +218,107 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     echo(f"  To reinstall: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.sh | bash")
     echo("")
 
+def _write_launcher_script(install_dir: Path) -> Path:
+    """Create clean single launcher script in ~/.local/bin/gaet."""
+    install_dir.mkdir(parents=True, exist_ok=True)
+    dst = install_dir / ("gaet.cmd" if IS_WINDOWS else "gaet")
+    app_entry = GAET_DIR / "app" / "gaet.py"
+    
+    if IS_WINDOWS:
+        cmd_content = f'@echo off\r\npython "{app_entry}" %*\r\n'
+        dst.write_text(cmd_content, encoding="utf-8")
+    else:
+        bash_content = textwrap.dedent(f"""\
+            #!/usr/bin/env bash
+            exec python3 "{app_entry}" "$@"
+        """)
+        dst.write_text(bash_content, encoding="utf-8")
+        dst.chmod(0o755)
+    
+    # Clean up legacy folders in ~/.local/bin if they exist
+    for leg in ["gaet_pkg", "scripts", "dashboard", "completions"]:
+        leg_dir = install_dir / leg
+        if leg_dir.exists():
+            shutil.rmtree(leg_dir, ignore_errors=True)
+            
+    return dst
+
 def _update_download(install_dir: Path, skip_build: bool = False) -> None:
-    """Update gaet by downloading files from GitHub (for curl-install users).
+    """Update gaet by downloading files from GitHub into isolated ~/.gaet/app."""
+    status_info("Downloading latest gaet bundle from GitHub...")
 
-    Uses raw.githubusercontent.com URLs (NOT api.github.com) so the 60 req/h
-    unauthenticated API rate limit does not break `gaet update` right after a
-    fresh install that already burned the quota.
-    """
+    app_dir = GAET_DIR / "app"
+    app_dir.mkdir(parents=True, exist_ok=True)
 
-    status_info("Downloading latest gaet from GitHub...")
+    # 1. Main entry shim gaet.py
+    try:
+        data = _raw_download(f"{GITHUB_RAW}/gaet.py")
+        (app_dir / "gaet.py").write_bytes(data)
+        (app_dir / "gaet.py").chmod(0o755) if not IS_WINDOWS else None
+        status_ok(f"gaet.py -> {app_dir / 'gaet.py'}")
+    except Exception as e:
+        die(f"Failed to download gaet.py: {e}")
 
-    files = [
-        ("gaet.py", "gaet"),
-    ]
+    # 2. Package files
+    pkg_dst = app_dir / "src" / "gaet"
+    pkg_dst.mkdir(parents=True, exist_ok=True)
     pkg_files = [
         "__init__.py", "__main__.py", "registry.py", "cli.py", "core.py",
         "detect.py", "init.py", "config.py", "status.py", "backup.py",
         "scheduler.py", "log.py", "serve.py", "export.py", "update.py",
         "remote.py", "snapshots.py",
     ]
-    script_files = ["__init__.py", "status.py", "scheduler.py", "service_manager.py", "installer.py"]
-
-    for src, dst in files:
-        url = f"{GITHUB_RAW}/{src}"
-        try:
-            data = _raw_download(url)
-            dest_path = install_dir / dst
-            dest_path.write_bytes(data)
-            dest_path.chmod(0o755) if not IS_WINDOWS else None
-            status_ok(f"{dst} -> {dest_path}")
-        except Exception as e:
-            die(f"Failed to download {src}: {e}")
-
-    pkg_dst = install_dir / "gaet_pkg" / "gaet"
-    pkg_dst.mkdir(parents=True, exist_ok=True)
     for pf in pkg_files:
-        url = f"{GITHUB_RAW}/src/gaet/{pf}"
         try:
-            data = _raw_download(url)
+            data = _raw_download(f"{GITHUB_RAW}/src/gaet/{pf}")
             (pkg_dst / pf).write_bytes(data)
-            status_ok(f"src/gaet/{pf} -> {pkg_dst}/")
         except Exception as e:
             status_warn(f"Failed to download src/gaet/{pf}: {e}")
+    status_ok(f"src/gaet -> {pkg_dst}/")
 
-    scripts_dst = install_dir / "scripts"
+    # 3. Scripts
+    scripts_dst = app_dir / "scripts"
     scripts_dst.mkdir(parents=True, exist_ok=True)
+    script_files = ["__init__.py", "status.py", "scheduler.py", "service_manager.py", "installer.py"]
     for sf in script_files:
-        url = f"{GITHUB_RAW}/scripts/{sf}"
         try:
-            data = _raw_download(url)
+            data = _raw_download(f"{GITHUB_RAW}/scripts/{sf}")
             (scripts_dst / sf).write_bytes(data)
-            status_ok(f"scripts/{sf} -> {scripts_dst}/")
         except Exception as e:
             status_warn(f"Failed to download scripts/{sf}: {e}")
+    status_ok(f"scripts -> {scripts_dst}/")
 
-    completions_dst = install_dir / "completions"
+    # 4. Completions
+    completions_dst = app_dir / "completions"
     completions_dst.mkdir(parents=True, exist_ok=True)
     for cf in ["gaet.bash", "gaet.zsh", "gaet.fish", "gaet.ps1"]:
-        url = f"{GITHUB_RAW}/completions/{cf}"
         try:
-            data = _raw_download(url)
+            data = _raw_download(f"{GITHUB_RAW}/completions/{cf}")
             (completions_dst / cf).write_bytes(data)
-            status_ok(f"completions/{cf} -> {completions_dst}")
         except Exception:
-            status_warn(f"Failed to download completions/{cf}")
+            pass
+    status_ok(f"completions -> {completions_dst}/")
 
+    # 5. Dashboard
     if not skip_build:
         try:
-            dashboard_dst = install_dir / "dashboard"
-            dash_files = [
-                "server.py",
-                "static/index.html",
-                "public/gaet-logo.png",
-            ]
-            for df in dash_files:
-                url = f"{GITHUB_RAW}/dashboard/{df}"
+            dashboard_dst = app_dir / "dashboard"
+            dashboard_dst.mkdir(parents=True, exist_ok=True)
+            for df in ["server.py", "static/index.html", "public/gaet-logo.png"]:
                 try:
-                    data = _raw_download(url)
+                    data = _raw_download(f"{GITHUB_RAW}/dashboard/{df}")
                     df_path = dashboard_dst / df
                     df_path.parent.mkdir(parents=True, exist_ok=True)
                     df_path.write_bytes(data)
-                    status_ok(f"dashboard/{df} -> {dashboard_dst}")
                 except Exception:
                     status_warn(f"Failed to download dashboard/{df}")
+            status_ok(f"dashboard -> {dashboard_dst}")
         except Exception as e:
             status_warn(f"Dashboard update skipped: {e}")
+
+    # 6. Create clean launcher
+    launcher = _write_launcher_script(install_dir)
+    status_ok(f"CLI Launcher -> {launcher}")
 
     echo()
     status_ok("Update complete!")
@@ -392,43 +409,48 @@ def cmd_update(args: argparse.Namespace) -> None:
     else:
         status_ok("Already up to date!")
     
-    # Always copy to install location (even if already up to date)
+    # Always sync app bundle to ~/.gaet/app
     echo()
-    box_section("Installing")
-    install_dir = Path.home() / ".local" / "bin"
-    install_dir.mkdir(parents=True, exist_ok=True)
+    box_section("Installing App Bundle")
+    app_dir = GAET_DIR / "app"
+    app_dir.mkdir(parents=True, exist_ok=True)
     
-    src = project_dir / "gaet.py"
-    dst = install_dir / "gaet"
-    
-    if src.is_file():
-        shutil.copy2(str(src), str(dst))
-        dst.chmod(0o755) if not IS_WINDOWS else None
-        status_ok(f"gaet -> {dst}")
+    # 1. Main entry gaet.py
+    if (project_dir / "gaet.py").is_file():
+        shutil.copy2(str(project_dir / "gaet.py"), str(app_dir / "gaet.py"))
+        (app_dir / "gaet.py").chmod(0o755) if not IS_WINDOWS else None
 
-    # v3 src-layout: copy the gaet package dir into gaet_pkg/ (shim imports
-    # it; `gaet/` beside the `gaet` binary is impossible on disk)
+    # 2. Package dir src/gaet
     pkg_src = project_dir / "src" / "gaet"
     if pkg_src.is_dir():
-        pkg_dst = install_dir / "gaet_pkg" / "gaet"
+        pkg_dst = app_dir / "src" / "gaet"
         pkg_dst.mkdir(parents=True, exist_ok=True)
         for pf in pkg_src.glob("*.py"):
             shutil.copy2(str(pf), str(pkg_dst / pf.name))
         status_ok(f"src/gaet -> {pkg_dst}")
     
-    # Copy scripts if exists
+    # 3. Scripts dir
     scripts_src = project_dir / "scripts"
     if scripts_src.is_dir():
-        scripts_dst = install_dir / "scripts"
+        scripts_dst = app_dir / "scripts"
         scripts_dst.mkdir(parents=True, exist_ok=True)
         for f in scripts_src.glob("*.py"):
             shutil.copy2(str(f), str(scripts_dst / f.name))
         status_ok(f"scripts -> {scripts_dst}/")
+
+    # 4. Completions dir
+    comp_src = project_dir / "completions"
+    if comp_src.is_dir():
+        comp_dst = app_dir / "completions"
+        comp_dst.mkdir(parents=True, exist_ok=True)
+        for f in comp_src.glob("gaet.*"):
+            shutil.copy2(str(f), str(comp_dst / f.name))
+        status_ok(f"completions -> {comp_dst}/")
     
-    # Copy dashboard if exists
+    # 5. Dashboard dir
     dashboard_src = project_dir / "dashboard"
     if dashboard_src.is_dir():
-        dashboard_dst = install_dir / "dashboard"
+        dashboard_dst = app_dir / "dashboard"
         dashboard_dst.mkdir(parents=True, exist_ok=True)
         (dashboard_dst / "static").mkdir(parents=True, exist_ok=True)
         (dashboard_dst / "public").mkdir(parents=True, exist_ok=True)
@@ -455,15 +477,19 @@ def cmd_update(args: argparse.Namespace) -> None:
                 if ok:
                     status_ok("Dashboard service restarted")
                 else:
-                    status_warn(f"Restart failed: {msg}")
-        except Exception:
-            pass
-    
+                    status_warn(f"Failed to restart dashboard: {msg}")
+        except Exception as e:
+            status_warn(f"Dashboard restart check failed: {e}")
+
+    # 6. Create clean launcher script in ~/.local/bin/gaet
+    launcher = _write_launcher_script(install_dir)
+    status_ok(f"CLI Launcher -> {launcher}")
+
     # Show version
     echo()
     box_section("Version")
     try:
-        r = run_cmd([sys.executable, str(dst), "--version"], timeout=5)
+        r = run_cmd([str(launcher), "--version"], timeout=5)
         if r[2] == 0 and r[0].strip():  # rc == 0 and stdout
             status_ok(f"Version: {r[0].strip()}")
         else:
