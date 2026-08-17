@@ -196,21 +196,35 @@ func runNonInteractive(env map[string]string, opts InitOptions) error {
 	core.StatusInfo("Non-interactive mode — applying configuration.")
 	fmt.Println()
 
-	h, p, u, n, w := core.GetLocalDB(env)
-	if h == "" {
-		h, p, u, n, w = "127.0.0.1", "5432", "postgres", "postgres", ""
-		tools := core.FindPGTools(env)
-		if tools.Psql != "" {
-			instances := detect.DetectLocalPG(tools.Psql)
-			if len(instances) > 0 {
-				h = instances[0].Host
-				p = instances[0].Port
-				u = instances[0].User
-				n = instances[0].DefaultDB
-			}
+	var h, p, u, n, w string
+	tablesLine := ""
+	if opts.Preset != "" {
+		pr, ok := presets[strings.ToLower(opts.Preset)]
+		if !ok {
+			return core.Die(fmt.Sprintf("Preset '%s' not found. Available: %s", opts.Preset, availablePresets()), core.ExitConfig)
+		}
+		u, n, w = pr.LocalUser, pr.LocalDB, pr.LocalPass
+		h, p = "127.0.0.1", "5432"
+		if pr.Tables != "" {
+			tablesLine = "GAET_TABLES=" + pr.Tables
 		}
 	} else {
-		core.StatusOK(fmt.Sprintf("Preserved existing local DB config: %s@%s:%s/%s", u, h, p, n))
+		h, p, u, n, w = core.GetLocalDB(env)
+		if h == "" {
+			h, p, u, n, w = "127.0.0.1", "5432", "postgres", "postgres", ""
+			tools := core.FindPGTools(env)
+			if tools.Psql != "" {
+				instances := detect.DetectLocalPG(tools.Psql)
+				if len(instances) > 0 {
+					h = instances[0].Host
+					p = instances[0].Port
+					u = instances[0].User
+					n = instances[0].DefaultDB
+				}
+			}
+		} else {
+			core.StatusOK(fmt.Sprintf("Preserved existing local DB config: %s@%s:%s/%s", u, h, p, n))
+		}
 	}
 
 	remoteURL := core.GetEnvStr(env, "GAET_REMOTE_URL", "")
@@ -221,7 +235,7 @@ func runNonInteractive(env map[string]string, opts InitOptions) error {
 
 	envFile := core.EnvFile()
 	_ = core.EnsureDir(core.GaetDir())
-	content := buildEnvContent(h, p, u, n, w, remoteURL, retDays, "")
+	content := buildEnvContent(h, p, u, n, w, remoteURL, retDays, tablesLine)
 	if err := core.WriteEnvContent(envFile, content); err != nil {
 		return err
 	}
