@@ -59,3 +59,9 @@ Gaet aims to evolve from a zero-dependency CLI database backup tool into the **d
 - [ ] **Cryptographic Verification & Attestation (`gaet verify`)**: Digital GPG/SSH signature signing for backup dumps to provide tamper-proof compliance audit trails.
 - [ ] **Automated Index & Schema Optimizer (`gaet optimize`)**: Static analysis of table bloat and query statistics to generate `CREATE INDEX` recommendations.
 - [ ] **Cross-Database Migration Bridge (`gaet export --to-sqlite`)**: Data format translation engine for migrating legacy DBs or seeding SQLite for local testing.
+
+### Phase 12: High-Performance Streams & Intelligent Workflows
+- [ ] **Parallel Chunked Upload Engine (`gaet push --parallel 4`)**: Multi-threaded parallel stream chunking (`pg_dump -F d -j N`) for ultra-fast multi-gigabyte uploads and fetches.
+- [ ] **Instant Ephemeral Sandbox (`gaet sandbox`)**: One-command disposable PostgreSQL environments pre-loaded with snapshot data that self-destruct upon exit.
+- [ ] **Zero-Downtime Live Migration (`gaet migrate --live`)**: Seamless live replication pipeline between database providers (e.g. AWS RDS to Supabase/Neon) without application downtime.
+- [ ] **Natural Language CLI Assistant (`gaet ask "<query>"`)**: Natural language command parser for intuitive operations and database queries.
