@@ -1,13 +1,11 @@
-# @ghanirahmans/gaet (Official TypeScript / JavaScript SDK)
+# @ghanirahmans/gaet
 
-> Official TypeScript & JavaScript client SDK for **Gaet** — Zero-dependency PostgreSQL Database Backup & Cloud Sync CLI & Service.
+Official TypeScript and JavaScript client SDK for **Gaet**, a PostgreSQL database backup and cloud sync CLI tool.
 
 [![npm version](https://img.shields.io/npm/v/@ghanirahmans/gaet.svg)](https://www.npmjs.com/package/@ghanirahmans/gaet)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
----
-
-## 📌 Architecture Overview
+## Architecture
 
 ```text
  ┌───────────────────────────┐      HTTP REST API       ┌───────────────────────────┐
@@ -18,13 +16,11 @@
                │ import { gaet } from '@ghanirahmans/gaet'             │ PostgreSQL Engine
                ▼                                                      ▼
    ┌──────────────────────┐                             ┌───────────────────────────┐
-   │  TypeScript SDK      │                             │ Local DB ◄──► Cloud Remote│
+   │  TypeScript SDK      │                             │ Local DB <---> Cloud Remote│
    └──────────────────────┘                             └───────────────────────────┘
 ```
 
----
-
-## ⚡ Installation
+## Installation
 
 ```bash
 npm install @ghanirahmans/gaet
@@ -36,50 +32,44 @@ yarn add @ghanirahmans/gaet
 bun add @ghanirahmans/gaet
 ```
 
----
+## Prerequisites
 
-## ⚙️ Prerequisites
-
-Ensure the `gaet` CLI service daemon is running in your environment:
+Ensure the `gaet` service daemon is running locally or on your server:
 
 ```bash
-# Start background dashboard & REST API server (port 6161)
+# Start background server (default port: 6161)
 gaet serve
 
-# Or register as auto-starting OS daemon (systemd / launchd / Task Scheduler)
+# Or enable auto-start service (systemd, launchd, or Task Scheduler)
 gaet serve --auto
 ```
 
----
-
-## 🚀 Quick Start (Next.js / TypeScript)
+## Quick Start
 
 ```typescript
 import { gaet } from '@ghanirahmans/gaet';
 
-// 1. Check Database Sync Status
+// Check connection status
 const status = await gaet.status();
 console.log('Local DB connected:', status.local_ok);
-console.log('Cloud Remote configured:', status.remote_configured);
+console.log('Remote Cloud configured:', status.remote_configured);
 
-// 2. Trigger Cloud Backup (Push)
+// Trigger a backup to cloud
 const pushResult = await gaet.push();
 if (pushResult.ok) {
-  console.log('Backup successful! Snapshot:', pushResult.snapshot);
+  console.log('Backup created:', pushResult.snapshot);
 }
 
-// 3. List Local Snapshots
+// List local snapshot dumps
 const { snapshots } = await gaet.snapshots();
 snapshots.forEach(s => {
-  console.log(`${s.name} (${s.size_mb} MB) - ${s.mod_time}`);
+  console.log(`${s.filename} (${s.size_mb} MB)`);
 });
 ```
 
----
+## Code Examples
 
-## 💻 Integration Examples
-
-### 1. Next.js App Router API Route (`app/api/backup/route.ts`)
+### Next.js App Router API Route (`app/api/backup/route.ts`)
 
 ```typescript
 import { NextResponse } from 'next/server';
@@ -93,12 +83,12 @@ export async function POST() {
     }
     return NextResponse.json({ success: true, snapshot: result.snapshot });
   } catch (error: any) {
-    return NextResponse.json({ error: 'Gaet daemon offline: ' + error.message }, { status: 503 });
+    return NextResponse.json({ error: 'Gaet daemon unreachable: ' + error.message }, { status: 503 });
   }
 }
 ```
 
-### 2. React Admin Dashboard Button
+### React Component
 
 ```tsx
 import React, { useState } from 'react';
@@ -114,7 +104,7 @@ export function BackupButton() {
       const res = await gaet.push();
       setStatusMsg(res.ok ? `Backup created: ${res.snapshot}` : `Error: ${res.msg}`);
     } catch (err: any) {
-      setStatusMsg('Daemon offline or unreachable');
+      setStatusMsg('Daemon offline');
     } finally {
       setLoading(false);
     }
@@ -123,7 +113,7 @@ export function BackupButton() {
   return (
     <div>
       <button onClick={handleBackup} disabled={loading}>
-        {loading ? 'Creating Backup...' : 'Push Database Backup'}
+        {loading ? 'Creating Backup...' : 'Push Backup'}
       </button>
       {statusMsg && <p>{statusMsg}</p>}
     </div>
@@ -131,41 +121,35 @@ export function BackupButton() {
 }
 ```
 
----
-
-## 🛠️ Custom Client Configuration
+## Custom Client Options
 
 ```typescript
 import { GaetClient } from '@ghanirahmans/gaet';
 
 const gaetClient = new GaetClient({
-  baseUrl: 'http://127.0.0.1:6161', // Custom REST API endpoint
-  timeout: 120000,                  // 120 seconds timeout for large database backups
+  baseUrl: 'http://127.0.0.1:6161',
+  timeout: 120000, // 2 minutes timeout for large database operations
 });
 
 const checkResult = await gaetClient.check();
 console.log('PostgreSQL tools ok:', checkResult.checks.tools.ok);
 ```
 
----
-
-## 📚 API Reference
+## API Reference
 
 | Method | Return Type | Description |
 | :--- | :--- | :--- |
-| `gaet.status()` | `Promise<GaetStatusResponse>` | Returns local & cloud DB connectivity, host, and user details. |
-| `gaet.push()` | `Promise<GaetPushResponse>` | Triggers a real-time database dump and sync to Cloud Remote. |
-| `gaet.fetch()` | `Promise<GaetFetchResponse>` | Fetches cloud database state and restores into local database. |
-| `gaet.restore(name?)` | `Promise<GaetRestoreResponse>` | Restores local DB from a specific `.dump` snapshot file. |
-| `gaet.snapshots()` | `Promise<GaetSnapshotsResponse>` | Lists all local `.dump` snapshot files in `~/.gaet/backups`. |
-| `gaet.deleteSnapshot(name)` | `Promise<GaetGenericResponse>` | Deletes a specific snapshot file from disk. |
-| `gaet.logs()` | `Promise<GaetLogsResponse>` | Retrieves structured audit log records (`~/.gaet/gaet.log`). |
-| `gaet.check()` | `Promise<GaetCheckResponse>` | Executes preflight diagnostics (`pg_dump`, `psql`, auth checks). |
-| `gaet.diff()` | `Promise<GaetDiffResponse>` | Compares table count schema alignment between Local DB and Cloud DB. |
+| `gaet.status()` | `Promise<GaetStatusResponse>` | Returns local and cloud database connection status. |
+| `gaet.push()` | `Promise<GaetPushResponse>` | Triggers database backup from local database to cloud remote. |
+| `gaet.fetch()` | `Promise<GaetFetchResponse>` | Fetches cloud database state and restores it locally. |
+| `gaet.restore(name?)` | `Promise<GaetRestoreResponse>` | Restores database from a local `.dump` snapshot file. |
+| `gaet.snapshots()` | `Promise<GaetSnapshotsResponse>` | Lists snapshot files stored in `~/.gaet/backups`. |
+| `gaet.deleteSnapshot(name)` | `Promise<GaetGenericResponse>` | Removes a specific snapshot dump file from disk. |
+| `gaet.logs()` | `Promise<GaetLogsResponse>` | Reads audit log entries from `~/.gaet/gaet.log`. |
+| `gaet.check()` | `Promise<GaetCheckResponse>` | Runs system checks for `pg_dump`, `psql`, and permissions. |
+| `gaet.diff()` | `Promise<GaetDiffResponse>` | Compares table counts between local and remote databases. |
 
----
-
-## 🏷️ Type Definitions Import
+## TypeScript Types
 
 ```typescript
 import type {
@@ -180,9 +164,6 @@ import type {
 } from '@ghanirahmans/gaet';
 ```
 
----
-
-## 📄 License
+## License
 
 MIT © [Ghani Rahman](https://github.com/ghanirahmans)
-
