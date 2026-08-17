@@ -8,9 +8,8 @@ $GaetBinDir = Join-Path $env:USERPROFILE ".local\bin"
 $GaetConfig = Join-Path $env:USERPROFILE ".gaet"
 $BinaryPath = Join-Path $GaetBinDir "gaet.exe"
 
-Write-Host "======================================================" -ForegroundColor Cyan
-Write-Host "  gaet v1.1.0 LTS - Database Backup & Cloud Sync CLI  " -ForegroundColor Cyan
-Write-Host "======================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  ▌  gaet v1.1.0 LTS — Database Backup & Cloud Sync CLI  ▌" -ForegroundColor Cyan
 Write-Host ""
 
 # Create directories
@@ -56,8 +55,6 @@ if ($UserPath -notlike "*$GaetBinDir*") {
 }
 
 Write-Host ""
-Write-Host "======================================================" -ForegroundColor Cyan
-Write-Host "     Installation complete!                           " -ForegroundColor Cyan
-Write-Host "======================================================" -ForegroundColor Cyan
+Write-Host "  ▌  Installation complete!  ▌" -ForegroundColor Cyan
 Write-Host "  Run 'gaet init' to configure database connections."
 Write-Host ""
