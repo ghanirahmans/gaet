@@ -1,0 +1,56 @@
+{
+  "name": "gaet",
+  "version": "1.1.0",
+  "type": "module",
+  "description": "Official TypeScript/JavaScript SDK client for Gaet - Zero-dependency PostgreSQL Database Backup & Cloud Sync CLI & Service",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test"
+  },
+  "keywords": [
+    "gaet",
+    "postgresql",
+    "postgres",
+    "backup",
+    "sync",
+    "cloud-sync",
+    "database",
+    "supabase",
+    "neon",
+    "sdk",
+    "nextjs",
+    "react",
+    "typescript"
+  ],
+  "author": "Ghani Rahman <ghaniyrahmans@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ghanirahmans/gaet.git",
+    "directory": "sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/ghanirahmans/gaet/issues"
+  },
+  "homepage": "https://github.com/ghanirahmans/gaet#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
