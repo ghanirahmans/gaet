@@ -97,10 +97,10 @@ func RunRemote(action, urlArg string, jsonOut bool) error {
 		fmt.Println()
 		core.Echo(fmt.Sprintf("  %s[INFO]%s  Testing remote cloud connection...",
 			core.ColorBCyan, core.ColorReset))
-		tools := core.FindPGTools(env)
+		tools := core.FindDBTools(env)
 		if tools.Psql != "" {
 			ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-			envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+			envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 			out, _, rc := core.RunCmdSimple(tools.Psql,
 				[]string{"-w", "-h", parsed.Host, "-p", parsed.Port,
 					"-U", parsed.User, "-d", parsed.DB, "-tAc", "SELECT 1;"},

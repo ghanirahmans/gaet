@@ -9,25 +9,20 @@ import (
 	"strings"
 )
 
-// DBTools holds paths to client binaries (dump, restore, cli).
-type DBTools = PGTools
-
-// FindDBTools locates database client tools.
-func FindDBTools(env map[string]string) DBTools {
-	return FindPGTools(env)
-}
-
-// PGTools holds paths to pg_dump, pg_restore, psql.
-type PGTools struct {
+// DBTools holds paths to database client binaries (pg_dump, pg_restore, psql, mysqldump, etc.).
+type DBTools struct {
 	PgDump    string
 	PgRestore string
 	Psql      string
 }
 
-// FindPGTools locates pg_dump, pg_restore, psql.
+// PGTools is a backward-compatible alias for DBTools.
+type PGTools = DBTools
+
+// FindDBTools locates database client tools.
 // Priority: env vars > pg0 install > PATH > platform-specific dirs.
-func FindPGTools(env map[string]string) PGTools {
-	t := PGTools{
+func FindDBTools(env map[string]string) DBTools {
+	t := DBTools{
 		PgDump:    GetEnvStr(env, "GAET_PG_DUMP", ""),
 		PgRestore: GetEnvStr(env, "GAET_PG_RESTORE", ""),
 		Psql:      GetEnvStr(env, "GAET_PSQL", ""),
@@ -237,4 +232,9 @@ func SocketPort(sockPath string) string {
 		}
 	}
 	return "5432"
+}
+
+// FindPGTools is a backward-compatible alias for FindDBTools.
+func FindPGTools(env map[string]string) DBTools {
+	return FindDBTools(env)
 }

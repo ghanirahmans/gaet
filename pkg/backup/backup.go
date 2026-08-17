@@ -25,7 +25,7 @@ func RunPush(opts PushOptions) error {
 	if err != nil {
 		return err
 	}
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 	h, p, u, n, w := core.GetLocalDB(env)
 	remoteURL := core.GetEnvStr(env, "GAET_REMOTE_URL", "")
 	if remoteURL == "" {
@@ -78,7 +78,7 @@ func RunPush(opts PushOptions) error {
 	backupFile := filepath.Join(backupDir, "gaet_"+timestamp+".dump")
 
 	core.StatusInfo(fmt.Sprintf("Dumping local database %s...", core.FormatConnTarget(u, h, p, n)))
-	envLocal := core.PGEnv(u, w, "")
+	envLocal := core.DBEnv(u, w, "")
 	_, errOut, rc := core.RunCmdSimple(tools.PgDump,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n,
 			"--format=custom", "--compress=9", "--file=" + backupFile},
@@ -116,7 +116,7 @@ func RunPush(opts PushOptions) error {
 		return core.Die(fmt.Sprintf("Failed to clean cloud database: %s", errMsg), core.ExitCloudDown)
 	}
 
-	envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+	envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 	_, errOut3, rc3 := core.RunCmdSimple(tools.PgRestore,
 		[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB,
 			"--no-owner", "--no-acl", backupFile},
@@ -157,7 +157,7 @@ func RunFetch(opts FetchOptions) error {
 	if err != nil {
 		return err
 	}
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 	h, p, u, n, w := core.GetLocalDB(env)
 	remoteURL := core.GetEnvStr(env, "GAET_REMOTE_URL", "")
 	if remoteURL == "" {
@@ -216,7 +216,7 @@ func RunFetch(opts FetchOptions) error {
 	fetchFile := filepath.Join(backupDir, "cloud_"+time.Now().Format("20060102_150405")+".dump")
 
 	core.StatusInfo("Dumping cloud database...")
-	envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+	envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 	_, errOut, rc := core.RunCmdSimple(tools.PgDump,
 		[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB,
 			"--format=custom", "--compress=9", "--file=" + fetchFile},
@@ -233,7 +233,7 @@ func RunFetch(opts FetchOptions) error {
 	}
 
 	core.StatusInfo("Restoring to local database...")
-	envLocal := core.PGEnv(u, w, "")
+	envLocal := core.DBEnv(u, w, "")
 	_, errOut3, rc3 := core.RunCmdSimple(tools.PgRestore,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, fetchFile},
 		envLocal, timeout)
@@ -278,7 +278,7 @@ func RunRestore(opts RestoreOptions) error {
 	if err != nil {
 		return err
 	}
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 	if tools.PgRestore == "" || tools.Psql == "" {
 		return core.Die("PostgreSQL tools not found.", core.ExitTools)
 	}
@@ -369,7 +369,7 @@ func RunRestore(opts RestoreOptions) error {
 	}
 
 	core.StatusInfo("Restoring database from snapshot...")
-	envLocal := core.PGEnv(u, w, "")
+	envLocal := core.DBEnv(u, w, "")
 	_, errOut, rc := core.RunCmdSimple(tools.PgRestore,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, target},
 		envLocal, timeout)
@@ -409,7 +409,7 @@ func RunPushCron() error {
 		core.AppendCronLog(fmt.Sprintf("[cron] Cannot load env: %v", err))
 		return err
 	}
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 	remoteURL := core.GetEnvStr(env, "GAET_REMOTE_URL", "")
 	if remoteURL == "" {
 		remoteURL = core.GetEnvStr(env, "GAET_SUPABASE_URL", "")
@@ -435,7 +435,7 @@ func RunPushCron() error {
 	cronFile := filepath.Join(backupDir, "cron_"+time.Now().Format("20060102_150405")+".dump")
 	core.AppendCronLog("[cron] Starting auto-backup...")
 
-	envLocal := core.PGEnv(u, w, "")
+	envLocal := core.DBEnv(u, w, "")
 	_, _, rc := core.RunCmdSimple(tools.PgDump,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n,
 			"--format=custom", "--compress=9", "--file=" + cronFile},
@@ -459,7 +459,7 @@ func RunPushCron() error {
 		core.AppendCronLog("[cron] Corrupted dump")
 		return fmt.Errorf("dump corrupted")
 	}
-	envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+	envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 	_, _, rc2 := core.RunCmdSimple(tools.PgRestore,
 		[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB,
 			"--clean", "--if-exists", "--no-owner", "--no-acl", cronFile},
@@ -485,7 +485,7 @@ func resetTargetObjects(psql, host, port, user, db, passwd, sslMode string) (boo
 		"FOR r IN (SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema='public') " +
 		"LOOP EXECUTE format('DROP SEQUENCE IF EXISTS public.%I CASCADE', r.sequence_name); END LOOP; " +
 		"END $$;"
-	env := core.PGEnv(user, passwd, sslMode)
+	env := core.DBEnv(user, passwd, sslMode)
 	_, errOut, rc := core.RunCmdSimple(psql,
 		[]string{"-w", "-h", host, "-p", port, "-U", user, "-d", db, "-v", "ON_ERROR_STOP=1", "-c", sql},
 		env, 30*time.Second)

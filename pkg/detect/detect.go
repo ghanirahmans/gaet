@@ -11,15 +11,7 @@ import (
 )
 
 // DBInstance holds information about a discovered database instance.
-type DBInstance = PGInstance
-
-// DetectLocalDB discovers running database instances.
-func DetectLocalDB(psqlPath string) []DBInstance {
-	return DetectLocalPG(psqlPath)
-}
-
-// PGInstance holds information about a discovered PostgreSQL instance.
-type PGInstance struct {
+type DBInstance struct {
 	Host      string   `json:"host"`
 	Port      string   `json:"port"`
 	User      string   `json:"user"`
@@ -28,13 +20,16 @@ type PGInstance struct {
 	IsSocket  bool     `json:"is_socket"`
 }
 
-// DetectLocalPG discovers running PostgreSQL instances (socket first, then TCP fallback).
-func DetectLocalPG(psqlPath string) []PGInstance {
+// PGInstance is a backward-compatible alias for DBInstance.
+type PGInstance = DBInstance
+
+// DetectLocalDB discovers running database instances (socket first, then TCP fallback).
+func DetectLocalDB(psqlPath string) []DBInstance {
 	if psqlPath == "" {
 		return nil
 	}
 
-	var results []PGInstance
+	var results []DBInstance
 	seenPorts := map[string]bool{}
 
 	usersToTry := buildUserList()
@@ -56,7 +51,7 @@ func DetectLocalPG(psqlPath string) []PGInstance {
 				if len(dbs) == 0 {
 					dbs = []string{db}
 				}
-				results = append(results, PGInstance{
+				results = append(results, DBInstance{
 					Host:      host,
 					Port:      port,
 					User:      user,
@@ -85,7 +80,7 @@ func DetectLocalPG(psqlPath string) []PGInstance {
 				if len(dbs) == 0 {
 					dbs = []string{db}
 				}
-				results = append(results, PGInstance{
+				results = append(results, DBInstance{
 					Host:      "127.0.0.1",
 					Port:      port,
 					User:      user,
@@ -99,6 +94,11 @@ func DetectLocalPG(psqlPath string) []PGInstance {
 	}
 
 	return results
+}
+
+// DetectLocalPG is a backward-compatible alias for DetectLocalDB.
+func DetectLocalPG(psqlPath string) []DBInstance {
+	return DetectLocalDB(psqlPath)
 }
 
 func buildUserList() []string {

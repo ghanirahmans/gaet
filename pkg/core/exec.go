@@ -82,11 +82,6 @@ func RunCmdSimple(name string, args []string, env map[string]string, timeout tim
 
 // DBEnv builds credentials environment variables map for client tools.
 func DBEnv(user, password, sslMode string) map[string]string {
-	return PGEnv(user, password, sslMode)
-}
-
-// PGEnv builds a PGPASSWORD env map for pg_* tools.
-func PGEnv(user, password, sslMode string) map[string]string {
 	env := map[string]string{}
 	if password != "" {
 		env["PGPASSWORD"] = password
@@ -95,6 +90,11 @@ func PGEnv(user, password, sslMode string) map[string]string {
 		env["PGSSLMODE"] = sslMode
 	}
 	return env
+}
+
+// PGEnv is a backward-compatible alias for DBEnv.
+func PGEnv(user, password, sslMode string) map[string]string {
+	return DBEnv(user, password, sslMode)
 }
 
 // GetDynamicTimeout calculates dynamic timeout budget based on base timeout + timeout budget per 1 GB of data.

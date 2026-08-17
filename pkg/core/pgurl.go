@@ -7,15 +7,7 @@ import (
 )
 
 // DBConnInfo connection info parsed from a database connection URL.
-type DBConnInfo = PGConnInfo
-
-// ParseConnURL parses a database URL (e.g. postgresql://, mysql://).
-func ParseConnURL(url string) (*DBConnInfo, error) {
-	return ParseRemoteURL(url)
-}
-
-// PostgreSQL connection info parsed from a URL.
-type PGConnInfo struct {
+type DBConnInfo struct {
 	User     string
 	Password string
 	Host     string
@@ -23,11 +15,14 @@ type PGConnInfo struct {
 	DB       string
 }
 
+// PGConnInfo is a backward-compatible alias for DBConnInfo.
+type PGConnInfo = DBConnInfo
+
 var pgURLRE = regexp.MustCompile(`(?i)^postgres(?:ql)?://(.+)$`)
 
-// ParseRemoteURL parses a PostgreSQL URL (postgresql://user:pass@host:port/db).
+// ParseConnURL parses a database URL (postgresql://user:pass@host:port/db).
 // Passwords may contain '@' — we split at the last '@'.
-func ParseRemoteURL(url string) (*PGConnInfo, error) {
+func ParseConnURL(url string) (*DBConnInfo, error) {
 	if url == "" {
 		return nil, fmt.Errorf("empty URL")
 	}
@@ -94,13 +89,18 @@ func ParseRemoteURL(url string) (*PGConnInfo, error) {
 		return nil, fmt.Errorf("missing host in URL")
 	}
 
-	return &PGConnInfo{
+	return &DBConnInfo{
 		User:     user,
 		Password: password,
 		Host:     host,
 		Port:     port,
 		DB:       db,
 	}, nil
+}
+
+// ParseRemoteURL is a backward-compatible alias for ParseConnURL.
+func ParseRemoteURL(url string) (*DBConnInfo, error) {
+	return ParseConnURL(url)
 }
 
 // MaskURLPassword replaces the password in a PG URL with ****

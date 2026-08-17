@@ -176,7 +176,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	var tables []tableItem
 
 	if tools.Psql != "" && localOK {
-		envDB := core.PGEnv(u, ww, "")
+		envDB := core.DBEnv(u, ww, "")
 		localCounts := make(map[string]int)
 		catQuery := "SELECT c.relname, c.reltuples::bigint FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY c.relname;"
 		outLocal, _, rcLocal := core.RunCmdSimple(tools.Psql,
@@ -211,7 +211,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		cloudCounts := make(map[string]int)
 		if parsed != nil {
 			ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-			envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+			envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 			outRemote, _, rcRemote := core.RunCmdSimple(tools.Psql,
 				[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc", catQuery},
 				envCloud, 5*time.Second)
@@ -277,7 +277,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 
 func handleCheck(w http.ResponseWriter, r *http.Request) {
 	env, _ := core.LoadEnv(core.EnvFile())
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 
 	// Collect checks quietly
 	oldQuiet := core.Quiet
@@ -285,7 +285,7 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 	h, p, u, n, wPass := core.GetLocalDB(env)
 	localOK := false
 	if tools.Psql != "" {
-		envDB := core.PGEnv(u, wPass, "")
+		envDB := core.DBEnv(u, wPass, "")
 		out, _, rc := core.RunCmdSimple(tools.Psql,
 			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
 			envDB, 5*time.Second)
@@ -320,7 +320,7 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 
 func handleDoctor(w http.ResponseWriter, r *http.Request) {
 	env, _ := core.LoadEnv(core.EnvFile())
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 	h, p, u, n, wPass := core.GetLocalDB(env)
 
 	var sb strings.Builder
@@ -379,7 +379,7 @@ func handleDoctor(w http.ResponseWriter, r *http.Request) {
 	}
 	if parsed, err := core.ParseRemoteURL(remoteURL); err == nil && parsed != nil {
 		ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-		envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+		envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 		out, _, rc := core.RunCmdSimple(tools.Psql,
 			[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc", "SELECT 1;"},
 			envCloud, 5*time.Second)
@@ -417,7 +417,7 @@ func handleDoctor(w http.ResponseWriter, r *http.Request) {
 
 func handleDiff(w http.ResponseWriter, r *http.Request) {
 	env, _ := core.LoadEnv(core.EnvFile())
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 	h, p, u, n, wPass := core.GetLocalDB(env)
 
 	var sb strings.Builder
@@ -451,7 +451,7 @@ func handleDiff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Query local table list
-	envLocal := core.PGEnv(u, wPass, "")
+	envLocal := core.DBEnv(u, wPass, "")
 	outLocal, _, rcLocal := core.RunCmdSimple(tools.Psql,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
 			"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"},
@@ -469,7 +469,7 @@ func handleDiff(w http.ResponseWriter, r *http.Request) {
 
 	// Query remote table list
 	ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-	envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+	envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 	outRemote, _, rcRemote := core.RunCmdSimple(tools.Psql,
 		[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc",
 			"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"},
@@ -561,7 +561,7 @@ func filterEmptyLines(lines []string) []string {
 
 func handleLocalTest(w http.ResponseWriter, r *http.Request) {
 	env, _ := core.LoadEnv(core.EnvFile())
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 	body := readJSONBody(r)
 
 	h, p, u, n, wPass := core.GetLocalDB(env)
@@ -585,7 +585,7 @@ func handleLocalTest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	envLocal := core.PGEnv(u, wPass, "")
+	envLocal := core.DBEnv(u, wPass, "")
 	args := []string{"-w", "-d", n, "-tAc", "SELECT 1;"}
 	if h != "" {
 		args = append([]string{"-h", h, "-p", p, "-U", u}, args...)
@@ -631,7 +631,7 @@ func handleLocalTest(w http.ResponseWriter, r *http.Request) {
 
 func handleRemoteTest(w http.ResponseWriter, r *http.Request) {
 	env, _ := core.LoadEnv(core.EnvFile())
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 	body := readJSONBody(r)
 
 	remoteURL := ""
@@ -661,7 +661,7 @@ func handleRemoteTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+	envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 	out, errOut, rc := core.RunCmdSimple(tools.Psql,
 		[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc", "SELECT 1;"},
 		envCloud, 10*time.Second)
@@ -694,8 +694,8 @@ func handleExport(w http.ResponseWriter, r *http.Request) {
 
 func handleDetect(w http.ResponseWriter, r *http.Request) {
 	env, _ := core.LoadEnv(core.EnvFile())
-	tools := core.FindPGTools(env)
-	instances := detect.DetectLocalPG(tools.Psql)
+	tools := core.FindDBTools(env)
+	instances := detect.DetectLocalDB(tools.Psql)
 	sendJSON(w, http.StatusOK, map[string]any{
 		"ok":        true,
 		"instances": instances,
@@ -1047,7 +1047,7 @@ func readJSONBody(r *http.Request) map[string]any {
 	return result
 }
 
-func fmtRemoteHost(p *core.PGConnInfo) string {
+func fmtRemoteHost(p *core.DBConnInfo) string {
 	if p == nil {
 		return ""
 	}

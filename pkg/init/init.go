@@ -104,7 +104,7 @@ func RunInit(opts InitOptions) error {
 		h, p = "127.0.0.1", "5432"
 		// Let user pick instance if detected
 		if tools.Psql != "" {
-			instances := detect.DetectLocalPG(tools.Psql)
+			instances := detect.DetectLocalDB(tools.Psql)
 			if len(instances) > 0 {
 				h = instances[0].Host
 				p = instances[0].Port
@@ -112,10 +112,10 @@ func RunInit(opts InitOptions) error {
 		}
 	} else {
 		// Interactive local DB setup
-		var instances []detect.PGInstance
+		var instances []detect.DBInstance
 		if tools.Psql != "" {
 			core.StatusInfo("Scanning local PostgreSQL instances...")
-			instances = detect.DetectLocalPG(tools.Psql)
+			instances = detect.DetectLocalDB(tools.Psql)
 		}
 		curH, curP, curU, curN, curW := core.GetLocalDB(env)
 		h, p, u, n, w = localDBMenu(instances, curH, curP, curU, curN, curW)
@@ -126,7 +126,7 @@ func RunInit(opts InitOptions) error {
 	if tools.Psql != "" && h != "" {
 		fmt.Printf("  %s[INFO]%s  Testing %s@%s:%s/%s... ",
 			core.ColorBCyan, core.ColorReset, u, h, p, n)
-		envDB := core.PGEnv(u, w, "")
+		envDB := core.DBEnv(u, w, "")
 		out, _, rc := core.RunCmdSimple(tools.Psql,
 			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
 			envDB, 5*time.Second)
@@ -212,9 +212,9 @@ func runNonInteractive(env map[string]string, opts InitOptions) error {
 		h, p, u, n, w = core.GetLocalDB(env)
 		if h == "" {
 			h, p, u, n, w = "127.0.0.1", "5432", "postgres", "postgres", ""
-			tools := core.FindPGTools(env)
+			tools := core.FindDBTools(env)
 			if tools.Psql != "" {
-				instances := detect.DetectLocalPG(tools.Psql)
+				instances := detect.DetectLocalDB(tools.Psql)
 				if len(instances) > 0 {
 					h = instances[0].Host
 					p = instances[0].Port
@@ -243,7 +243,7 @@ func runNonInteractive(env map[string]string, opts InitOptions) error {
 	return nil
 }
 
-func localDBMenu(instances []detect.PGInstance, curH, curP, curU, curN, curW string) (h, p, u, n, w string) {
+func localDBMenu(instances []detect.DBInstance, curH, curP, curU, curN, curW string) (h, p, u, n, w string) {
 	for {
 		fmt.Println()
 		core.BoxSection("Step 1/3: Local Database Setup")
@@ -338,7 +338,7 @@ func localDBMenu(instances []detect.PGInstance, curH, curP, curU, curN, curW str
 	}
 }
 
-func selectDB(inst detect.PGInstance) string {
+func selectDB(inst detect.DBInstance) string {
 	if len(inst.Databases) == 0 {
 		return inst.DefaultDB
 	}

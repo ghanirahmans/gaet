@@ -152,12 +152,12 @@ func PrintDocsFooter() {
 		ColorDim, ColorReset, ColorCyan, DocsURL, ColorReset)
 }
 
-// PrintPGToolsInstructions prints OS-specific commands to install PostgreSQL client tools.
-func PrintPGToolsInstructions() {
+// PrintDBToolsInstructions prints OS-specific commands to install database client tools.
+func PrintDBToolsInstructions() {
 	if Quiet {
 		return
 	}
-	StatusInfo("How to install PostgreSQL client tools (pg_dump, pg_restore, psql):")
+	StatusInfo("How to install Database client tools (pg_dump, pg_restore, psql, mysqldump, etc.):")
 	switch runtime.GOOS {
 	case "linux":
 		StatusArrow("Ubuntu/Debian:  sudo apt update && sudo apt install -y postgresql-client")
@@ -169,4 +169,9 @@ func PrintPGToolsInstructions() {
 		StatusArrow("Windows (Winget): winget install PostgreSQL.PostgreSQL")
 		StatusArrow("Windows (Choco):  choco install postgresql")
 	}
+}
+
+// PrintPGToolsInstructions is a backward-compatible alias for PrintDBToolsInstructions.
+func PrintPGToolsInstructions() {
+	PrintDBToolsInstructions()
 }

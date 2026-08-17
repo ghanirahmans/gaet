@@ -23,7 +23,7 @@ func RunCheck(opts CheckOptions) error {
 	if err != nil {
 		return err
 	}
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 
 	if opts.JSON {
 		// JSON mode: collect result silently, output pure JSON to stdout
@@ -67,7 +67,7 @@ func runCheckInner(env map[string]string, tools core.DBTools, silent bool) map[s
 		failedChecks = append(failedChecks, "Database client tools (pg_dump, pg_restore, psql)")
 		print(func() {
 			core.StatusFail("Database client tools not found (pg_dump, pg_restore, psql)")
-			core.PrintPGToolsInstructions()
+			core.PrintDBToolsInstructions()
 		})
 	} else {
 		print(func() {
@@ -101,7 +101,7 @@ func runCheckInner(env map[string]string, tools core.DBTools, silent bool) map[s
 	parsed, parseErr := core.ParseRemoteURL(remoteURL)
 	if parseErr == nil && parsed != nil {
 		ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-		envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+		envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 		out, _, rc := core.RunCmdSimple(tools.Psql,
 			[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc", "SELECT 1;"},
 			envCloud, 10*time.Second)
@@ -154,7 +154,7 @@ func RunStatus(opts StatusOptions) error {
 	if err != nil {
 		return err
 	}
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 
 	if opts.JSON {
 		data := buildStatusJSON(env, tools)
@@ -202,7 +202,7 @@ func RunStatus(opts StatusOptions) error {
 		fmt.Println()
 		core.BoxSection("Cloud Database")
 		ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-		envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+		envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 		out, _, rc := core.RunCmdSimple(tools.Psql,
 			[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc",
 				"SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"},
@@ -230,7 +230,7 @@ func RunDiff(opts DiffOptions) error {
 	if err != nil {
 		return err
 	}
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 
 	h, p, u, n, w := core.GetLocalDB(env)
 	localCount := 0
@@ -252,7 +252,7 @@ func RunDiff(opts DiffOptions) error {
 	parsed, parseErr := core.ParseRemoteURL(remoteURL)
 	if parseErr == nil && tools.Psql != "" {
 		ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-		envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+		envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 		out, _, rc := core.RunCmdSimple(tools.Psql,
 			[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc",
 				"SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"},
@@ -316,7 +316,7 @@ func RunDoctor(opts DoctorOptions) error {
 	if err != nil {
 		return err
 	}
-	tools := core.FindPGTools(env)
+	tools := core.FindDBTools(env)
 
 	issues := 0
 	result := map[string]any{"checks": map[string]any{}, "ok": true}
@@ -433,7 +433,7 @@ func buildStatusJSON(env map[string]string, tools core.DBTools) map[string]any {
 }
 
 func testLocalDB(psql, host, port, user, db, pass, query string, timeout time.Duration) (string, bool) {
-	envDB := core.PGEnv(user, pass, "")
+	envDB := core.DBEnv(user, pass, "")
 	out, _, rc := core.RunCmdSimple(psql,
 		[]string{"-w", "-h", host, "-p", port, "-U", user, "-d", db, "-tAc", query},
 		envDB, timeout)
