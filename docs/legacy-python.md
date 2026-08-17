@@ -49,12 +49,12 @@ Run the automated one-liner installer to replace the legacy Python executable:
 
 **Linux / macOS:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.ps1 | iex
 ```
 
 Verify your installation:

@@ -15,7 +15,7 @@ Get your first backup running in 5 minutes.
 ## Step 1: Install
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
 ```
 
 Verify installation:
