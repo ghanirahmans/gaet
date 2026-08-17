@@ -107,3 +107,20 @@ var validIdentRE = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 func ValidateTableName(name string) bool {
 	return validIdentRE.MatchString(name)
 }
+
+// CleanHost returns 127.0.0.1 if host is a Unix domain socket path (starts with /) or empty.
+func CleanHost(host string) string {
+	if host == "" || strings.HasPrefix(host, "/") {
+		return "127.0.0.1"
+	}
+	return host
+}
+
+// FormatConnTarget formats connection details (user, host, port, db) into clean user@host:port/db string, converting socket paths to 127.0.0.1.
+func FormatConnTarget(user, host, port, db string) string {
+	ch := CleanHost(host)
+	if port != "" {
+		return fmt.Sprintf("%s@%s:%s/%s", user, ch, port, db)
+	}
+	return fmt.Sprintf("%s@%s/%s", user, ch, db)
+}

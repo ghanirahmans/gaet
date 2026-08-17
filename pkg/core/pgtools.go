@@ -116,42 +116,41 @@ func FindPGTools(env map[string]string) PGTools {
 }
 
 // GetLocalDB returns local DB connection params.
-// Priority: individual GAET_LOCAL_DB_* vars > GAET_LOCAL_URL > defaults.
+// Priority: GAET_LOCAL_URL -> GAET_LOCAL_DB_* overrides -> defaults.
 func GetLocalDB(env map[string]string) (host, port, user, db, pass string) {
-	host = GetEnvStr(env, "GAET_LOCAL_DB_HOST", "")
-	port = GetEnvStr(env, "GAET_LOCAL_DB_PORT", "")
-	user = GetEnvStr(env, "GAET_LOCAL_DB_USER", "")
-	db   = GetEnvStr(env, "GAET_LOCAL_DB_NAME", "")
-	pass = GetEnvStr(env, "GAET_LOCAL_DB_PASS", "")
-
-	if host != "" || port != "" || user != "" || db != "" {
-		if host == "" { host = DefLocalHost }
-		if port == "" { port = DefLocalPort }
-		if user == "" { user = DefLocalUser }
-		if db   == "" { db   = DefLocalDB }
-		return
-	}
-
-	// Fallback: GAET_LOCAL_URL
-	urlVal := GetEnvStr(env, "GAET_LOCAL_URL", "")
-	if urlVal != "" {
+	// First check GAET_LOCAL_URL if present
+	if urlVal := GetEnvStr(env, "GAET_LOCAL_URL", ""); urlVal != "" {
 		if p, err := ParseRemoteURL(urlVal); err == nil {
 			host = p.Host
 			port = p.Port
 			user = p.User
 			db   = p.DB
-			if pass == "" {
-				pass = p.Password
-			}
-			return
+			pass = p.Password
 		}
 	}
 
-	// Defaults
-	host = DefLocalHost
-	port = DefLocalPort
-	user = DefLocalUser
-	db   = DefLocalDB
+	// Individual GAET_LOCAL_DB_* vars override if non-empty
+	if h := GetEnvStr(env, "GAET_LOCAL_DB_HOST", ""); h != "" { host = h }
+	if p := GetEnvStr(env, "GAET_LOCAL_DB_PORT", ""); p != "" { port = p }
+	if u := GetEnvStr(env, "GAET_LOCAL_DB_USER", ""); u != "" { user = u }
+	if d := GetEnvStr(env, "GAET_LOCAL_DB_NAME", ""); d != "" { db = d }
+	if w := GetEnvStr(env, "GAET_LOCAL_DB_PASS", ""); w != "" { pass = w }
+
+	// Fallback to PGPASSWORD / GAET_LOCAL_PASS if pass is still empty
+	if pass == "" {
+		if p := GetEnvStr(env, "GAET_LOCAL_PASS", ""); p != "" {
+			pass = p
+		} else if p := GetEnvStr(env, "PGPASSWORD", ""); p != "" {
+			pass = p
+		}
+	}
+
+	// Defaults if still empty
+	if host == "" { host = DefLocalHost }
+	if port == "" { port = DefLocalPort }
+	if user == "" { user = DefLocalUser }
+	if db   == "" { db   = DefLocalDB }
+
 	return
 }
 

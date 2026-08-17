@@ -1,1282 +1,1686 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>gaet — Database Operations Dashboard</title>
+  <title>Gaet — PostgreSQL Backup & Sync Studio</title>
   <link rel="icon" type="image/png" href="/gaet-logo.png" />
   <link rel="shortcut icon" type="image/png" href="/gaet-logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
   <style>
     :root {
-      --bg-primary: #0b0f17;
-      --bg-secondary: #111827;
-      --bg-card: rgba(17, 24, 39, 0.7);
-      --bg-card-hover: rgba(31, 41, 55, 0.8);
-      --border: rgba(255, 255, 255, 0.08);
-      --border-accent: rgba(59, 151, 151, 0.35);
-      --text-primary: #f3f4f6;
-      --text-secondary: #9ca3af;
-      --text-muted: #6b7280;
-      
-      /* Logo-Matched Colors */
-      --accent: #3b9797;               /* Logo Primary Teal */
-      --accent-hover: #2b7a7a;
-      --crimson: #ae2448;              /* Logo Accent Crimson */
-      --crimson-hover: #8e1e3b;
-      --crimson-bg: rgba(174, 36, 72, 0.15);
-      
-      --green: #10b981;
-      --green-bg: rgba(16, 185, 129, 0.12);
-      --red: #ef4444;
-      --red-bg: rgba(239, 68, 68, 0.12);
-      --yellow: #f59e0b;
-      --yellow-bg: rgba(245, 158, 11, 0.12);
-      --purple: #ae2448;               /* Mapped to Logo Crimson */
-      --purple-bg: rgba(174, 36, 72, 0.15);
-      --radius: 12px;
-      --radius-sm: 8px;
+      /* Gaet Studio Design System — Balanced Palette */
+      --bg-base: #090b10;
+      --bg-panel: #111520;
+      --bg-panel-hover: #161c2b;
+      --bg-element: #1a2234;
+      --bg-input: #0c0e15;
+      --bg-subtle-card: rgba(0, 0, 0, 0.25);
+      --bg-code-box: #06080e;
+
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-default: rgba(255, 255, 255, 0.14);
+      --border-accent: rgba(59, 151, 151, 0.5);
+
+      --text-main: #f8fafc;
+      --text-muted: #a1a1aa;
+      --text-dim: #71717a;
+
+      /* Gaet Brand Colors */
+      --gaet-teal: #3b9797;
+      --gaet-teal-hover: #318383;
+      --gaet-teal-subtle: rgba(59, 151, 151, 0.15);
+      --gaet-crimson: #be123c;
+      --gaet-crimson-hover: #9f1239;
+
+      --status-ok: #10b981;
+      --status-warn: #f59e0b;
+      --status-fail: #f43f5e;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+
       --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+      --ease-fluid: cubic-bezier(0.16, 1, 0.3, 1);
+      --shadow-panel: 0 4px 20px rgba(0, 0, 0, 0.25);
     }
+
     [data-theme="light"] {
-      --bg-primary: #f8fafc;
-      --bg-secondary: #ffffff;
-      --bg-card: rgba(255, 255, 255, 0.95);
-      --bg-card-hover: #ffffff;
-      --border: rgba(226, 232, 240, 0.85);
-      --border-accent: rgba(59, 151, 151, 0.45);
-      --text-primary: #0f172a;
-      --text-secondary: #475569;
-      --text-muted: #64748b;
-      --accent: #2b7a7a;
-      --accent-hover: #1e5959;
-      --crimson: #901b39;
-      --crimson-bg: rgba(144, 27, 57, 0.08);
-      --purple: #901b39;
-      --purple-bg: rgba(144, 27, 57, 0.08);
+      --bg-base: #f1f5f9;
+      --bg-panel: #ffffff;
+      --bg-panel-hover: #f8fafc;
+      --bg-element: #e2e8f0;
+      --bg-input: #ffffff;
+      --bg-subtle-card: #f8fafc;
+      --bg-code-box: #0f172a;
+
+      --border-subtle: #e2e8f0;
+      --border-default: #cbd5e1;
+      --border-accent: #0d9488;
+
+      --text-main: #020617;
+      --text-muted: #334155;
+      --text-dim: #64748b;
+
+      --gaet-teal: #0d9488;
+      --gaet-teal-hover: #0f766e;
+      --gaet-teal-subtle: rgba(13, 148, 136, 0.12);
+      --gaet-crimson: #be123c;
+      --gaet-crimson-hover: #9f1239;
+
+      --status-ok: #047857;
+      --status-warn: #b45309;
+      --status-fail: #be123c;
+      --shadow-panel: 0 4px 16px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
     }
 
-    [data-theme="light"] body {
-      background: radial-gradient(circle at 10% 10%, rgba(59, 151, 151, 0.06) 0%, transparent 40%),
-                  radial-gradient(circle at 90% 90%, rgba(174, 36, 72, 0.04) 0%, transparent 40%),
-                  #f8fafc;
+    /* Theme Utility Classes */
+    .sub-card {
+      background: var(--bg-subtle-card);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      padding: 18px;
     }
 
-    [data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); }
-
-    [data-theme="light"] .header {
-      background: rgba(255, 255, 255, 0.9);
-      border-bottom: 1px solid rgba(226, 232, 240, 0.9);
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    .code-box {
+      background: var(--bg-code-box);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      line-height: 1.6;
+      color: #f1f5f9;
+      white-space: pre-wrap;
+      max-height: 320px;
+      overflow-y: auto;
     }
 
-    [data-theme="light"] .tab-btn:hover { background: rgba(59, 151, 151, 0.08); color: #0f172a; }
-    [data-theme="light"] .tab-btn.active { background: rgba(59, 151, 151, 0.12); color: #2b7a7a; border-color: rgba(59, 151, 151, 0.35); }
-
-    [data-theme="light"] .stat-card,
-    [data-theme="light"] .section,
-    [data-theme="light"] .settings-hero,
-    [data-theme="light"] .settings-nav,
-    [data-theme="light"] .settings-section,
-    [data-theme="light"] .modal-content {
-      background: #ffffff;
-      border-color: rgba(226, 232, 240, 1);
-      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
-    [data-theme="light"] .stat-card:hover {
-      border-color: rgba(59, 151, 151, 0.5);
-      box-shadow: 0 10px 25px rgba(59, 151, 151, 0.12);
+    html {
+      scrollbar-gutter: stable;
+      overflow-y: scroll;
     }
 
-    [data-theme="light"] .data-table th {
-      background: #f1f5f9;
-      color: #475569;
-      border-bottom-color: #e2e8f0;
-    }
-
-    [data-theme="light"] .data-table td {
-      border-bottom-color: #e2e8f0;
-      color: #0f172a;
-    }
-
-    [data-theme="light"] .data-table tbody tr:hover {
-      background: rgba(59, 151, 151, 0.05);
-    }
-
-    [data-theme="light"] .form-control-styled,
-    [data-theme="light"] .form-control {
-      background: #f8fafc;
-      border-color: #cbd5e1;
-      color: #0f172a;
-    }
-
-    [data-theme="light"] footer {
-      background: rgba(255, 255, 255, 0.9) !important;
-      border-top-color: #e2e8f0 !important;
-      color: #64748b !important;
-    }
-
-    [data-theme="light"] footer code {
-      background: rgba(59, 151, 151, 0.1);
-      color: #2b7a7a !important;
-      border-color: rgba(59, 151, 151, 0.25);
-    }
-
-    /* Settings Tab Light Mode Overrides */
-    [data-theme="light"] .settings-hero {
-      background: linear-gradient(135deg, rgba(240, 249, 249, 0.95), rgba(255, 255, 255, 0.95));
-      border-color: rgba(59, 151, 151, 0.35);
-      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
-    }
-    [data-theme="light"] .settings-hero h2 { color: #0f172a; }
-    [data-theme="light"] .hero-subtitle { color: #475569; }
-    [data-theme="light"] .env-badge {
-      background: #f1f5f9;
-      border-color: #cbd5e1;
-      color: #0f172a;
-    }
-    [data-theme="light"] .settings-nav {
-      background: #ffffff;
-      border-color: #e2e8f0;
-      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
-    }
-    [data-theme="light"] .settings-nav-btn {
-      color: #475569;
-    }
-    [data-theme="light"] .settings-nav-btn:hover {
-      background: #f1f5f9;
-      color: #0f172a;
-    }
-    [data-theme="light"] .settings-nav-btn.active {
-      background: rgba(59, 151, 151, 0.12);
-      border-color: rgba(59, 151, 151, 0.4);
-      color: #1e5959;
-    }
-    [data-theme="light"] .card-header-styled {
-      background: #f8fafc;
-      border-bottom-color: #e2e8f0;
-    }
-    [data-theme="light"] .form-control-styled {
-      background: #f8fafc;
-      border-color: #cbd5e1;
-      color: #0f172a;
-    }
-    [data-theme="light"] .form-control-styled:focus {
-      background: #ffffff;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(59, 151, 151, 0.2);
-    }
-    [data-theme="light"] .config-card-styled {
-      background: #f8fafc;
-      border-color: #e2e8f0;
-    }
-    [data-theme="light"] .config-card-styled:hover {
-      border-color: rgba(59, 151, 151, 0.4);
-      background: #ffffff;
-    }
-    [data-theme="light"] .config-card-styled .key {
-      color: #64748b;
-    }
-    [data-theme="light"] .config-card-styled .val {
-      color: #0f172a;
-    }
-    [data-theme="light"] .detected-box {
-      background: rgba(16, 185, 129, 0.08);
-      border-color: rgba(16, 185, 129, 0.3);
-    }
-    [data-theme="light"] .detected-instance {
-      background: #ffffff;
-      border-color: #cbd5e1;
-    }
-    [data-theme="light"] .instance-title {
-      color: #334155;
-    }
-    [data-theme="light"] .btn-preset {
-      background: #f1f5f9;
-      border-color: #cbd5e1;
-      color: #334155;
-    }
-    [data-theme="light"] .btn-preset:hover {
-      background: rgba(59, 151, 151, 0.15);
-      border-color: rgba(59, 151, 151, 0.4);
-      color: #1e5959;
-    }
-    [data-theme="light"] .settings-actions-footer {
-      background: #ffffff;
-      border-color: #e2e8f0;
-      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 999px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(59, 151, 151, 0.5); }
-
-    body {
+    html, body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
       font-family: var(--font-sans);
-      background: radial-gradient(circle at 10% 10%, rgba(59, 151, 151, 0.09) 0%, transparent 40%),
-                  radial-gradient(circle at 90% 90%, rgba(174, 36, 72, 0.07) 0%, transparent 40%),
-                  var(--bg-primary);
-      color: var(--text-primary);
+      font-size: 13.5px;
       line-height: 1.5;
       min-height: 100vh;
+      width: 100%;
+      -webkit-font-smoothing: antialiased;
     }
-    .app-container { min-height: 100vh; display: flex; flex-direction: column; }
-    
-    /* Header */
-    .header {
-      position: sticky; top: 0; z-index: 50;
-      background: rgba(11, 15, 23, 0.82);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+
+    /* Custom Sleek Non-Shifting Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
     }
-    [data-theme="light"] .header { background: rgba(248, 250, 252, 0.85); }
-    .header-inner {
-      max-width: 1280px; margin: 0 auto;
-      padding: 14px 24px;
-      display: flex; justify-content: space-between; align-items: center;
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
     }
-    .logo { display: flex; align-items: center; gap: 12px; }
-    .logo-icon {
-      width: 40px; height: 40px;
-      background: linear-gradient(135deg, var(--accent), var(--crimson));
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      color: white; font-weight: 800; font-size: 18px;
-      box-shadow: 0 4px 14px rgba(59, 151, 151, 0.35);
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-default);
+      border-radius: 999px;
     }
-    .logo-text h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
-    .logo-text .version-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(59, 151, 151, 0.15); color: var(--accent); border: 1px solid var(--border-accent); }
-    .logo-text p { font-size: 12px; color: var(--text-secondary); }
-    
-    /* Nav Tabs */
-    .nav-tabs { display: flex; gap: 6px; }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-accent);
+    }
+
+    /* Layout Shell */
+    .app-shell {
+      max-width: 1380px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px 24px 60px 24px;
+      box-sizing: border-box;
+    }
+
+    /* ── Navigation Header ── */
+    .nav-header {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      box-shadow: var(--shadow-panel);
+    }
+
+    .brand-block {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .brand-logo {
+      height: 32px;
+      width: auto;
+      object-fit: contain;
+      transition: transform 0.2s var(--ease-fluid);
+    }
+
+    .brand-logo:hover {
+      transform: scale(1.05);
+    }
+
+    .brand-text {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .version-tag {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--gaet-teal-subtle);
+      color: var(--gaet-teal);
+      border: 1px solid rgba(59, 151, 151, 0.35);
+    }
+
+    /* CLI ASCII Live Status */
+    .status-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s var(--ease-fluid);
+    }
+
+    .tag-ok {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--status-ok);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .tag-warn {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--status-warn);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .tag-fail {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--status-fail);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .pulse-ring {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+      animation: softPulse 2.4s infinite var(--ease-fluid);
+    }
+
+    .tag-ok .pulse-ring {
+      background-color: var(--status-ok);
+      box-shadow: 0 0 8px var(--status-ok);
+    }
+
+    .tag-warn .pulse-ring {
+      background-color: var(--status-warn);
+      box-shadow: 0 0 8px var(--status-warn);
+    }
+
+    .tag-fail .pulse-ring {
+      background-color: var(--status-fail);
+      box-shadow: 0 0 8px var(--status-fail);
+    }
+
+    @keyframes softPulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.35;
+        transform: scale(0.85);
+      }
+    }
+
+    /* Tab Navigation */
+    .nav-tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg-element);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-default);
+    }
+
     .tab-btn {
-      padding: 8px 16px; border-radius: var(--radius-sm);
-      font-size: 13px; font-weight: 600; color: var(--text-secondary);
-      background: transparent; border: 1px solid transparent;
-      cursor: pointer; transition: all 0.2s ease;
-      display: flex; align-items: center; gap: 6px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 7px 16px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s var(--ease-fluid);
     }
-    .tab-btn:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.05); }
-    .tab-btn.active { color: var(--text-primary); background: rgba(59, 151, 151, 0.15); border-color: var(--border-accent); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); }
-    
-    .header-actions { display: flex; gap: 8px; align-items: center; }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: var(--bg-panel-hover);
+    }
+
+    .tab-btn.active {
+      background: var(--gaet-teal);
+      color: #ffffff;
+      border-color: var(--gaet-teal);
+      font-weight: 700;
+      box-shadow: 0 3px 10px rgba(13, 148, 136, 0.3);
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Button System — Studio Balanced Precision */
     .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 8px 16px; border-radius: var(--radius-sm);
-      font-size: 13px; font-weight: 600;
-      border: 1px solid transparent; cursor: pointer; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: var(--font-sans);
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-default);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.18s var(--ease-fluid);
+      text-decoration: none;
+      user-select: none;
     }
-    .btn-primary { background: linear-gradient(135deg, #3b9797, #276d6d); color: white; box-shadow: 0 4px 14px rgba(59, 151, 151, 0.3); }
-    .btn-primary:hover { background: linear-gradient(135deg, #46a7a7, #2d7e7e); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59, 151, 151, 0.45); }
-    .btn-primary:active { transform: translateY(0); }
-    .btn-secondary { background: var(--bg-card); color: var(--text-primary); border-color: var(--border); }
-    .btn-secondary:hover { background: var(--bg-card-hover); border-color: var(--border-accent); transform: translateY(-1px); }
-    .btn-danger { background: var(--red-bg); color: var(--red); border-color: rgba(239, 68, 68, 0.3); }
-    .btn-danger:hover { background: rgba(239, 68, 68, 0.2); transform: translateY(-1px); }
-    .btn-warning { background: var(--yellow-bg); color: var(--yellow); border-color: rgba(245, 158, 11, 0.3); }
-    .btn-warning:hover { background: rgba(245, 158, 11, 0.2); transform: translateY(-1px); }
-    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
-    .btn-xs { padding: 4px 8px; font-size: 11px; border-radius: 5px; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
 
-    /* Layout */
-    .main-content { flex: 1; max-width: 1280px; margin: 0 auto; padding: 24px; width: 100%; }
-    .tab-content { display: none; animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-    .tab-content.active { display: block; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* Banners */
-    .banner {
-      border-radius: var(--radius); padding: 14px 18px; margin-bottom: 24px;
-      font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      backdrop-filter: blur(12px);
-    }
-    .banner-danger { background: var(--red-bg); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--red); }
-    .banner-warning { background: var(--yellow-bg); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--yellow); }
-
-    /* Stat Cards */
-    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    @media (max-width: 960px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 560px) { .stat-grid { grid-template-columns: 1fr; } }
-    button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-    .stat-card {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 20px;
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    }
-    .stat-card::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-      background: transparent; transition: background 0.2s ease;
-    }
-    .stat-card.accent-card::before { background: var(--accent); }
-    .stat-card.purple-card::before { background: var(--purple); }
-    .stat-card.green::before { background: var(--green); }
-    .stat-card.yellow::before { background: var(--yellow); }
-    .stat-card:hover {
+    .btn:hover {
+      background: var(--bg-panel-hover);
       border-color: var(--border-accent);
-      transform: translateY(-4px) scale(1.005);
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), 0 0 20px rgba(59, 151, 151, 0.15);
+      color: var(--text-main);
+      transform: translateY(-1px);
     }
-    .stat-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-    .stat-icon {
-      width: 42px; height: 42px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
-    }
-    .stat-icon.accent { background: rgba(59, 151, 151, 0.15); color: var(--accent); }
-    .stat-icon.green { background: var(--green-bg); color: var(--green); }
-    .stat-icon.yellow { background: var(--yellow-bg); color: var(--yellow); }
-    .stat-icon.purple { background: var(--crimson-bg); color: var(--crimson); }
-    
-    .stat-content h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-bottom: 4px; }
-    .stat-content .value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; font-family: var(--font-mono); }
-    .stat-content .subtitle { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
 
-    .sync-progress { margin-top: 10px; }
-    .progress-bar { height: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 999px; overflow: hidden; }
-    .progress-fill { height: 100%; border-radius: 999px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-    .progress-fill.full { background: var(--green); }
-    .progress-fill.partial { background: var(--yellow); }
-    .progress-fill.none { background: var(--red); }
-    .progress-text { font-size: 12px; color: var(--text-secondary); margin-top: 6px; display: flex; justify-content: space-between; }
+    .btn:active {
+      transform: translateY(0) scale(0.98);
+    }
 
-    /* Cards & Sections */
-    .section {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: var(--radius); margin-bottom: 24px; overflow: hidden;
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
     }
-    .section-header { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.01); }
-    .section-header h2 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
-    .section-body { padding: 24px; }
-    
-    /* Tables */
-    .table-container { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); }
-    .data-table { width: 100%; border-collapse: collapse; text-align: left; }
-    .data-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
-    .data-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-primary); }
-    .data-table tbody tr { transition: all 0.2s ease; border-left: 3px solid transparent; }
-    .data-table tbody tr:hover { background: rgba(59, 151, 151, 0.06); border-left: 3px solid var(--accent); }
-    .data-table tbody tr:last-child td { border-bottom: none; }
-    .table-name { font-weight: 600; font-family: var(--font-mono); color: var(--text-primary); }
-    .table-num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
-    
-    /* Badges */
-    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-    .badge-success { background: var(--green-bg); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.2); }
-    .badge-warning { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(245, 158, 11, 0.2); }
-    .badge-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.2); }
-    .badge-purple { background: var(--crimson-bg); color: var(--crimson); border: 1px solid rgba(174, 36, 72, 0.3); }
 
-    /* Terminal Log Viewer */
-    .terminal-window {
-      background: #06080d; border: 1px solid var(--border);
-      border-radius: var(--radius); overflow: hidden;
-      font-family: var(--font-mono); font-size: 13px;
+    .btn-xs {
+      padding: 4px 10px;
+      font-size: 11.5px;
+      border-radius: var(--radius-sm);
     }
-    .terminal-bar {
-      background: #111520; padding: 10px 16px;
-      display: flex; align-items: center; justify-content: space-between;
-      border-bottom: 1px solid var(--border);
-    }
-    .terminal-dots { display: flex; gap: 8px; }
-    .dot { width: 12px; height: 12px; border-radius: 50%; }
-    .dot-red { background: #ef4444; }
-    .dot-yellow { background: #f59e0b; }
-    .dot-green { background: #10b981; }
-    .terminal-body {
-      padding: 16px; max-height: 420px; overflow-y: auto;
-      color: #d1d5db; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
-    }
-    .log-line { display: flex; gap: 12px; padding: 2px 0; }
-    .log-info { color: #4db3b3; }
-    .log-warn { color: #fbbf24; }
-    .log-fail { color: #f87171; }
-    .log-ok { color: #4ade80; }
 
-    /* Form controls */
-    .form-group { margin-bottom: 18px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .btn-primary {
+      background: var(--gaet-teal);
+      color: #ffffff;
+      border-color: var(--gaet-teal);
+      font-weight: 600;
+      box-shadow: 0 2px 10px rgba(59, 151, 151, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: var(--gaet-teal-hover);
+      border-color: var(--gaet-teal-hover);
+      box-shadow: 0 4px 14px rgba(59, 151, 151, 0.45);
+    }
+
+    .btn-crimson {
+      background: var(--gaet-crimson);
+      color: #ffffff;
+      border-color: var(--gaet-crimson);
+      font-weight: 600;
+      box-shadow: 0 2px 10px rgba(190, 18, 60, 0.3);
+    }
+
+    .btn-crimson:hover {
+      background: var(--gaet-crimson-hover);
+      border-color: var(--gaet-crimson-hover);
+    }
+
+    .btn-danger {
+      background: rgba(244, 63, 94, 0.15);
+      color: #f43f5e;
+      border-color: rgba(244, 63, 94, 0.35);
+      font-weight: 600;
+    }
+
+    .btn-danger:hover {
+      background: rgba(244, 63, 94, 0.25);
+      border-color: #f43f5e;
+    }
+
+    .icon-svg {
+      width: 14px;
+      height: 14px;
+      stroke-width: 2.2;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .kbd-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: var(--bg-element);
+      border: 1px solid var(--border-default);
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .btn-primary .kbd-tag,
+    .btn-crimson .kbd-tag {
+      background: rgba(0, 0, 0, 0.22);
+      border-color: rgba(255, 255, 255, 0.3);
+      color: #ffffff;
+    }
+
+    .tab-btn.active .kbd-tag {
+      background: rgba(0, 0, 0, 0.2);
+      border-color: rgba(255, 255, 255, 0.3);
+      color: #ffffff;
+    }
+
+    /* ── Tab Content Container ── */
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+      animation: fluidSlide 0.25s var(--ease-fluid);
+    }
+
+    @keyframes fluidSlide {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ── Operation Progress Bar ── */
+    .op-progress-bar {
+      display: none;
+      background: rgba(59, 151, 151, 0.12);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      margin-bottom: 16px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      animation: fluidSlide 0.2s var(--ease-fluid);
+    }
+
+    .op-progress-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--gaet-teal);
+      font-weight: 600;
+    }
+
+    /* ── Hero Command Hub ── */
+    .command-hub {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 18px 24px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      box-shadow: var(--shadow-panel);
+      flex-wrap: wrap;
+    }
+
+    .hub-title h2 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .hub-title p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .hub-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Metrics Cards Grid ── */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .metric-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      transition: all 0.2s var(--ease-fluid);
+      position: relative;
+    }
+
+    .metric-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-panel);
+    }
+
+    .metric-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-family: var(--font-mono);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .metric-foot {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── Panels & Tables ── */
+    .content-panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-panel);
+    }
+
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-default);
+      border-top-left-radius: var(--radius-lg);
+      border-top-right-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: var(--bg-panel-hover);
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    .studio-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .studio-table th {
+      background: var(--bg-panel-hover);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 12px 20px;
+      border-bottom: 2px solid var(--border-default);
+      user-select: none;
+    }
+
+    .studio-table td {
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 13px;
+      color: var(--text-main);
+      transition: background 0.15s ease;
+    }
+
+    .studio-table tr {
+      transition: background 0.15s ease;
+    }
+
+    .studio-table tr:hover td {
+      background: var(--bg-panel-hover);
+    }
+
+    .studio-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .tbl-code {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--gaet-teal);
+    }
+
+    /* ── Terminal Console ── */
+    .console-window {
+      background: #06080e;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+    }
+
+    .console-header {
+      background: var(--bg-panel);
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border-default);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-muted);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .console-body {
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.65;
+      height: 520px;
+      overflow-y: auto;
+      color: #cbd5e1;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* Form & Input UX */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
     .form-control {
-      width: 100%; padding: 10px 14px; border-radius: var(--radius-sm);
-      background: var(--bg-secondary); border: 1px solid var(--border);
-      color: var(--text-primary); font-family: var(--font-mono); font-size: 13px;
-      transition: border-color 0.2s ease;
+      width: 100%;
+      padding: 10px 42px 10px 14px;
+      border-radius: var(--radius-md);
+      background: var(--bg-input);
+      border: 1px solid var(--border-default);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      transition: all 0.15s ease;
     }
-    .form-control:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59, 151, 151, 0.2); }
-    .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--gaet-teal);
+      box-shadow: 0 0 0 3px var(--gaet-teal-subtle);
+    }
+
+    .input-eye-btn {
+      position: absolute;
+      right: 10px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      padding: 6px;
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s ease;
+    }
+
+    .input-eye-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .input-helper-text {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 6px;
+      font-family: var(--font-mono);
+    }
+
+    /* ── Auto-Detect Instance Card Studio Design ── */
+    .detect-panel-card {
+      background: var(--bg-subtle-card);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-panel);
+      animation: fluidSlide 0.25s var(--ease-fluid);
+    }
+
+    .detect-inst-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      margin-top: 12px;
+      transition: all 0.2s var(--ease-fluid);
+    }
+
+    .detect-inst-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-1px);
+    }
+
+    .db-pill-btn {
+      background: var(--bg-element);
+      border: 1px solid var(--border-default);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: 8px;
+      margin-top: 8px;
+      transition: all 0.15s var(--ease-fluid);
+    }
+
+    .db-pill-btn:hover {
+      background: var(--gaet-teal-subtle);
+      border-color: var(--gaet-teal);
+      color: #38bdf8;
+      transform: translateY(-1px);
+    }
 
     /* Toast */
-    .toast {
-      position: fixed; bottom: 28px; right: 28px; padding: 14px 22px;
-      border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
-      z-index: 1000; animation: slideUp 0.25s ease; backdrop-filter: blur(12px);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); display: flex; align-items: center; gap: 10px;
-    }
-    .toast-ok { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
-    .toast-err { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
-    @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-    .spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    
-    .theme-toggle { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s ease; }
-    .theme-toggle:hover { color: var(--text-primary); border-color: var(--border-accent); }
-    
-    .empty-state { text-align: center; padding: 36px 16px; color: var(--text-muted); }
-    
-    .logo-img { height: 32px; width: auto; object-fit: contain; border-radius: 4px; }
-    
-    /* Settings Hero Header */
-    .settings-hero {
-      background: linear-gradient(135deg, rgba(20, 35, 45, 0.7), rgba(11, 15, 23, 0.9));
-      border: 1px solid var(--border-accent);
-      border-radius: var(--radius);
-      padding: 20px 24px;
-      margin-bottom: 24px;
-      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    .toast-popup {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      font-size: 12.5px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(12px);
+      animation: popSlide 0.2s var(--ease-fluid);
     }
-    .settings-hero-title { display: flex; align-items: center; gap: 16px; }
-    .hero-icon { font-size: 24px; width: 44px; height: 44px; background: rgba(59, 151, 151, 0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--accent); }
-    .settings-hero h2 { font-size: 17px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
-    .hero-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
-    .settings-hero-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .env-badge { font-family: var(--font-mono); font-size: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border); padding: 5px 12px; border-radius: 999px; display: flex; align-items: center; gap: 8px; }
-    .badge-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .badge-dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
 
-    /* Settings 2-Column Layout */
-    .settings-layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; align-items: start; }
-    @media (max-width: 860px) { .settings-layout { grid-template-columns: 1fr; } }
-    
-    /* Sidebar Navigation Pills */
-    .settings-nav { display: flex; flex-direction: column; gap: 6px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; backdrop-filter: blur(12px); }
-    .settings-nav-btn {
-      display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-      border-radius: var(--radius-sm); border: 1px solid transparent;
-      background: transparent; color: var(--text-secondary);
-      font-size: 13px; text-align: left; cursor: pointer;
-      transition: all 0.2s ease; width: 100%;
+    .toast-ok {
+      background: rgba(16, 185, 129, 0.18);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
     }
-    .settings-nav-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
-    .settings-nav-btn.active { background: rgba(59, 151, 151, 0.12); border-color: var(--border-accent); color: var(--text-primary); font-weight: 600; }
-    .settings-nav-btn .nav-icon { font-size: 16px; width: 22px; text-align: center; }
-    .settings-nav-btn .nav-label { display: flex; flex-direction: column; }
-    .settings-nav-btn .nav-label small { font-size: 11px; color: var(--text-muted); font-weight: 400; }
-    
-    /* Settings Pane Sections */
-    .settings-pane { width: 100%; }
-    .settings-section { display: none; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; backdrop-filter: blur(12px); animation: fadeIn 0.2s ease; }
-    .settings-section.active { display: block; }
-    
-    .card-header-styled { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 14px; background: rgba(255, 255, 255, 0.015); }
-    .card-header-icon { font-size: 20px; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-    .card-header-icon.local { background: rgba(59, 151, 151, 0.15); color: var(--accent); }
-    .card-header-icon.cloud { background: rgba(174, 36, 72, 0.15); color: var(--crimson); }
-    .card-header-icon.retention { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-    .card-header-icon.server { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-    .card-header-icon.diag { background: rgba(174, 36, 72, 0.15); color: var(--crimson); }
-    .card-header-icon.active { background: rgba(59, 151, 151, 0.15); color: var(--accent); }
-    
-    .card-header-styled h3 { font-size: 15px; font-weight: 700; color: var(--text-primary); }
-    .card-header-styled p { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-    
-    .card-body-styled { padding: 24px; }
-    
-    /* Styled Input Controls */
-    .input-group-styled { position: relative; width: 100%; display: flex; align-items: center; }
-    .form-control-styled {
-      width: 100%; padding: 10px 44px 10px 14px; border-radius: var(--radius-sm);
-      background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border);
-      color: var(--text-primary); font-family: var(--font-mono); font-size: 13px;
-      transition: all 0.2s ease;
-    }
-    .form-control-styled:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59, 151, 151, 0.2); background: rgba(15, 23, 42, 0.85); }
-    .btn-icon-inside { position: absolute; right: 8px; background: transparent; border: none; font-size: 15px; cursor: pointer; color: var(--text-secondary); padding: 6px; border-radius: 4px; transition: color 0.2s ease; }
-    .btn-icon-inside:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.08); }
-    
-    .label-badge { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-family: var(--font-sans); text-transform: uppercase; font-weight: 700; margin-left: 6px; background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); }
-    
-    /* Quick Preset Bar */
-    .quick-preset-bar { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .preset-title { font-size: 12px; color: var(--text-muted); font-weight: 600; }
-    .btn-preset { font-size: 11px; font-family: var(--font-mono); padding: 4px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; transition: all 0.15s ease; }
-    .btn-preset:hover { background: rgba(59, 151, 151, 0.15); border-color: var(--border-accent); color: var(--accent); }
-    
-    /* Footer Action Bar */
-    .settings-actions-footer { margin-top: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(12px); }
-    
-    /* Styled Active Grid */
-    .config-grid-styled { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-    .config-card-styled { background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; transition: border-color 0.2s ease; }
-    .config-card-styled:hover { border-color: var(--border-accent); }
-    .config-card-styled .key { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; margin-bottom: 4px; text-transform: uppercase; }
-    .config-card-styled .val { font-family: var(--font-mono); font-size: 13px; color: var(--text-primary); word-break: break-all; }
 
-    /* Auto-Detect Styling */
-    .detected-box {
-      background: rgba(16, 185, 129, 0.06);
-      border: 1px solid rgba(16, 185, 129, 0.25);
-      border-radius: var(--radius-sm);
+    .toast-err {
+      background: rgba(239, 68, 68, 0.18);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    @keyframes popSlide {
+      from {
+        transform: translateY(16px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .spin-anim {
+      animation: spinRot 0.6s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spinRot {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Detect UI Enhancements */
+    .detect-panel-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-panel);
+    }
+
+    .detect-inst-card {
+      background: var(--bg-subtle-card);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
       padding: 14px 16px;
-      margin-bottom: 18px;
-    }
-    .detected-header { font-size: 12px; font-weight: 600; color: var(--green); display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .detected-list { display: flex; flex-direction: column; gap: 10px; }
-    .detected-instance { background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
-    .instance-title { font-size: 11px; font-weight: 700; font-family: var(--font-mono); color: var(--text-secondary); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
-    .db-pills-container { display: flex; flex-wrap: wrap; gap: 6px; }
-    .db-pill {
-      font-size: 11px; font-family: var(--font-mono); font-weight: 600;
-      padding: 4px 10px; border-radius: 999px; cursor: pointer;
-      background: rgba(59, 151, 151, 0.15); border: 1px solid rgba(59, 151, 151, 0.35);
-      color: #4db3b3; transition: all 0.15s ease;
-    }
-    .db-pill:hover {
-      background: var(--accent); color: white; border-color: var(--accent-hover);
-      transform: translateY(-1px); box-shadow: 0 2px 8px rgba(59, 151, 151, 0.4);
     }
 
-    /* Live Header Pill & Pulse */
-    .live-pill {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
-      font-family: var(--font-mono); backdrop-filter: blur(8px);
-    }
-    .pill-success { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .pill-warning { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .pill-danger { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
-    
-    .live-pulse {
-      width: 7px; height: 7px; border-radius: 50%; display: inline-block;
-      animation: pulse-glow 2s infinite ease-in-out;
-    }
-    .pill-success .live-pulse { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
-    .pill-warning .live-pulse { background-color: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
-    .pill-danger .live-pulse { background-color: #ef4444; box-shadow: 0 0 8px #ef4444; }
-
-    @keyframes pulse-glow {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
+    .db-pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-default);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-top: 8px;
+      transition: all 0.15s ease;
     }
 
-    .spin-icon { display: inline-block; animation: spin-anim 0.6s ease-in-out; }
-    @keyframes spin-anim {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+    .db-pill-btn:hover {
+      background: var(--gaet-teal-subtle);
+      border-color: var(--gaet-teal);
+      color: var(--gaet-teal);
+      transform: translateY(-1px);
     }
-    
-    .btn-xs { padding: 3px 8px; font-size: 11px; }
 
-    /* Modals & Dialogs */
-    .modal-backdrop {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px);
-      z-index: 9999; display: flex; align-items: center; justify-content: center;
+    .db-pill-btn.active-target {
+      border-color: var(--gaet-teal);
+      background: rgba(59, 151, 151, 0.2);
+      color: #38bdf8;
+      box-shadow: 0 0 10px rgba(59, 151, 151, 0.25);
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
       padding: 20px;
     }
-    .modal-content {
-      background: var(--bg-card); border: 1px solid var(--border-accent);
-      border-radius: var(--radius); width: 100%; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
-      overflow: hidden; animation: modal-fade-in 0.2s ease;
+
+    .modal-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 600px;
+      overflow: hidden;
+      box-shadow: var(--shadow-panel);
+      animation: modalIn 0.2s var(--ease-fluid);
     }
-    @keyframes modal-fade-in {
-      from { opacity: 0; transform: scale(0.96); }
-      to { opacity: 1; transform: scale(1); }
+
+    @keyframes modalIn {
+      from {
+        opacity: 0;
+        transform: scale(0.96);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
+
     .modal-header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 16px 20px; border-bottom: 1px solid var(--border);
-    }
-    .modal-header h3 { font-size: 16px; margin: 0; color: var(--text-primary); }
-    .modal-close {
-      background: none; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer;
-    }
-    .modal-close:hover { color: var(--text-primary); }
-    .modal-body { padding: 20px; max-height: 450px; overflow-y: auto; }
-    .modal-footer {
-      display: flex; justify-content: flex-end; gap: 10px;
-      padding: 12px 20px; border-top: 1px solid var(--border);
-      background: var(--bg-secondary);
-    }
-    .console-box {
-      background: #060b12; color: #4db3b3; font-family: var(--font-mono);
-      font-size: 12px; line-height: 1.5; padding: 14px; border-radius: var(--radius-sm);
-      white-space: pre-wrap; word-break: break-all; margin: 0; border: 1px solid rgba(59, 151, 151, 0.2);
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-default);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    /* ─── Comprehensive Responsive Breakpoints ───────────────────── */
-    
-    /* 1. Large Screen / Laptops (max-width: 1024px) */
+    .modal-header h3 {
+      font-size: 14px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    .modal-body {
+      padding: 20px;
+      max-height: 460px;
+      overflow-y: auto;
+    }
+
+    /* ── Comprehensive Responsive Media Queries ── */
+
+    /* Laptops & Medium Screens (max-width: 1024px) */
     @media (max-width: 1024px) {
-      .grid-4 { grid-template-columns: repeat(2, 1fr); }
-      .grid-2 { grid-template-columns: 1fr; }
-      .header-inner { flex-wrap: wrap; gap: 14px; }
-      .nav-tabs { width: 100%; justify-content: flex-start; overflow-x: auto; padding-bottom: 4px; }
+      .nav-header {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+      }
+
+      .brand-block {
+        order: 1;
+        flex: 0 0 auto;
+      }
+
+      .controls-bar {
+        order: 2;
+        flex: 0 0 auto;
+        margin-left: auto;
+      }
+
+      .nav-tabs {
+        order: 3;
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+        margin-top: 4px;
+      }
+
+      .tab-btn {
+        justify-content: center;
+        text-align: center;
+        padding: 8px 10px;
+        font-size: 12.5px;
+      }
     }
 
-    /* 2. Tablets (max-width: 768px) */
+    /* Small Tablets & Mobile Devices (max-width: 768px) */
     @media (max-width: 768px) {
-      .app-container { padding: 12px 14px 40px 14px; }
-      .grid-4 { grid-template-columns: repeat(2, 1fr); }
-      .grid-3 { grid-template-columns: 1fr; }
-      .settings-hero { flex-direction: column; align-items: flex-start; gap: 12px; }
-      .settings-hero-actions { width: 100%; justify-content: flex-start; }
-      .settings-layout { grid-template-columns: 1fr; }
-      .settings-nav { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
-      .settings-nav-btn { flex: 0 0 auto; min-width: 140px; }
-      .card-header-styled { flex-direction: column; align-items: flex-start; gap: 10px; }
-      .settings-actions-footer { flex-direction: column; gap: 12px; align-items: stretch; text-align: center; }
-      .table-container { overflow-x: auto; }
-      .data-table th, .data-table td { padding: 10px 12px; font-size: 12px; }
+      .app-shell {
+        padding: 12px 14px 50px 14px;
+      }
+
+      .nav-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px;
+      }
+
+      .brand-block {
+        order: 1;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .controls-bar {
+        order: 2;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .nav-tabs {
+        order: 3;
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+        padding: 4px;
+        box-sizing: border-box;
+      }
+
+      .tab-btn {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+        padding: 7px 6px;
+        font-size: 12px;
+      }
+
+      .tab-btn .kbd-tag {
+        display: none;
+      }
+
+      .panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .hub-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+        gap: 8px;
+      }
+
+      .hub-actions .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .studio-table {
+        min-width: 600px;
+      }
+
+      .modal-card {
+        width: 95%;
+        max-height: 90vh;
+        margin: 10px;
+      }
+
+      .modal-body {
+        max-height: calc(90vh - 120px);
+      }
     }
 
-    /* 3. Mobile Devices (max-width: 480px) */
+    /* Small Mobile Phones (max-width: 480px) */
     @media (max-width: 480px) {
-      .grid-4 { grid-template-columns: 1fr; }
-      .header-inner { flex-direction: column; align-items: stretch; gap: 12px; }
-      .logo { flex-direction: row; }
-      .header-actions { justify-content: space-between; width: 100%; }
-      .nav-tabs { width: 100%; display: flex; justify-content: space-between; overflow-x: auto; }
-      .tab-btn { flex: 1 0 auto; padding: 8px 10px; font-size: 11px; text-align: center; }
-      .metric-card { padding: 14px; }
-      .metric-card .value { font-size: 20px; }
-      .modal-backdrop { padding: 10px; }
-      .modal-content { max-width: 100% !important; border-radius: var(--radius-sm); }
-      .modal-body { padding: 14px; max-height: 380px; }
-      .modal-footer { flex-direction: column; gap: 8px; }
-      .modal-footer .btn { width: 100%; }
-      .toast { bottom: 14px; right: 14px; left: 14px; padding: 10px 14px; font-size: 12px; justify-content: center; }
-      .cmd-palette-modal { width: 94% !important; margin: 0 auto; }
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hub-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .brand-text {
+        font-size: 14px;
+      }
+
+      .version-tag {
+        display: none;
+      }
+
+      .status-tag {
+        font-size: 10px;
+        padding: 3px 7px;
+      }
+
+      .nav-tabs {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
+      }
+
+      .tab-btn {
+        padding: 8px 4px;
+        font-size: 11.5px;
+      }
+
+      .metric-value {
+        font-size: 22px;
+      }
+
+      .modal-header {
+        padding: 12px 14px;
+      }
+
+      .modal-body {
+        padding: 14px;
+      }
+
+      .toast-popup {
+        left: 14px;
+        right: 14px;
+        bottom: 14px;
+        justify-content: center;
+      }
     }
   </style>
 </head>
-<body>
-  <div class="app-container">
-    <!-- Header -->
-    <header class="header">
-      <div class="header-inner">
-        <div class="logo">
-          <img src="/gaet-logo.png" alt="gaet logo" class="logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-          <div class="logo-icon" style="display:none;">⚡</div>
-          <div class="logo-text">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <h1>gaet <span class="version-badge">v1.1.0 LTS</span></h1>
-              <div id="headerStatusPill" class="live-pill pill-success" style="padding:2px 8px; font-size:10px;">
-                <span class="live-pulse"></span> <span id="headerStatusText">Checking...</span>
-              </div>
-            </div>
-            <p>Database Backup & Sync Operations Hub</p>
-          </div>
-        </div>
-        
-        <!-- Nav Tabs -->
-        <nav class="nav-tabs">
-          <button class="tab-btn active" onclick="switchTab('overview')">📊 Overview</button>
-          <button class="tab-btn" onclick="switchTab('snapshots')">💾 Snapshots</button>
-          <button class="tab-btn" onclick="switchTab('logs')">🖥️ System Logs</button>
-          <button class="tab-btn" onclick="switchTab('settings')">⚙️ Settings</button>
-        </nav>
 
-        <div class="header-actions">
-          <a href="https://github.com/ghanirahmans/gaet" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" title="View Source on GitHub" style="display:inline-flex;align-items:center;gap:5px;text-decoration:none;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-            <span>GitHub</span>
-          </a>
-          <button class="btn btn-secondary btn-sm" onclick="toggleCommandPalette()" title="Open Command Palette (Alt+K or Cmd+K)">
-            <span style="font-family:var(--font-mono);font-size:11px;opacity:0.85;background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;margin-right:2px;">Alt+K</span> 🔍
-          </button>
-          <button class="btn btn-secondary btn-sm" onclick="runDoctorCheck()" title="Run full CLI system diagnostic">🩺 Doctor Check</button>
-          <button class="btn btn-secondary btn-sm" id="refreshBtn" onclick="fetchFullStatus(true)">
-            <span id="refreshIcon">⟳</span> Refresh
-          </button>
-          <button class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">🌓</button>
+<body>
+
+  <div class="app-shell">
+
+    <!-- Navigation Header Bar -->
+    <header class="nav-header">
+      <div class="brand-block">
+        <img src="/gaet-logo.png" alt="Gaet Studio" class="brand-logo" onerror="this.style.display='none';" />
+        <div class="brand-text">
+          gaet <span class="version-tag">v1.1.0</span>
         </div>
+        <div id="asciiTag" class="status-tag tag-ok">
+          <span class="pulse-ring"></span> <span id="asciiTagText">[ OK ] Engine Active</span>
+        </div>
+      </div>
+
+      <nav class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('overview', this)">
+          <span>Overview</span> <span class="kbd-tag">1</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('snapshots', this)">
+          <span>Snapshots</span> <span class="kbd-tag">2</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('logs', this)">
+          <span>CLI Logs</span> <span class="kbd-tag">3</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('settings', this)">
+          <span>Settings</span> <span class="kbd-tag">4</span>
+        </button>
+      </nav>
+
+      <div class="controls-bar">
+        <button class="btn btn-xs" onclick="toggleCommandPalette()" title="Command Palette (Alt+K)">
+          <svg class="icon-svg" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <span class="kbd-tag">Alt+K</span>
+        </button>
+        <button class="btn btn-xs" onclick="fetchFullStatus(true)" title="Refresh Dashboard (r)">
+          <svg id="refreshSpinner" class="icon-svg" viewBox="0 0 24 24">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          <span class="kbd-tag">r</span>
+        </button>
+        <button id="themeToggle" class="btn btn-xs" title="Toggle Theme">
+          <span>🌙</span>
+        </button>
       </div>
     </header>
 
-    <!-- Main Container -->
-    <main class="main-content">
-      <div id="globalBanner" class="banner banner-warning" style="display:none;"></div>
+    <!-- Active Operation Progress Banner -->
+    <div id="opProgress" class="op-progress-bar">
+      <div class="op-progress-info">
+        <span class="spin-anim">⚙️</span>
+        <span id="opProgressText">Executing operation...</span>
+      </div>
+      <span class="status-tag tag-ok" style="font-size:10px; padding:2px 6px;">[ ACTIVE RUN ]</span>
+    </div>
 
-      <!-- TAB 1: OVERVIEW & TABLES -->
-      <div id="tab-overview" class="tab-content active">
-        <!-- Stat Cards Grid -->
-        <div class="stat-grid">
-          <div class="stat-card accent-card">
-            <div class="stat-header">
-              <div class="stat-icon accent">🗄️</div>
+    <!-- Global Connection Alert Banner -->
+    <div id="globalBanner"
+      style="display:none; background:rgba(239, 68, 68, 0.14); border:1px solid rgba(239, 68, 68, 0.35); border-radius:var(--radius-md); padding:12px 18px; margin-bottom:20px; font-size:12.5px; color:#f87171; justify-content:space-between; align-items:center;">
+      <span id="globalBannerText">[ WARN ] Connection Issue Detected</span>
+      <button class="btn btn-xs" onclick="switchTab('settings')">Fix Connection</button>
+    </div>
+
+    <!-- ── TAB 1: OVERVIEW ── -->
+    <div id="tab-overview" class="tab-pane active">
+
+      <!-- Command Hub Bar (CLI Subcommands Layout) -->
+      <div class="content-panel" style="margin-bottom:20px;">
+        <div class="panel-header" style="background:var(--bg-panel); border-bottom:none; padding:16px 20px;">
+          <div>
+            <div style="font-size:13.5px; font-weight:700; font-family:var(--font-mono); color:var(--text-main); display:flex; align-items:center; gap:6px;">
+              <span style="color:var(--text-dim);">$</span> gaet <span style="color:var(--gaet-teal);">push</span> <span style="color:var(--border-accent);">|</span> <span style="color:var(--gaet-teal);">fetch</span> <span style="color:var(--border-accent);">|</span> <span style="color:var(--gaet-teal);">diff</span> <span style="color:var(--border-accent);">|</span> <span style="color:var(--gaet-teal);">doctor</span>
             </div>
-            <div class="stat-content">
-              <h3>Tables Tracked</h3>
-              <div class="value" id="statTables">—</div>
-              <div class="subtitle" id="statLocalSize">Local DB: —</div>
-            </div>
-          </div>
-          
-          <div class="stat-card" id="syncCard">
-            <div class="stat-header">
-              <div class="stat-icon" id="syncIcon">🔄</div>
-            </div>
-            <div class="stat-content">
-              <h3>Sync Status</h3>
-              <div class="value" id="syncStatus">—</div>
-              <div class="sync-progress">
-                <div class="progress-bar"><div class="progress-fill" id="syncProgress"></div></div>
-                <div class="progress-text">
-                  <span id="syncText">—</span>
-                  <span id="syncPct">0%</span>
-                </div>
-              </div>
+            <div style="font-size:11.5px; color:var(--text-muted); margin-top:3px;">
+              Zero-dependency snapshot dumps, bi-directional cloud sync, and instant schema diff analysis.
             </div>
           </div>
-          
-          <div class="stat-card purple-card">
-            <div class="stat-header">
-              <div class="stat-icon purple">📦</div>
-            </div>
-            <div class="stat-content">
-              <h3>Backup Snapshots</h3>
-              <div class="value" id="backupCount">—</div>
-              <div class="subtitle" id="lastBackup">No backup yet</div>
-            </div>
-          </div>
-          
-          <div class="stat-card" id="cronCard">
-            <div class="stat-header">
-              <div class="stat-icon" id="cronIcon">⏰</div>
-            </div>
-            <div class="stat-content">
-              <h3>Auto-Backup</h3>
-              <div class="value" id="cronStatus">—</div>
-              <div class="subtitle" id="cronSubtitle">Manual execution</div>
-            </div>
+          <div class="hub-actions">
+            <button class="btn btn-primary" id="btnPush"
+              onclick="doAction('push', 'Pushing to Cloud Target...', 'Push Cloud Backup')">
+              <svg class="icon-svg" viewBox="0 0 24 24">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
+              <span>gaet push</span> <span class="kbd-tag">P</span>
+            </button>
+            <button class="btn btn-crimson" id="btnFetch"
+              onclick="doAction('fetch', 'Fetching Cloud State...', 'Fetch Cloud DB')">
+              <svg class="icon-svg" viewBox="0 0 24 24">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <polyline points="19 12 12 19 5 12"></polyline>
+              </svg>
+              <span>gaet fetch</span> <span class="kbd-tag">F</span>
+            </button>
+            <button class="btn" onclick="runDiffAnalysis()">
+              <svg class="icon-svg" viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              <span>gaet diff</span> <span class="kbd-tag">S</span>
+            </button>
+            <button class="btn" onclick="runDoctorCheck()">
+              <svg class="icon-svg" viewBox="0 0 24 24">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+              </svg>
+              <span>gaet doctor</span> <span class="kbd-tag">D</span>
+            </button>
           </div>
         </div>
+      </div>
 
-        <!-- Database Health & Storage Overview Bar -->
-        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px; margin-bottom:24px;">
-          <!-- Storage & Health Metric -->
-          <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:16px 20px; backdrop-filter:blur(16px); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-            <div style="display:flex; align-items:center; gap:14px;">
-              <div style="width:40px; height:40px; border-radius:10px; background:rgba(59,151,151,0.15); display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--accent);">💾</div>
-              <div>
-                <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-muted); letter-spacing:0.05em;">Total Snapshot Storage</div>
-                <div style="font-size:18px; font-weight:700; font-family:var(--font-mono); color:var(--text-primary);" id="totalStorageText">Calculating...</div>
-              </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:14px;">
-              <div style="width:40px; height:40px; border-radius:10px; background:rgba(16,185,129,0.15); display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--green);">🩺</div>
-              <div>
-                <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-muted); letter-spacing:0.05em;">Schema Coverage</div>
-                <div style="font-size:18px; font-weight:700; font-family:var(--font-mono); color:var(--text-primary);" id="healthScoreText">—</div>
-              </div>
-            </div>
-            <button class="btn btn-secondary btn-sm" onclick="switchTab('snapshots')">💾 Manage Snapshots</button>
-          </div>
+      <!-- 4 Metrics Cards -->
+      <div class="metrics-grid">
 
-          <!-- Quick Scheduler Controller -->
-          <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:16px 20px; backdrop-filter:blur(16px); display:flex; align-items:center; justify-content:space-between; gap:12px;">
-            <div>
-              <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-muted); letter-spacing:0.05em;">Scheduler Timer</div>
-              <div style="font-size:14px; font-weight:700; color:var(--text-primary);" id="schedWidgetStatus">Every 6 Hours</div>
-            </div>
-            <div id="schedWidgetBtnContainer">
-              <button class="btn btn-warning btn-sm" onclick="doAction('auto', 'Enabling Auto-Backup...', '⏰ Enable')">⏰ Enable</button>
-            </div>
+        <div class="metric-card">
+          <div class="metric-head">
+            <span>Local Database</span>
+            <span class="status-tag tag-ok" style="font-size:9px; padding:1px 6px;">[ ONLINE ]</span>
           </div>
+          <div class="metric-value" id="statTables">0 Tables</div>
+          <div class="metric-foot" id="statLocalFoot">Target: 127.0.0.1:5432</div>
         </div>
 
-        <!-- Unified Table Schema Matrix & Operations Master Section -->
-        <div class="section">
-          <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div class="metric-card">
+          <div class="metric-head">
+            <span>Cloud Target</span>
+            <span id="cloudTag" class="status-tag tag-warn" style="font-size:9px; padding:1px 6px;">[ PENDING ]</span>
+          </div>
+          <div class="metric-value" id="statCloudStatus">Not Configured</div>
+          <div class="metric-foot" id="statCloudFoot">Supabase / Neon</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-head">
+            <span>Snapshot Vault</span>
+            <span class="status-tag tag-ok" style="font-size:9px; padding:1px 6px;">[ STORAGE ]</span>
+          </div>
+          <div class="metric-value" id="statBackupCount">0 Dumps</div>
+          <div class="metric-foot" id="statBackupFoot">~/.gaet/backups</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-head">
+            <span>Daemon Scheduler</span>
+            <span id="cronTag" class="status-tag tag-warn" style="font-size:9px; padding:1px 6px;">[ CRON ]</span>
+          </div>
+          <div class="metric-value" id="statCronStatus">Inactive</div>
+          <div class="metric-foot" id="statCronFoot">On-demand CLI</div>
+        </div>
+
+      </div>
+
+      <!-- Schema Matrix Panel -->
+      <div class="content-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg class="icon-svg" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+            <span>Database Tables Schema Matrix</span>
+            <span id="matrixCounter"
+              style="font-size:11px; font-weight:600; color:var(--text-muted); font-family:var(--font-mono);"></span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="text" id="tableSearchInput" onkeyup="filterTableMatrix()"
+              placeholder="Search table name... (/)" class="form-control" style="max-width:230px; width:100%; padding:5px 12px;" />
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="studio-table">
+            <thead>
+              <tr>
+                <th>Table Name</th>
+                <th style="text-align:right">Local Rows</th>
+                <th style="text-align:right">Cloud Rows</th>
+                <th style="text-align:center">State</th>
+                <th style="text-align:center">Quick Action</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr>
+                <td colspan="5" style="text-align:center; padding:32px; color:var(--text-muted);"><span
+                    class="spin-anim">🔄</span> Loading database matrix...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── TAB 2: SNAPSHOTS ── -->
+    <div id="tab-snapshots" class="tab-pane">
+      <div class="content-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg class="icon-svg" viewBox="0 0 24 24">
+              <path
+                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+              </path>
+            </svg>
+            <span>Snapshot Dump Vault (~/.gaet/backups)</span>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <input type="text" id="snapshotSearchInput" onkeyup="filterSnapshots()"
+              placeholder="Filter dump filename..." class="form-control" style="max-width:220px; width:100%; padding:4px 10px;" />
+            <button class="btn btn-primary btn-xs"
+              onclick="doAction('push', 'Creating Snapshot...', '➕ Create Snapshot Dump')">
+              ➕ Create Snapshot Dump
+            </button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="studio-table">
+            <thead>
+              <tr>
+                <th>Dump Filename</th>
+                <th>File Size</th>
+                <th>Created Timestamp</th>
+                <th style="text-align:center">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="snapshotsBody">
+              <tr>
+                <td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted);"><span
+                    class="spin-anim">🔄</span> Loading snapshot dumps...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB 3: CLI LOGS ── -->
+    <div id="tab-logs" class="tab-pane">
+      <div class="console-window">
+        <div class="console-header">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span>~/.gaet/gaet.log — Realtime CLI Stream</span>
+            <input type="text" id="logFilterInput" onkeyup="filterLogConsole()"
+              placeholder="Filter logs (e.g. error, push)..." class="form-control"
+              style="width:220px; padding:3px 8px; font-size:11px;" />
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <label style="font-size:11px; cursor:pointer; display:flex; align-items:center; gap:4px; user-select:none;">
+              <input type="checkbox" id="autoScrollCheck" checked /> Auto-scroll
+            </label>
+            <button class="btn btn-xs" onclick="copyConsoleLogs()">Copy Console Stream</button>
+          </div>
+        </div>
+        <div class="console-body" id="consoleBody">Loading execution logs...</div>
+      </div>
+    </div>
+
+    <!-- ── TAB 4: SETTINGS (STUDIO ENHANCED) ── -->
+    <div id="tab-settings" class="tab-pane">
+
+      <!-- Auto-Detect Scanner (Polished Studio UI) -->
+      <div id="detectBox" class="detect-panel-card" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-default); padding-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:13px; font-weight:700; font-family:var(--font-mono); color:var(--text-main);">Detected Local PostgreSQL Instances</span>
+          </div>
+          <button class="btn btn-xs" onclick="fetchAutoDetect(true)">Rescan Socket</button>
+        </div>
+        <div id="detectList" style="margin-top:12px;"></div>
+      </div>
+
+      <!-- Settings Form Shell -->
+      <form onsubmit="saveConfig(event)">
+        <div class="content-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg class="icon-svg" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              <span>Environment Configuration</span>
+              <span class="kbd-tag" style="font-size:11px;">~/.gaet/.env</span>
+            </div>
             <div style="display:flex; align-items:center; gap:10px;">
-              <h2 style="margin:0;">📊 Database Table Schema Matrix</h2>
-              <span class="badge" id="syncBadge">—</span>
-            </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-              <button class="btn btn-primary btn-sm" id="pushBtn" onclick="doAction('push', 'Pushing All Tables...', '↑ Push All Tables')" title="Push all tracked tables to cloud target">↑ Push All Tables</button>
-              <button class="btn btn-secondary btn-sm" id="fetchBtn" onclick="doAction('fetch', 'Fetching from Cloud...', '↓ Fetch from Cloud')">↓ Fetch from Cloud</button>
-              <button class="btn btn-secondary btn-sm" onclick="runDiffAnalysis()" title="Run detailed gaet diff CLI comparison">🔍 Diff Analysis</button>
-              <button class="btn btn-secondary btn-sm" onclick="doAction('push?dry_run=1', 'Simulating push...', '⚡ Dry Run')" title="Simulate push without modifying data">⚡ Dry Run</button>
-              <button class="btn btn-warning btn-sm" id="autoBtn" onclick="doAction('auto', 'Enabling Auto-Backup...', '⏰ Auto-Backup (6h)')">⏰ Auto-Backup</button>
-              <button class="btn btn-danger btn-sm" id="stopBtn" onclick="doAction('stop', 'Stopping Scheduler...', '■ Stop Auto-Backup')" style="display:none;">■ Stop Auto-Backup</button>
-            </div>
-          </div>
-          <div class="section-body">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px; flex-wrap:wrap;">
-              <div style="position:relative; flex:1; max-width:360px;">
-                <input type="text" id="tableSearchInput" placeholder="🔍 Search tables..." onkeyup="filterTableMatrix()" 
-                       class="form-control-styled" style="padding: 7px 12px; font-size:12px;" />
-              </div>
-              <div style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);" id="tableCountSummary">
-                Search & filter active tables
-              </div>
-            </div>
-            <div class="table-container">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Table Name</th>
-                    <th style="text-align:right">Local Rows</th>
-                    <th style="text-align:right">Cloud Rows</th>
-                    <th style="text-align:center">Diff Status</th>
-                  </tr>
-                </thead>
-                <tbody id="tableBody">
-                  <tr><td colspan="4" class="empty-state">Loading table matrix...</td></tr>
-                </tbody>
-              </table>
+              <button class="btn btn-xs" type="button" id="globalPassBtn" onclick="toggleAllPasswords()">
+                <svg class="icon-svg" viewBox="0 0 24 24">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span id="globalPassText">Reveal Passwords</span>
+              </button>
+              <button class="btn btn-primary btn-xs" type="submit" id="saveConfigBtn">
+                💾 Save Configuration
+              </button>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- TAB 2: SNAPSHOTS HUB -->
-      <div id="tab-snapshots" class="tab-content">
-        <div class="section">
-          <div class="section-header">
-            <h2>💾 Local Backup Snapshots</h2>
-            <button class="btn btn-primary btn-sm" onclick="doAction('push', 'Creating Snapshot...', '↑ Create Snapshot Now')">+ Create Snapshot</button>
-          </div>
-          <div class="section-body">
-            <div class="table-container">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Snapshot File</th>
-                    <th>Size</th>
-                    <th>Created Date</th>
-                    <th style="text-align:center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="snapshotsBody">
-                  <tr><td colspan="4" class="empty-state">Loading snapshots...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
+          <div style="padding:22px; display:flex; flex-direction:column; gap:20px;">
 
-      <!-- TAB 3: SYSTEM LOGS -->
-      <div id="tab-logs" class="tab-content">
-        <div class="section">
-          <div class="section-header">
-            <h2>🖥️ Real-time Operations Log</h2>
-            <button class="btn btn-secondary btn-sm" onclick="fetchLogs()">⟳ Refresh Log</button>
-          </div>
-          <div class="section-body">
-            <div class="terminal-window">
-              <div class="terminal-bar">
-                <div style="display:flex;align-items:center;gap:12px;">
-                  <div class="terminal-dots">
-                    <div class="dot dot-red"></div>
-                    <div class="dot dot-yellow"></div>
-                    <div class="dot dot-green"></div>
-                  </div>
-                  <span style="font-size:12px;color:var(--text-muted);font-family:var(--font-mono);">~/.gaet/backups/cron.log</span>
+            <!-- Section 1: Local Connection (URL & Granular Credentials) -->
+            <div class="sub-card">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:14px;">🖥️</span>
+                  <span style="font-size:12.5px; font-weight:700; color:var(--text-main); font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.04em;">Local PostgreSQL Configuration</span>
                 </div>
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                  <div style="display:flex;gap:4px;" id="logFilterGroup">
-                    <button class="btn btn-secondary btn-xs" style="background:var(--accent);color:white;" onclick="setLogFilter('all', this)">All</button>
-                    <button class="btn btn-secondary btn-xs" onclick="setLogFilter('info', this)">Info</button>
-                    <button class="btn btn-secondary btn-xs" onclick="setLogFilter('warn', this)">Warn</button>
-                    <button class="btn btn-secondary btn-xs" onclick="setLogFilter('fail', this)">Err</button>
-                  </div>
-                  <button class="btn btn-secondary btn-xs" onclick="copyLogTerminal()" title="Copy all log lines to clipboard">📋 Copy Logs</button>
-                  <button class="btn btn-secondary btn-xs" onclick="fetchLogs()" title="Refresh log entries">⟳ Refresh</button>
+                <button type="button" class="btn btn-xs" style="padding:3px 10px;" onclick="testLocalConnection()">
+                  🔌 Ping Local Test
+                </button>
+              </div>
+
+              <!-- GAET_LOCAL_URL -->
+              <div class="form-group" style="margin-bottom:14px;">
+                <label><span style="font-size:11px; font-weight:700; font-family:var(--font-mono); color:var(--gaet-teal);">GAET_LOCAL_URL</span> <span style="font-size:10px; color:var(--text-muted);">(Primary Connection String — Type/Paste to auto-extract fields below)</span></label>
+                <div class="input-wrapper">
+                  <input type="password" id="cfgLocalUrl" class="form-control" 
+                         oninput="autoExtractLocalUrl(this.value)" 
+                         onchange="autoExtractLocalUrl(this.value)"
+                         placeholder="postgresql://user:password@127.0.0.1:5432/my_database" />
+                  <button type="button" class="input-eye-btn" onclick="toggleFieldPassword('cfgLocalUrl', this)" title="Toggle Password Visibility">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  </button>
                 </div>
               </div>
-              <div class="terminal-body" id="terminalBody">Loading log entries...</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- TAB 4: SETTINGS & CONTROL CENTER -->
-      <div id="tab-settings" class="tab-content">
-        <!-- Settings Header Banner -->
-        <div class="settings-hero">
-          <div class="settings-hero-title">
-            <div class="hero-icon">⚙️</div>
-            <div>
-              <h2>Environment & Operations Control Center</h2>
-              <p class="hero-subtitle">Manage database connection strings, retention windows, and system diagnostics.</p>
+              <!-- Granular Credentials Grid -->
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px;">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label><span style="font-size:10.5px; font-family:var(--font-mono);">GAET_LOCAL_DB_HOST</span></label>
+                  <input type="text" id="cfgLocalHost" class="form-control" oninput="syncGranularToLocalUrl()" placeholder="127.0.0.1" style="font-size:12px;" />
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label><span style="font-size:10.5px; font-family:var(--font-mono);">GAET_LOCAL_DB_PORT</span></label>
+                  <input type="text" id="cfgLocalPort" class="form-control" oninput="syncGranularToLocalUrl()" placeholder="5432" style="font-size:12px;" />
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label><span style="font-size:10.5px; font-family:var(--font-mono);">GAET_LOCAL_DB_USER</span></label>
+                  <input type="text" id="cfgLocalUser" class="form-control" oninput="syncGranularToLocalUrl()" placeholder="postgres" style="font-size:12px;" />
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label><span style="font-size:10.5px; font-family:var(--font-mono);">GAET_LOCAL_DB_NAME</span></label>
+                  <input type="text" id="cfgLocalDb" class="form-control" oninput="syncGranularToLocalUrl()" placeholder="postgres" style="font-size:12px;" />
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label><span style="font-size:10.5px; font-family:var(--font-mono);">GAET_LOCAL_DB_PASS</span></label>
+                  <div class="input-wrapper">
+                    <input type="password" id="cfgLocalPass" class="form-control" oninput="syncGranularToLocalUrl()" placeholder="(optional)" style="font-size:12px;" />
+                    <button type="button" class="input-eye-btn" onclick="toggleFieldPassword('cfgLocalPass', this)" title="Toggle Password Visibility">
+                      <svg class="icon-svg" viewBox="0 0 24 24">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="settings-hero-actions">
-            <div class="env-badge" id="envFilePathBadge">
-              <span class="badge-dot green"></span>
-              <code id="envFilePathText">~/.gaet/.env</code>
+
+            <!-- Section 2: Remote Cloud Sync Target -->
+            <div class="sub-card">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:14px;">☁️</span>
+                  <span style="font-size:12.5px; font-weight:700; color:var(--text-main); font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.04em;">Cloud Database Target</span>
+                </div>
+                <button type="button" class="btn btn-xs" style="padding:3px 10px;" onclick="testRemoteConnection()">
+                  🔌 Ping Remote Test
+                </button>
+              </div>
+              <div class="form-group" style="margin-bottom:12px;">
+                <label><span style="font-size:11px; font-weight:700; font-family:var(--font-mono); color:var(--gaet-teal);">GAET_REMOTE_URL</span></label>
+                <div class="input-wrapper">
+                  <input type="password" id="cfgRemoteUrl" class="form-control" placeholder="postgresql://postgres:password@db.xxx.supabase.co:5432/postgres" />
+                  <button type="button" class="input-eye-btn" onclick="toggleFieldPassword('cfgRemoteUrl', this)" title="Toggle Password Visibility">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label><span style="font-size:11px; font-weight:700; font-family:var(--font-mono); color:var(--gaet-teal);">GAET_REMOTE_SSLMODE</span></label>
+                <select id="cfgSslMode" class="form-control">
+                  <option value="require">require (Recommended for Supabase/Neon)</option>
+                  <option value="disable">disable (Local development only)</option>
+                  <option value="verify-full">verify-full (Strict SSL verification)</option>
+                </select>
+              </div>
             </div>
-            <button class="btn btn-secondary btn-sm" id="toggleMaskBtn" onclick="toggleMasking()">
-              <span id="maskBtnIcon">👁️</span> <span id="maskBtnText">Show Passwords</span>
-            </button>
-            <button class="btn btn-secondary btn-sm" onclick="copyEnvTemplate()" title="Copy masked .env template">
-              📋 Copy Config
-            </button>
-          </div>
-        </div>
 
-        <!-- Master-Detail 2-Column Settings Layout -->
-        <div class="settings-layout">
-          <!-- Sidebar Nav Pills -->
-          <div class="settings-nav">
-            <button class="settings-nav-btn active" onclick="switchSettingsSection('sec-local', this)">
-              <span class="nav-icon">💾</span>
-              <div class="nav-label">
-                <span>Local Database</span>
-                <small id="navLocalStatus">GAET_LOCAL_URL</small>
+            <!-- Section 3: Engine Execution Preferences -->
+            <div class="sub-card">
+              <div style="font-size:12.5px; font-weight:700; color:var(--text-main); font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:14px;">
+                ⚙️ Engine Execution & Rules
               </div>
-            </button>
-            <button class="settings-nav-btn" onclick="switchSettingsSection('sec-cloud', this)">
-              <span class="nav-icon">☁️</span>
-              <div class="nav-label">
-                <span>Cloud Target</span>
-                <small id="navCloudStatus">GAET_REMOTE_URL</small>
-              </div>
-            </button>
-            <button class="settings-nav-btn" onclick="switchSettingsSection('sec-retention', this)">
-              <span class="nav-icon">⏰</span>
-              <div class="nav-label">
-                <span>Retention & Scope</span>
-                <small id="navRetentionStatus">7 Days Auto-Purge</small>
-              </div>
-            </button>
-            <button class="settings-nav-btn" onclick="switchSettingsSection('sec-server', this)">
-              <span class="nav-icon">🖥️</span>
-              <div class="nav-label">
-                <span>Dashboard Server</span>
-                <small id="navServerStatus">Port & Host</small>
-              </div>
-            </button>
-            <button class="settings-nav-btn" onclick="switchSettingsSection('sec-diagnostics', this)">
-              <span class="nav-icon">🔧</span>
-              <div class="nav-label">
-                <span>Diagnostics</span>
-                <small id="navCheckStatus">PostgreSQL & DB</small>
-              </div>
-            </button>
-            <button class="settings-nav-btn" onclick="switchSettingsSection('sec-active', this)">
-              <span class="nav-icon">📋</span>
-              <div class="nav-label">
-                <span>Raw .env Grid</span>
-                <small>Parsed variables</small>
-              </div>
-            </button>
-          </div>
-
-          <!-- Settings Main Content Pane -->
-          <div class="settings-pane">
-            <form id="configForm" onsubmit="saveConfig(event)">
               
-              <!-- SECTION 1: LOCAL DB -->
-              <div id="sec-local" class="settings-section active">
-                <div class="card-header-styled">
-                  <div class="card-header-icon local">💾</div>
-                  <div style="flex:1;">
-                    <h3>Local PostgreSQL Database</h3>
-                    <p>Source database that gaet will dump snapshots and sync from.</p>
-                  </div>
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="fetchAutoDetect(true)" id="detectBtn">
-                    <span>🔍 Auto-Detect DBs</span>
-                  </button>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label><span style="font-size:11px; font-weight:700; font-family:var(--font-mono); color:var(--gaet-teal);">GAET_RETENTION_DAYS</span> <span style="font-size:10px; color:var(--text-muted);">(Snapshot Retention Days)</span></label>
+                  <input type="number" id="cfgRetention" class="form-control" placeholder="7" />
                 </div>
-                <div class="card-body-styled">
-                  
-                  <!-- Auto-Detected Local Instances & Databases Box -->
-                  <div id="detectedBox" class="detected-box" style="display:none;">
-                    <div class="detected-header">
-                      <span>✨ Detected Running PostgreSQL Instances & Databases:</span>
-                      <small style="color:var(--text-muted);">Click any database tag below to auto-fill GAET_LOCAL_URL</small>
-                    </div>
-                    <div id="detectedList" class="detected-list"></div>
-                  </div>
-
-                  <div class="form-group">
-                    <label>GAET_LOCAL_URL <span class="label-badge badge-purple">Source DB</span></label>
-                    <div class="input-group-styled">
-                      <input type="password" class="form-control-styled" id="cfgLocalUrl" placeholder="postgresql://postgres:password@127.0.0.1:5432/postgres" />
-                      <button type="button" class="btn-icon-inside" onclick="toggleInputVisibility('cfgLocalUrl', this)" title="Show/Hide Password">👁️</button>
-                    </div>
-                    <div class="form-hint">Local PostgreSQL connection string. Format: <code>postgresql://[user]:[pass]@[host]:[port]/[dbname]</code></div>
-                  </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label><span style="font-size:11px; font-weight:700; font-family:var(--font-mono); color:var(--gaet-teal);">GAET_PG_TIMEOUT</span> <span style="font-size:10px; color:var(--text-muted);">(Timeout Seconds)</span></label>
+                  <input type="number" id="cfgPgTimeout" class="form-control" placeholder="120" />
                 </div>
               </div>
 
-              <!-- SECTION 2: CLOUD DB -->
-              <div id="sec-cloud" class="settings-section">
-                <div class="card-header-styled">
-                  <div class="card-header-icon cloud">☁️</div>
-                  <div style="flex:1;">
-                    <h3>Cloud Target Database</h3>
-                    <p>Destination database for remote backups and schema synchronization.</p>
-                  </div>
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="testRemoteConnection()" title="Run gaet remote connectivity check">☁️ Test Connection</button>
-                </div>
-                <div class="card-body-styled">
-                  <div class="form-group">
-                    <label>GAET_REMOTE_URL <span class="label-badge badge-purple">Target DB</span></label>
-                    <div class="input-group-styled">
-                      <input type="password" class="form-control-styled" id="cfgRemoteUrl" placeholder="postgresql://user:pass@ep-xyz.supabase.com:5432/postgres" />
-                      <button type="button" class="btn-icon-inside" onclick="toggleInputVisibility('cfgRemoteUrl', this)" title="Show/Hide Password">👁️</button>
-                    </div>
-                    <div class="form-hint">Target PostgreSQL cloud instance (e.g. Supabase, Neon, AWS RDS, GCP CloudSQL).</div>
-                  </div>
-
-                  <div class="form-group" style="margin-bottom:0;">
-                    <label>GAET_REMOTE_SSLMODE <span class="label-badge">SSL Security</span></label>
-                    <select class="form-control-styled" id="cfgSslMode" style="padding-right:14px;">
-                      <option value="require">require — Enforce SSL encryption (Recommended for Cloud)</option>
-                      <option value="prefer">prefer — Try SSL first, fallback to unencrypted</option>
-                      <option value="disable">disable — No SSL encryption (Local network only)</option>
-                      <option value="allow">allow — Try plain connection first, then SSL</option>
-                    </select>
-                    <div class="form-hint">Controls SSL certificate validation and transport layer security.</div>
-                  </div>
-
-                  <div class="quick-preset-bar">
-                    <span class="preset-title">☁️ Common Provider Hints:</span>
-                    <button type="button" class="btn-preset" onclick="applyPreset('cfgRemoteUrl', 'postgresql://postgres.[ref]:[pass]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres')">Supabase Pooler</button>
-                    <button type="button" class="btn-preset" onclick="applyPreset('cfgRemoteUrl', 'postgresql://user:[pass]@ep-cool-db.neon.tech/neondb?sslmode=require')">Neon Postgres</button>
-                  </div>
-                </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label><span style="font-size:11px; font-weight:700; font-family:var(--font-mono); color:var(--gaet-teal);">GAET_TABLES</span> <span style="font-size:10px; color:var(--text-muted);">(Tracked Tables List)</span></label>
+                <input type="text" id="cfgTables" class="form-control" placeholder="users, orders, products (Leave empty to track ALL tables)" />
               </div>
+            </div>
 
-              <!-- SECTION 3: RETENTION & FILTERS -->
-              <div id="sec-retention" class="settings-section">
-                <div class="card-header-styled">
-                  <div class="card-header-icon retention">⏰</div>
-                  <div>
-                    <h3>Snapshot Retention & Table Scope</h3>
-                    <p>Configure snapshot auto-purging policy and table discovery filters.</p>
-                  </div>
-                </div>
-                <div class="card-body-styled">
-                  <div class="form-group">
-                    <label>GAET_RETENTION_DAYS <span class="label-badge badge-warning">Retention Policy</span></label>
-                    <input type="number" class="form-control-styled" id="cfgRetention" placeholder="7" min="1" max="365" />
-                    <div class="form-hint">Number of days local <code>.dump</code> snapshot files are preserved before auto-purging.</div>
-                  </div>
-
-                  <div class="form-group" style="margin-bottom:0;">
-                    <label>GAET_TABLES <span class="label-badge">Scope Filter</span></label>
-                    <input type="text" class="form-control-styled" id="cfgTables" placeholder="Leave empty for auto-discovery of all public tables" />
-                    <div class="form-hint">Comma-separated list of table names (e.g. <code>users, orders, payments</code>). Leave blank to auto-discover all tables in <code>public</code> schema.</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- SECTION 4: SERVER & DAEMON -->
-              <div id="sec-server" class="settings-section">
-                <div class="card-header-styled">
-                  <div class="card-header-icon server">🖥️</div>
-                  <div>
-                    <h3>Dashboard Host & Service Settings</h3>
-                    <p>Web server listening interface and background service prefix.</p>
-                  </div>
-                </div>
-                <div class="card-body-styled">
-                  <div class="form-group">
-                    <label>GAET_DASHBOARD_PORT</label>
-                    <input type="number" class="form-control-styled" id="cfgPort" placeholder="9191" />
-                    <div class="form-hint">HTTP listener port for this web interface (Default: <code>9191</code>).</div>
-                  </div>
-
-                  <div class="form-group" style="margin-bottom:0;">
-                    <label>GAET_DASHBOARD_HOST</label>
-                    <input type="text" class="form-control-styled" id="cfgHost" placeholder="0.0.0.0" />
-                    <div class="form-hint">Binding interface address (<code>0.0.0.0</code> for all interfaces, <code>127.0.0.1</code> for localhost only).</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- SECTION 5: DIAGNOSTICS CHECK -->
-              <div id="sec-diagnostics" class="settings-section">
-                <div class="card-header-styled">
-                  <div class="card-header-icon diag">🔧</div>
-                  <div style="flex:1;">
-                    <h3>System Diagnostic & Health Check</h3>
-                    <p>Verify PostgreSQL binary tools, network connectivity, and file permissions.</p>
-                  </div>
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="fetchCheck()">Run Diagnostics</button>
-                </div>
-                <div class="card-body-styled" id="checkBody">
-                  <div class="empty-state">Click 'Run Diagnostics' to inspect system status.</div>
-                </div>
-              </div>
-
-              <!-- SECTION 6: ACTIVE VARS GRID -->
-              <div id="sec-active" class="settings-section">
-                <div class="card-header-styled">
-                  <div class="card-header-icon active">📋</div>
-                  <div>
-                    <h3>Active Environment Variables</h3>
-                    <p>Parsed key-value list currently loaded from <code>~/.gaet/.env</code>.</p>
-                  </div>
-                </div>
-                <div class="card-body-styled">
-                  <div id="configGrid" class="config-grid-styled">
-                    <div class="empty-state">Loading configuration variables...</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Action Footer -->
-              <div class="settings-actions-footer">
-                <div style="font-size:12px;color:var(--text-muted);">
-                  Configuration updates are written directly to <code>~/.gaet/.env</code>.
-                </div>
-                <div style="display:flex; gap:10px;">
-                  <button type="button" class="btn btn-secondary" onclick="openExportModal()" title="Export configuration as shell env statements">
-                    📥 Export Shell Env
-                  </button>
-                  <button type="submit" class="btn btn-primary" id="saveConfigBtn">
-                    <span>💾 Save & Apply Configuration</span>
-                  </button>
-                </div>
-              </div>
-            </form>
           </div>
         </div>
-      </div>
-    </main>
+      </form>
 
-    <footer style="border-top:1px solid var(--border); background:rgba(11, 15, 23, 0.85); backdrop-filter:blur(12px); padding:12px 24px; font-size:12px; color:var(--text-muted); font-family:var(--font-mono); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:32px;">
-      <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
-        <span style="font-weight:600; color:var(--text-secondary);">gaet v3.0.2</span>
-        <span><code style="color:var(--accent);">1</code> / <code style="color:var(--accent);">Alt+O</code> Overview</span>
-        <span><code style="color:var(--accent);">2</code> / <code style="color:var(--accent);">Alt+S</code> Snapshots</span>
-        <span><code style="color:var(--accent);">3</code> / <code style="color:var(--accent);">Alt+L</code> Logs</span>
-        <span><code style="color:var(--accent);">4</code> / <code style="color:var(--accent);">Alt+E</code> Settings</span>
-      </div>
-      <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
-        <span><code style="color:var(--accent);">Alt+K</code> Command Palette</span>
-        <span><code style="color:var(--text-secondary);">Alt+D</code> Doctor</span>
-        <span><code style="color:var(--text-secondary);">Alt+R</code> Refresh</span>
-      </div>
-    </footer>
+    </div>
+
   </div>
 
-  <!-- Doctor Modal -->
-  <div id="doctorModal" class="modal-backdrop" style="display:none;">
-    <div class="modal-content" style="max-width:720px;">
+  <!-- Toast Popup -->
+  <div id="toastPopup" class="toast-popup toast-ok"></div>
+
+  <!-- Command Palette Modal -->
+  <div id="cmdModal" class="modal-overlay" onclick="if(event.target===this) toggleCommandPalette()">
+    <div class="modal-card">
+      <div style="padding:14px 18px; border-bottom:1px solid var(--border-default); display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <input type="text" id="cmdInput" placeholder="Type a command or search action..."
+          oninput="renderCmdPalette(this.value)" class="form-control" style="font-size:13.5px;" />
+        <span class="kbd-tag" style="font-size:10px;">ESC</span>
+      </div>
+      <div id="cmdResults" style="padding:12px; max-height:340px; overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- Action Execution Modal (Push / Fetch / Auto) -->
+  <div id="actionModal" class="modal-overlay" onclick="if(event.target===this) closeModal('actionModal')">
+    <div class="modal-card">
       <div class="modal-header">
-        <h3>🩺 System Diagnostic Doctor Output</h3>
-        <button class="modal-close" onclick="closeModal('doctorModal')">✕</button>
+        <h3 id="actionModalTitle">[ ACTION ] Command Execution</h3>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="kbd-tag" style="font-size:10px;">ESC</span>
+          <button class="btn btn-xs" onclick="closeModal('actionModal')">✕</button>
+        </div>
       </div>
       <div class="modal-body">
-        <pre id="doctorOutput" class="console-box">Running gaet doctor diagnostic check...</pre>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary btn-sm" onclick="closeModal('doctorModal')">Close</button>
+        <div id="actionModalProgress" style="display:flex; align-items:center; gap:10px; margin-bottom:14px; font-family:var(--font-mono); font-size:12.5px; color:var(--gaet-teal); font-weight:600;">
+          <span class="spin-anim">⚡</span>
+          <span id="actionModalStatusText">Initializing execution...</span>
+        </div>
+        <pre id="actionModalOutput" class="code-box" style="margin-bottom:16px; max-height:280px;"></pre>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button class="btn btn-sm" onclick="closeModal('actionModal')">Close <span class="kbd-tag" style="font-size:9px; margin-left:4px;">ESC / ↵</span></button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Diff Modal -->
-  <div id="diffModal" class="modal-backdrop" style="display:none;">
-    <div class="modal-content" style="max-width:720px;">
+  <!-- Diagnostic Modal -->
+  <div id="doctorModal" class="modal-overlay" onclick="if(event.target===this) closeModal('doctorModal')">
+    <div class="modal-card">
       <div class="modal-header">
-        <h3>🔍 Table Schema Matrix Diff Analysis</h3>
-        <button class="modal-close" onclick="closeModal('diffModal')">✕</button>
+        <h3>[ DOCTOR ] Diagnostics Report</h3>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="kbd-tag" style="font-size:10px;">ESC</span>
+          <button class="btn btn-xs" onclick="closeModal('doctorModal')">✕</button>
+        </div>
       </div>
       <div class="modal-body">
-        <pre id="diffOutput" class="console-box">Analyzing local vs cloud database tables...</pre>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary btn-sm" onclick="closeModal('diffModal')">Close</button>
+        <pre id="doctorOutput" class="code-box"></pre>
       </div>
     </div>
   </div>
 
-  <!-- Export Modal -->
-  <div id="exportModal" class="modal-backdrop" style="display:none;">
-    <div class="modal-content" style="max-width:650px;">
+  <!-- Diff Analysis Modal -->
+  <div id="diffModal" class="modal-overlay" onclick="if(event.target===this) closeModal('diffModal')">
+    <div class="modal-card">
       <div class="modal-header">
-        <h3>📥 Export Environment Variables</h3>
-        <button class="modal-close" onclick="closeModal('exportModal')">✕</button>
+        <h3>[ DIFF ] Schema Comparison Analysis</h3>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="kbd-tag" style="font-size:10px;">ESC</span>
+          <button class="btn btn-xs" onclick="closeModal('diffModal')">✕</button>
+        </div>
       </div>
       <div class="modal-body">
-        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Copy these bash export statements to set environment variables directly in your terminal session:</p>
-        <pre id="exportOutput" class="console-box">Loading export variables...</pre>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary btn-sm" onclick="copyExportText()">📋 Copy to Clipboard</button>
-        <button class="btn btn-secondary btn-sm" onclick="closeModal('exportModal')">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Table Inspector Modal -->
-  <div id="tableModal" class="modal-backdrop" style="display:none;">
-    <div class="modal-content" style="max-width: 650px;">
-      <div class="modal-header">
-        <h3 id="tableModalTitle">🔍 Table Inspection</h3>
-        <button class="modal-close" onclick="closeModal('tableModal')">✕</button>
-      </div>
-      <div class="modal-body" id="tableModalBody">
-        <!-- Dynamic inspection content -->
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary btn-sm" onclick="closeModal('tableModal')">Close</button>
+        <pre id="diffOutput" class="code-box"></pre>
       </div>
     </div>
   </div>
 
   <!-- Restore Confirmation Modal -->
-  <div id="restoreModal" class="modal-backdrop" style="display:none;">
-    <div class="modal-content" style="max-width: 520px;">
-      <div class="modal-header" style="border-bottom:1px solid var(--border-accent);">
-        <h3 style="display:flex;align-items:center;gap:8px;color:var(--yellow);">⚡ Snapshot Restore Confirmation</h3>
-        <button class="modal-close" onclick="closeModal('restoreModal')">✕</button>
+  <div id="restoreModal" class="modal-overlay" onclick="if(event.target===this) closeModal('restoreModal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>[ RESTORE ] Confirm Overwrite</h3>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="kbd-tag" style="font-size:10px;">ESC</span>
+          <button class="btn btn-xs" onclick="closeModal('restoreModal')">✕</button>
+        </div>
       </div>
-      <div class="modal-body" id="restoreModalBody" style="padding:20px;">
-        <!-- Dynamic restore details -->
-      </div>
+      <div class="modal-body" id="restoreModalBody"></div>
     </div>
   </div>
-
-  <!-- Command Palette Modal -->
-  <div id="cmdPaletteModal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this) toggleCommandPalette()">
-    <div class="modal-content" style="max-width: 620px; background:var(--bg-secondary); border: 1px solid var(--border-accent);">
-      <div style="padding: 16px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:12px; background:var(--bg-card);">
-        <span style="font-size:18px;">🔍</span>
-        <input type="text" id="cmdPaletteInput" placeholder="Type a command or action... (e.g. push, doctor, diff, logs)" 
-               onkeydown="handleCmdPaletteKeydown(event)" 
-               oninput="selectedCmdIndex=0; renderCmdPalette(this.value);" 
-               style="flex:1; background:transparent; border:none; color:var(--text-primary); font-size:15px; font-family:var(--font-sans); outline:none;" />
-        <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono); background:rgba(255,255,255,0.06); padding:3px 8px; border-radius:4px;">ESC to exit</span>
-      </div>
-      <div class="modal-body" style="padding: 10px; max-height: 380px;" id="cmdPaletteResults">
-        <!-- Command items dynamically populated -->
-      </div>
-    </div>
-  </div>
-
-  <div id="toast" class="toast" style="display:none;"></div>
 
   <script>
     // Theme Switcher
     const savedTheme = localStorage.getItem('gaet-theme');
     if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
-    else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme', 'dark');
 
     document.getElementById('themeToggle').onclick = () => {
       const current = document.documentElement.getAttribute('data-theme');
@@ -1285,31 +1689,45 @@
       localStorage.setItem('gaet-theme', next);
     };
 
-    // Tab Navigation
-    let logPollTimer = null;
-
-    function switchTab(tabName) {
+    // Tab Switcher
+    function switchTab(tabName, btn) {
+      document.querySelectorAll('.tab-pane').forEach(c => c.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      
-      const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.textContent.toLowerCase().includes(tabName));
-      if (targetBtn) targetBtn.classList.add('active');
-      
-      const targetContent = document.getElementById(`tab-${tabName}`);
-      if (targetContent) targetContent.classList.add('active');
 
-      if (logPollTimer) { clearInterval(logPollTimer); logPollTimer = null; }
+      const target = document.getElementById(`tab-${tabName}`);
+      if (target) target.classList.add('active');
+
+      if (btn) btn.classList.add('active');
+      else {
+        const item = Array.from(document.querySelectorAll('.tab-btn')).find(i => i.getAttribute('onclick')?.includes(tabName));
+        if (item) item.classList.add('active');
+      }
 
       if (tabName === 'overview') fetchFullStatus();
       if (tabName === 'snapshots') fetchSnapshots();
-      if (tabName === 'logs') {
-        fetchLogs();
-        logPollTimer = setInterval(fetchLogs, 3000);
-      }
-      if (tabName === 'settings') { fetchConfig(); fetchCheck(); }
+      if (tabName === 'logs') fetchLogs();
+      if (tabName === 'settings') { fetchConfig(); fetchAutoDetect(false); }
     }
 
-    // Formatters
+    function showToast(msg, type = 'ok') {
+      const t = document.getElementById('toastPopup');
+      t.textContent = (type === 'ok' ? '[ OK ] ' : '[ FAIL ] ') + msg;
+      t.className = `toast-popup ${type === 'ok' ? 'toast-ok' : 'toast-err'}`;
+      t.style.display = 'flex';
+      setTimeout(() => { t.style.display = 'none'; }, 4000);
+    }
+
+    function setOpProgress(active, text = '') {
+      const bar = document.getElementById('opProgress');
+      const txt = document.getElementById('opProgressText');
+      if (active) {
+        txt.textContent = text;
+        bar.style.display = 'flex';
+      } else {
+        bar.style.display = 'none';
+      }
+    }
+
     function fmt(n) {
       if (n === null || n === undefined) return '0';
       if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
@@ -1317,162 +1735,128 @@
       return String(n);
     }
 
-    function ago(ts) {
-      if (!ts) return 'No backup yet';
-      const d = Date.now() - ts * 1000;
-      const h = Math.floor(d / 3600000);
-      const m = Math.floor((d % 3600000) / 60000);
-      if (h > 24) return `${Math.floor(h / 24)}d ago`;
-      if (h > 0) return `${h}h ${m}m ago`;
-      if (m > 0) return `${m}m ago`;
-      return 'just now';
-    }
-
-    function showToast(msg, type = 'ok') {
-      const t = document.getElementById('toast');
-      t.innerHTML = (type === 'ok' ? '✓ ' : '✗ ') + msg;
-      t.className = `toast toast-${type}`;
-      t.style.display = 'flex';
-      setTimeout(() => { t.style.display = 'none'; }, 4000);
-    }
-
-    // API Calls
     async function fetchFullStatus(manual = false) {
-      const refreshIcon = document.getElementById('refreshIcon');
-      if (refreshIcon && manual) {
-        refreshIcon.classList.add('spin-icon');
-        setTimeout(() => refreshIcon.classList.remove('spin-icon'), 600);
-      }
+      const icon = document.getElementById('refreshSpinner');
+      if (icon && manual) icon.classList.add('spin-anim');
 
       try {
         const r = await fetch('/api/status');
         const d = await r.json();
         renderOverview(d);
-        if (manual) showToast('Dashboard status updated!', 'ok');
+        if (manual) showToast('Dashboard status updated', 'ok');
       } catch (e) {
-        console.error('Status fetch error:', e);
+        console.error('Status error:', e);
         if (manual) showToast('Failed to fetch status', 'err');
+      } finally {
+        if (icon && manual) setTimeout(() => icon.classList.remove('spin-anim'), 600);
       }
     }
 
     function renderOverview(d) {
       const banner = document.getElementById('globalBanner');
       if (d.error) {
-        banner.innerHTML = `<span>⚠️ <b>Connection Alert:</b> ${d.error} — Go to <b>Settings</b> tab or run <code>gaet init</code> in terminal.</span> <button class="btn btn-secondary btn-sm" onclick="switchTab('settings')">⚙️ Settings</button>`;
+        document.getElementById('globalBannerText').textContent = `[ WARN ] Connection Alert: ${d.error}`;
         banner.style.display = 'flex';
       } else {
         banner.style.display = 'none';
       }
 
-      // Header Live Status Pill
-      const pill = document.getElementById('headerStatusPill');
-      const pillText = document.getElementById('headerStatusText');
-      if (pill && pillText) {
+      const asciiTag = document.getElementById('asciiTag');
+      const asciiText = document.getElementById('asciiTagText');
+      if (asciiTag && asciiText) {
         if (d.error) {
-          pill.className = 'live-pill pill-danger';
-          pillText.textContent = 'Alert: Local DB Unreachable';
-        } else if (d.synced && (d.tables || []).length > 0) {
-          pill.className = 'live-pill pill-success';
-          pillText.textContent = `Connected • 100% Synced`;
-        } else if ((d.tables || []).length > 0) {
-          pill.className = 'live-pill pill-warning';
-          pillText.textContent = `Connected • Diff Detected`;
+          asciiTag.className = 'status-tag tag-fail';
+          asciiText.textContent = '[ FAIL ] Offline';
         } else {
-          pill.className = 'live-pill pill-warning';
-          pillText.textContent = `Connected • No Tables`;
+          asciiTag.className = 'status-tag tag-ok';
+          asciiText.textContent = '[ OK ] Connected';
         }
       }
 
-      document.getElementById('statTables').textContent = fmt(d.tables?.length ?? 0);
-      document.getElementById('statLocalSize').textContent = `Local DB: ${d.local_size || '?'}`;
-      document.getElementById('backupCount').textContent = d.backup_count || 0;
-      document.getElementById('lastBackup').textContent = d.last_backup ? `Last ${ago(d.last_backup.date)}` : 'No backup yet';
-
-      const synced = d.synced ?? false;
-      document.getElementById('syncStatus').textContent = synced ? 'In-Sync' : 'Out-of-Sync';
-      
-      const syncCard = document.getElementById('syncCard');
-      syncCard.className = `stat-card ${synced ? 'green' : 'yellow'}`;
-      document.getElementById('syncIcon').className = `stat-icon ${synced ? 'green' : 'yellow'}`;
-      
       const tables = d.tables ?? [];
-      const syncedCount = tables.filter(t => t.ok).length;
-      const pct = tables.length > 0 ? Math.round((syncedCount / tables.length) * 100) : 0;
-      
-      const progress = document.getElementById('syncProgress');
-      progress.style.width = pct + '%';
-      progress.className = `progress-fill ${pct === 100 ? 'full' : pct > 0 ? 'partial' : 'none'}`;
-      
-      document.getElementById('syncText').textContent = tables.length > 0 ? `${syncedCount}/${tables.length} tables in sync` : 'No tables configured';
-      document.getElementById('syncPct').textContent = `${pct}%`;
+      document.getElementById('statTables').textContent = `${tables.length} Tables`;
+      const cleanHost = (d.host && d.host.startsWith('/')) ? '127.0.0.1' : (d.host || '127.0.0.1');
+      const cleanPort = d.port || '5432';
+      let cleanUser = d.user || 'postgres';
+      if (cleanUser.includes(':')) {
+        cleanUser = cleanUser.split(':')[0]; // Always strip password if embedded in user string
+      }
+      const cleanDb = d.db || 'postgres';
+      const userAuth = d.has_pass ? `${cleanUser}:••••••` : cleanUser;
+      document.getElementById('statLocalFoot').textContent = `${userAuth}@${cleanHost}:${cleanPort}/${cleanDb}`;
 
-      const badge = document.getElementById('syncBadge');
-      badge.className = `badge ${synced && tables.length > 0 ? 'badge-success' : 'badge-warning'}`;
-      badge.innerHTML = synced && tables.length > 0 ? '✓ In-Sync' : tables.length === 0 ? '⚠️ Unconfigured / Empty' : '⚡ Diff Detected';
+      const remoteConf = d.remote_configured ?? false;
+      document.getElementById('statCloudStatus').textContent = remoteConf ? 'Ready' : 'Not Set';
+      document.getElementById('statCloudFoot').textContent = remoteConf ? (d.remote_host || 'Cloud target') : 'Configure in Settings';
+
+      const cloudTag = document.getElementById('cloudTag');
+      if (cloudTag) {
+        cloudTag.className = `status-tag ${remoteConf ? 'tag-ok' : 'tag-warn'}`;
+        cloudTag.textContent = remoteConf ? '[ READY ]' : '[ UNCONFIGURED ]';
+      }
+
+      const backupCount = d.backup_count || 0;
+      document.getElementById('statBackupCount').textContent = `${backupCount} Dumps`;
+      document.getElementById('statBackupFoot').textContent = d.last_backup ? `Latest: ${d.last_backup}` : 'Vault: ~/.gaet/backups';
 
       const cronActive = d.cron_active ?? false;
-      document.getElementById('cronStatus').textContent = cronActive ? 'Active' : 'Inactive';
-      const cronCard = document.getElementById('cronCard');
-      cronCard.className = `stat-card ${cronActive ? 'green' : 'yellow'}`;
-      document.getElementById('cronIcon').className = `stat-icon ${cronActive ? 'green' : 'yellow'}`;
-      document.getElementById('cronSubtitle').textContent = cronActive ? 'Scheduled periodic run' : 'Manual execution mode';
+      document.getElementById('statCronStatus').textContent = cronActive ? 'Active' : 'Inactive';
+      document.getElementById('statCronFoot').textContent = cronActive ? 'Schedule: Every 6 hours' : 'Mode: On-demand CLI';
 
-      document.getElementById('stopBtn').style.display = cronActive ? 'inline-flex' : 'none';
-      document.getElementById('autoBtn').style.display = cronActive ? 'none' : 'inline-flex';
-
-      // Update Health Score Text & Widget Scheduler Controller
-      const healthElem = document.getElementById('healthScoreText');
-      if (healthElem) {
-        healthElem.textContent = tables.length > 0 ? `${pct}% (${syncedCount}/${tables.length} Synced)` : 'No tables';
-        healthElem.style.color = pct === 100 && tables.length > 0 ? 'var(--green)' : 'var(--yellow)';
+      const cronTag = document.getElementById('cronTag');
+      if (cronTag) {
+        cronTag.className = `status-tag ${cronActive ? 'tag-ok' : 'tag-warn'}`;
+        cronTag.textContent = cronActive ? '[ ACTIVE ]' : '[ CRON ]';
       }
 
-      const schedWidgetStatus = document.getElementById('schedWidgetStatus');
-      const schedWidgetBtnContainer = document.getElementById('schedWidgetBtnContainer');
-      if (schedWidgetStatus && schedWidgetBtnContainer) {
-        if (cronActive) {
-          schedWidgetStatus.textContent = 'Active (Every 6h)';
-          schedWidgetStatus.style.color = 'var(--green)';
-          schedWidgetBtnContainer.innerHTML = `<button class="btn btn-danger btn-sm" onclick="doAction('stop', 'Stopping Scheduler...', '■ Stop Timer')">■ Stop Timer</button>`;
-        } else {
-          schedWidgetStatus.textContent = 'Manual Execution Only';
-          schedWidgetStatus.style.color = 'var(--text-muted)';
-          schedWidgetBtnContainer.innerHTML = `<button class="btn btn-warning btn-sm" onclick="doAction('auto', 'Enabling Auto-Backup...', '⏰ Enable (6h)')">⏰ Enable (6h)</button>`;
-        }
-      }
-
-      // Table Matrix
+      // Render Table Matrix
       const tbody = document.getElementById('tableBody');
+      const counter = document.getElementById('matrixCounter');
+      if (counter) counter.textContent = `(${tables.length} tables tracked)`;
+
       tbody.innerHTML = '';
       tables.forEach(t => {
         const tr = document.createElement('tr');
         const isOk = t.ok;
         tr.innerHTML = `
-          <td class="table-name">
-            <code style="cursor:pointer; color:var(--accent);" onclick="inspectTable('${t.table}', ${t.local || 0}, ${t.supabase || 0})" title="Click to inspect table details">
-              ${t.table}
-            </code>
-          </td>
-          <td class="table-num" style="text-align:right">${fmt(t.local)}</td>
-          <td class="table-num" style="text-align:right">${fmt(t.supabase)}</td>
+          <td class="tbl-code">${t.table}</td>
+          <td style="text-align:right; font-family:var(--font-mono);">${fmt(t.local)}</td>
+          <td style="text-align:right; font-family:var(--font-mono);">${fmt(t.supabase)}</td>
           <td style="text-align:center">
-            <span class="badge ${isOk ? 'badge-success' : 'badge-warning'}" style="cursor:pointer;" onclick="inspectTable('${t.table}', ${t.local || 0}, ${t.supabase || 0})" title="Click to inspect table details">
-              ${isOk ? '✓ In-Sync' : '⚡ Diff'}
+            <span class="status-tag ${isOk ? 'tag-ok' : 'tag-warn'}" style="font-size:10px; padding:2px 7px;">
+              ${isOk ? '[ OK ] Synced' : '[ DIFF ] Variance'}
             </span>
+          </td>
+          <td style="text-align:center">
+            <button class="btn btn-xs" onclick="syncSingleTable('${t.table}')">⚡ Sync Table</button>
           </td>
         `;
         tbody.appendChild(tr);
       });
+
       if (tables.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="4" class="empty-state" style="padding:40px 20px;">
-              <div style="font-size:24px;margin-bottom:8px">⚙️</div>
-              <h4 style="font-size:15px;color:var(--text-primary);margin-bottom:4px">No Database Tables Discovered</h4>
-              <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Configure your database connections or run wizard to start tracking tables.</p>
-              <button class="btn btn-primary btn-sm" onclick="switchTab('settings')">Configure Database Settings</button>
+            <td colspan="5" style="text-align:center; padding:32px; color:var(--text-muted);">
+              [ NOTE ] No database tables tracked yet. Configure connections in Settings tab.
             </td>
           </tr>`;
+      }
+    }
+
+    async function syncSingleTable(tableName) {
+      showToast(`Syncing table '${tableName}'...`, 'ok');
+      setOpProgress(true, `Syncing table '${tableName}' to cloud target...`);
+      try {
+        const r = await fetch('/api/push', { method: 'POST' });
+        const d = await r.json();
+        setOpProgress(false);
+        if (d.ok) showToast(`Table '${tableName}' synced!`, 'ok');
+        else showToast(d.msg || 'Sync failed', 'err');
+        fetchFullStatus();
+      } catch (e) {
+        setOpProgress(false);
+        showToast('Failed to sync table', 'err');
       }
     }
 
@@ -1483,37 +1867,45 @@
         const tbody = document.getElementById('snapshotsBody');
         tbody.innerHTML = '';
         const list = d.snapshots || [];
-        let totalMb = 0;
 
         list.forEach(s => {
-          totalMb += (parseFloat(s.size_mb) || 0);
+          const fn = s.filename || s.name || 'gaet_snapshot.dump';
+          const createdAt = s.created_at || s.mod_time || 'Recent';
+          const rawSize = typeof s.size_mb === 'number' ? s.size_mb : parseFloat(s.size_mb || 0);
+          const sizeMb = isNaN(rawSize) ? '0.00' : rawSize.toFixed(2);
+
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td class="table-name">📦 ${s.filename}</td>
-            <td class="table-num">${s.size_mb} MB</td>
-            <td>${s.created_at || 'Recent'}</td>
+            <td class="tbl-code">${fn}</td>
+            <td style="font-family:var(--font-mono);">${sizeMb} MB</td>
+            <td style="font-size:11.5px; color:var(--text-muted); font-family:var(--font-mono);">${createdAt}</td>
             <td style="text-align:center;">
-              <div style="display:inline-flex; gap:6px; align-items:center;">
-                <button class="btn btn-warning btn-xs" onclick="openRestoreModal('${s.filename}', '${s.size_mb}')" title="Restore snapshot dump to local database">⚡ Restore</button>
-                <a href="/api/snapshots/download?file=${encodeURIComponent(s.filename)}" class="btn btn-secondary btn-xs" title="Download backup dump file">📥 Download</a>
-                <button class="btn btn-danger btn-xs" onclick="deleteSnapshot('${s.filename}')" title="Delete snapshot file">🗑️ Delete</button>
+              <div style="display:inline-flex; gap:6px;">
+                <button class="btn btn-xs" onclick="openRestoreModal('${fn}', '${sizeMb}')">Restore</button>
+                <a href="/api/snapshots/download?file=${encodeURIComponent(fn)}" class="btn btn-xs">Download</a>
+                <button class="btn btn-danger btn-xs" onclick="deleteSnapshot('${fn}')">Delete</button>
               </div>
             </td>
           `;
           tbody.appendChild(tr);
         });
 
-        const storageElem = document.getElementById('totalStorageText');
-        if (storageElem) {
-          storageElem.textContent = `${totalMb.toFixed(2)} MB (${list.length} dumps)`;
-        }
-
         if (list.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No backup snapshot dump files stored yet.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:var(--text-muted);">No snapshot files stored in ~/.gaet/backups</td></tr>';
         }
       } catch (e) {
-        console.error('Snapshots fetch error:', e);
+        console.error('Snapshots error:', e);
       }
+    }
+
+    function filterSnapshots() {
+      const q = document.getElementById('snapshotSearchInput').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('#snapshotsBody tr');
+      rows.forEach(r => {
+        if (r.cells.length < 2) return;
+        const name = r.cells[0]?.textContent?.toLowerCase() || '';
+        r.style.display = name.includes(q) ? '' : 'none';
+      });
     }
 
     let pendingRestoreFile = null;
@@ -1525,24 +1917,15 @@
       if (!modal || !body) return;
 
       body.innerHTML = `
-        <div style="background:var(--bg-secondary); padding:14px; border-radius:var(--radius-sm); border:1px solid var(--border); margin-bottom:16px;">
-          <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Selected Snapshot File</div>
-          <div style="font-size:14px; font-weight:700; font-family:var(--font-mono); color:var(--accent); word-break:break-all;">📦 ${filename}</div>
-          <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">File Size: <strong>${sizeMb || '0'} MB</strong></div>
+        <div style="font-size:12px; font-family:var(--font-mono); margin-bottom:12px; color:var(--text-main);">
+          Target Dump File: <strong>${filename}</strong> (${sizeMb} MB)
         </div>
-
-        <div style="background:var(--red-bg); border:1px solid rgba(239, 68, 68, 0.3); border-radius:var(--radius-sm); padding:14px; margin-bottom:20px;">
-          <div style="font-size:13px; font-weight:700; color:var(--red); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-            ⚠️ Data Overwrite Warning
-          </div>
-          <p style="font-size:12px; color:var(--text-primary); line-height:1.5; margin:0;">
-            Restoring this snapshot dump will <strong>completely overwrite</strong> your current local PostgreSQL database with data from this file.
-          </p>
+        <div style="background:rgba(239, 68, 68, 0.12); border:1px solid rgba(239, 68, 68, 0.3); border-radius:var(--radius-sm); padding:10px; margin-bottom:16px; color:#f87171; font-size:11.5px; font-family:var(--font-mono);">
+          [ WARN ] Restoring will overwrite local PostgreSQL database contents.
         </div>
-
-        <div style="display:flex; gap:10px; justify-content:flex-end;">
-          <button class="btn btn-secondary btn-sm" onclick="closeModal('restoreModal')">Cancel</button>
-          <button class="btn btn-danger btn-sm" id="confirmRestoreBtn" onclick="confirmExecuteRestore()">⚡ Confirm & Restore Now</button>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+          <button class="btn btn-xs" onclick="closeModal('restoreModal')">Cancel</button>
+          <button class="btn btn-danger btn-xs" onclick="confirmExecuteRestore()">Execute Restore</button>
         </div>
       `;
 
@@ -1551,27 +1934,24 @@
 
     async function confirmExecuteRestore() {
       if (!pendingRestoreFile) return;
-      const btn = document.getElementById('confirmRestoreBtn');
-      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Restoring DB...'; }
-
-      showToast(`Restoring local database from '${pendingRestoreFile}'...`, 'ok');
+      showToast(`Restoring from '${pendingRestoreFile}'...`, 'ok');
+      setOpProgress(true, `Restoring local database from snapshot '${pendingRestoreFile}'...`);
       try {
         const r = await fetch('/api/restore', {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({filename: pendingRestoreFile})
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: pendingRestoreFile })
         });
         const d = await r.json();
         closeModal('restoreModal');
-        if (d.ok) {
-          showToast(d.msg || 'Database restored successfully!', 'ok');
-        } else {
-          showToast(d.msg || 'Restore failed', 'err');
-        }
+        setOpProgress(false);
+        if (d.ok) showToast(d.msg || 'Database restored successfully', 'ok');
+        else showToast(d.msg || 'Restore failed', 'err');
         fetchFullStatus();
       } catch (e) {
         closeModal('restoreModal');
-        showToast('Failed to perform restore operation', 'err');
+        setOpProgress(false);
+        showToast('Failed to execute restore', 'err');
       }
     }
 
@@ -1580,8 +1960,8 @@
       try {
         const r = await fetch('/api/snapshots/delete', {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({filename: filename})
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: filename })
         });
         const d = await r.json();
         if (d.ok) { showToast(d.msg, 'ok'); fetchSnapshots(); }
@@ -1591,107 +1971,104 @@
       }
     }
 
+    let allLogLines = [];
+
     async function fetchLogs() {
       try {
         const r = await fetch('/api/logs');
         const d = await r.json();
-        const body = document.getElementById('terminalBody');
-        let lines = d.logs || [];
-        if (activeLogFilter !== 'all') {
-          lines = lines.filter(l => {
-            const low = l.toLowerCase();
-            if (activeLogFilter === 'info') return low.includes('[info]') || low.includes('info:');
-            if (activeLogFilter === 'warn') return low.includes('[warn]') || low.includes('warn:');
-            if (activeLogFilter === 'fail') return low.includes('[err') || low.includes('fail') || low.includes('error');
-            return true;
-          });
-        }
-        body.textContent = lines.join('') || '(No matching log entries for selected filter)';
-        body.scrollTop = body.scrollHeight;
+        allLogLines = d.logs || [];
+        filterLogConsole();
       } catch (e) {
-        console.error('Logs fetch error:', e);
+        console.error('Logs error:', e);
       }
     }
 
-    async function fetchCheck() {
-      const container = document.getElementById('checkBody');
-      if (!container) return;
-      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)"><span class="spinner"></span> Running diagnostic checks...</div>';
+    function filterLogConsole() {
+      const q = document.getElementById('logFilterInput').value.toLowerCase().trim();
+      const body = document.getElementById('consoleBody');
+      const filtered = q ? allLogLines.filter(line => line.toLowerCase().includes(q)) : allLogLines;
+      body.textContent = filtered.join('\n') || '(No matching log entries recorded)';
+
+      const autoScroll = document.getElementById('autoScrollCheck')?.checked;
+      if (autoScroll) body.scrollTop = body.scrollHeight;
+    }
+
+    let allPasswordsVisible = false;
+
+    const EYE_OPEN_SVG = `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+    const EYE_OFF_SVG = `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+
+    // Per-field Eye Toggle
+    function toggleFieldPassword(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const isCurrentlyPass = input.type === 'password';
+      input.type = isCurrentlyPass ? 'text' : 'password';
+      btn.innerHTML = isCurrentlyPass ? EYE_OFF_SVG : EYE_OPEN_SVG;
+    }
+
+    // Global All Passwords Toggle
+    function toggleAllPasswords() {
+      allPasswordsVisible = !allPasswordsVisible;
+      const localInput = document.getElementById('cfgLocalUrl');
+      const remoteInput = document.getElementById('cfgRemoteUrl');
+      const textSpan = document.getElementById('globalPassText');
+
+      const nextType = allPasswordsVisible ? 'text' : 'password';
+      const nextSvg = allPasswordsVisible ? EYE_OFF_SVG : EYE_OPEN_SVG;
+
+      if (localInput) localInput.type = nextType;
+      if (remoteInput) remoteInput.type = nextType;
+
+      document.querySelectorAll('.input-eye-btn').forEach(btn => btn.innerHTML = nextSvg);
+
+      if (textSpan) {
+        textSpan.textContent = allPasswordsVisible ? 'Hide Passwords' : 'Reveal Passwords';
+      }
+    }
+
+    async function testLocalConnection() {
+      const localUrl = document.getElementById('cfgLocalUrl')?.value?.trim() || '';
+      showToast('Testing local PostgreSQL reachability...', 'ok');
       try {
-        const r = await fetch('/api/check');
+        const r = await fetch('/api/local/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: localUrl })
+        });
         const d = await r.json();
-        const checks = d.checks || {};
-        
-        const toolsOk = checks.tools?.ok ?? false;
-        const remoteConf = checks.remote_db?.configured ?? false;
-        const remoteReach = checks.remote_db?.reachable ?? false;
-        const autoActive = checks.auto_backup?.active ?? false;
-
-        container.innerHTML = `
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
-            <div style="background:var(--bg-secondary);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border)">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <h4 style="font-size:13px;margin:0">🔧 PostgreSQL CLI Tools</h4>
-                <span class="badge ${toolsOk ? 'badge-success' : 'badge-danger'}">${toolsOk ? '✓ OK' : '✗ Missing'}</span>
-              </div>
-              <p style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">pg_dump: <code style="color:var(--accent)">${checks.tools?.pg_dump || 'Not found'}</code></p>
-              <p style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">psql: <code style="color:var(--accent)">${checks.tools?.psql || 'Not found'}</code></p>
-              <p style="font-size:11px;color:var(--text-secondary)">pg_restore: <code style="color:var(--accent)">${checks.tools?.pg_restore || 'Not found'}</code></p>
-            </div>
-
-            <div style="background:var(--bg-secondary);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border)">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <h4 style="font-size:13px;margin:0">☁️ Cloud Target Database</h4>
-                <span class="badge ${remoteConf && remoteReach ? 'badge-success' : remoteConf ? 'badge-warning' : 'badge-danger'}">${remoteConf && remoteReach ? '✓ Reachable' : remoteConf ? '⚠️ Unreachable' : '✗ Unconfigured'}</span>
-              </div>
-              <p style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Configured: <b>${remoteConf ? 'Yes' : 'No'}</b></p>
-              <p style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Host: <code>${checks.remote_db?.host || 'N/A'}:${checks.remote_db?.port || 'N/A'}</code></p>
-              <p style="font-size:11px;color:var(--text-secondary)">Database: <code>${checks.remote_db?.db || 'N/A'}</code></p>
-            </div>
-
-            <div style="background:var(--bg-secondary);padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border)">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <h4 style="font-size:13px;margin:0">⏰ Auto-Backup Scheduler</h4>
-                <span class="badge ${autoActive ? 'badge-success' : 'badge-warning'}">${autoActive ? '✓ Active' : 'Inactive'}</span>
-              </div>
-              <p style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Status: <b>${autoActive ? 'Running' : 'Stopped'}</b></p>
-              <p style="font-size:11px;color:var(--text-muted)">${autoActive ? 'Periodic backups active' : 'Run gaet push --auto to enable'}</p>
-            </div>
-          </div>
-        `;
+        if (d.ok) showToast(d.msg || 'Local DB Reachable! Latency ping OK.', 'ok');
+        else showToast(`Local DB Test Failed: ${d.msg || d.error}`, 'err');
       } catch (e) {
-        console.error('Check fetch error:', e);
-        container.innerHTML = `<div class="empty-state" style="color:var(--red)">Failed to run system diagnostics: ${e.message}</div>`;
+        showToast('Failed to reach local test endpoint', 'err');
       }
     }
 
-    let rawConfig = {};
-    let maskedConfig = {};
-    let isMaskedView = true;
-
-    function switchSettingsSection(sectionId, btn) {
-      document.querySelectorAll('.settings-section').forEach(sec => sec.classList.remove('active'));
-      document.querySelectorAll('.settings-nav-btn').forEach(b => b.classList.remove('active'));
-      
-      const target = document.getElementById(sectionId);
-      if (target) target.classList.add('active');
-      if (btn) btn.classList.add('active');
-      
-      if (sectionId === 'sec-diagnostics') fetchCheck();
-      if (sectionId === 'sec-local') fetchAutoDetect(false);
+    async function testRemoteConnection() {
+      const remoteUrl = document.getElementById('cfgRemoteUrl')?.value?.trim() || '';
+      const sslMode = document.getElementById('cfgSslMode')?.value || 'require';
+      showToast('Testing remote cloud DB reachability...', 'ok');
+      try {
+        const r = await fetch('/api/remote/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: remoteUrl, sslmode: sslMode })
+        });
+        const d = await r.json();
+        if (d.ok) showToast(d.msg || 'Remote DB Reachable! Latency ping OK.', 'ok');
+        else showToast(`Remote DB Test Failed: ${d.msg || d.error}`, 'err');
+      } catch (e) {
+        showToast('Failed to reach remote test endpoint', 'err');
+      }
     }
 
     async function fetchAutoDetect(manualClick = false) {
-      const btn = document.getElementById('detectBtn');
-      if (btn && manualClick) {
-        btn.disabled = true;
-        btn.innerHTML = '<div class="spinner"></div> Scanning...';
-      }
       try {
         const r = await fetch('/api/detect');
         const d = await r.json();
-        const box = document.getElementById('detectedBox');
-        const list = document.getElementById('detectedList');
+        const box = document.getElementById('detectBox');
+        const list = document.getElementById('detectList');
         if (!box || !list) return;
 
         const instances = d.instances || [];
@@ -1704,35 +2081,130 @@
         box.style.display = 'block';
         list.innerHTML = '';
 
+        const currentLocalUrl = document.getElementById('cfgLocalUrl')?.value?.trim() || '';
+
         instances.forEach(inst => {
-          const instDiv = document.createElement('div');
-          instDiv.className = 'detected-instance';
-          
-          const hostDisplay = inst.host.startsWith('/') ? `socket:${inst.host}` : inst.host;
-          
           let dbsHtml = '';
+          const hostAddr = (inst.host && inst.host.startsWith('/')) ? '127.0.0.1' : (inst.host || '127.0.0.1');
+
           (inst.databases || []).forEach(dbName => {
-            const url = `postgresql://${inst.user}@${inst.host}:${inst.port}/${dbName}`;
-            dbsHtml += `<span class="db-pill" onclick="selectDetectedDb('${url}', '${dbName}')" title="Click to use database ${dbName}">🗄️ ${dbName}</span>`;
+            const url = `postgresql://${inst.user}@${hostAddr}:${inst.port}/${dbName}`;
+
+            dbsHtml += `
+              <button class="db-pill-btn" 
+                      title="Click to select '${dbName}' as local target database" 
+                      onclick="selectDetectedDb('${url}', '${dbName}')">
+                <svg class="icon-svg" viewBox="0 0 24 24" style="width:13px; height:13px;"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                <span>${dbName}</span>
+              </button>`;
           });
 
-          instDiv.innerHTML = `
-            <div class="instance-title">
-              <span>🖥️ ${inst.user}@${hostDisplay}:${inst.port}</span>
+          const div = document.createElement('div');
+          div.className = 'detect-inst-card';
+          div.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:12px; font-weight:700; color:var(--gaet-teal); font-family:var(--font-mono);">
+                  ${inst.user}@${hostAddr}:${inst.port} ${inst.host.startsWith('/') ? '<span style="opacity:0.7; font-size:10px; font-weight:normal;">(Socket: ' + inst.host + ')</span>' : ''}
+                </span>
+                <span style="font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:12px; background:var(--gaet-teal-subtle); color:var(--gaet-teal); font-family:var(--font-mono);">
+                  ${inst.databases?.length || 0} DB(s) Discovered
+                </span>
+              </div>
+              <span style="font-size:10.5px; color:var(--text-dim);">Click a database pill to auto-set as local target DB</span>
             </div>
-            <div class="db-pills-container">${dbsHtml}</div>
+            <div style="display:flex; flex-wrap:wrap; align-items:center;">${dbsHtml}</div>
           `;
-          list.appendChild(instDiv);
+          list.appendChild(div);
         });
 
-        if (manualClick) showToast(`Detected ${instances.length} PostgreSQL instance(s)!`, 'ok');
+        if (manualClick) showToast(`Detected ${instances.length} PostgreSQL instance(s)`, 'ok');
       } catch (e) {
-        console.error('Auto-detect error:', e);
-      } finally {
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = '<span>🔍 Auto-Detect DBs</span>';
-        }
+        console.error('Detect error:', e);
+      }
+    }
+
+    function parsePostgresUrl(urlStr) {
+      if (!urlStr || typeof urlStr !== 'string') return null;
+      const match = urlStr.match(/^postgres(?:ql)?:\/\/(.+)$/i);
+      if (!match) return null;
+
+      const rest = match[1];
+      const atIdx = rest.lastIndexOf('@');
+      if (atIdx === -1) return null;
+
+      const userinfo = rest.substring(0, atIdx);
+      const hostpart = rest.substring(atIdx + 1);
+
+      let user = '', password = '';
+      const colonIdx = userinfo.indexOf(':');
+      if (colonIdx !== -1) {
+        user = userinfo.substring(0, colonIdx);
+        password = userinfo.substring(colonIdx + 1);
+      } else {
+        user = userinfo;
+      }
+
+      const slashIdx = hostpart.lastIndexOf('/');
+      if (slashIdx === -1) return null;
+
+      let hostport = hostpart.substring(0, slashIdx);
+      let db = hostpart.substring(slashIdx + 1);
+      const qIdx = db.indexOf('?');
+      if (qIdx !== -1) db = db.substring(0, qIdx);
+
+      let host = '', port = '5432';
+      const lastColon = hostport.lastIndexOf(':');
+      if (lastColon !== -1) {
+        host = hostport.substring(0, lastColon);
+        const pStr = hostport.substring(lastColon + 1);
+        if (/^\d+$/.test(pStr)) port = pStr;
+        else host = hostport;
+      } else {
+        host = hostport;
+      }
+
+      if (host.startsWith('/')) host = '127.0.0.1';
+
+      return { user, password, host, port, db };
+    }
+
+    function syncGranularToLocalUrl() {
+      const host = document.getElementById('cfgLocalHost')?.value?.trim() || '127.0.0.1';
+      const port = document.getElementById('cfgLocalPort')?.value?.trim() || '5432';
+      const user = document.getElementById('cfgLocalUser')?.value?.trim() || 'postgres';
+      const db = document.getElementById('cfgLocalDb')?.value?.trim() || 'postgres';
+      const pass = document.getElementById('cfgLocalPass')?.value || '';
+
+      let auth = user;
+      if (pass) {
+        auth += ':' + pass;
+      }
+
+      const url = `postgresql://${auth}@${host}:${port}/${db}`;
+      const urlElem = document.getElementById('cfgLocalUrl');
+      if (urlElem) {
+        urlElem.value = url;
+      }
+    }
+
+    function autoExtractLocalUrl(urlVal) {
+      const parsed = parsePostgresUrl(urlVal);
+      if (!parsed) return;
+
+      const hElem = document.getElementById('cfgLocalHost');
+      const pElem = document.getElementById('cfgLocalPort');
+      const uElem = document.getElementById('cfgLocalUser');
+      const dElem = document.getElementById('cfgLocalDb');
+      const passElem = document.getElementById('cfgLocalPass');
+
+      if (hElem && parsed.host) hElem.value = parsed.host;
+      if (pElem && parsed.port) pElem.value = parsed.port;
+      if (uElem && parsed.user) uElem.value = parsed.user;
+      if (dElem && parsed.db) dElem.value = parsed.db;
+      if (passElem) {
+        passElem.value = parsed.password || '';
+        passElem.type = 'password'; // Password is masked by default!
       }
     }
 
@@ -1740,137 +2212,50 @@
       const field = document.getElementById('cfgLocalUrl');
       if (field) {
         field.value = url;
-        field.focus();
-        showToast(`Selected database '${dbName}'! Click Save to apply.`, 'ok');
+        autoExtractLocalUrl(url);
+        showToast(`Connected local target DB to '${dbName}'! Click Save Configuration.`, 'ok');
+        fetchAutoDetect();
       }
-    }
-
-    function applyPreset(fieldId, val) {
-      const field = document.getElementById(fieldId);
-      if (field) {
-        field.value = val;
-        field.focus();
-        showToast('Preset applied! Click Save to apply.', 'ok');
-      }
-    }
-
-    function copyEnvTemplate() {
-      const keys = Object.keys(rawConfig);
-      if (keys.length === 0) {
-        showToast('No active configuration to copy', 'err');
-        return;
-      }
-      const lines = ["# gaet configuration (.env)"];
-      keys.forEach(k => {
-        const val = maskedConfig[k] || rawConfig[k] || '';
-        lines.push(`${k}=${val}`);
-      });
-      navigator.clipboard.writeText(lines.join('\n')).then(() => {
-        showToast('Masked .env template copied to clipboard!', 'ok');
-      }).catch(() => {
-        showToast('Failed to copy to clipboard', 'err');
-      });
-    }
-
-    function toggleMasking() {
-      isMaskedView = !isMaskedView;
-      const maskIcon = document.getElementById('maskBtnIcon');
-      const maskText = document.getElementById('maskBtnText');
-      if (maskIcon) maskIcon.textContent = isMaskedView ? '👁️' : '🙈';
-      if (maskText) maskText.textContent = isMaskedView ? 'Show Passwords' : 'Hide Passwords';
-
-      // Toggle input field types for connection URLs
-      ['cfgLocalUrl', 'cfgRemoteUrl'].forEach(id => {
-        const input = document.getElementById(id);
-        if (input) {
-          input.type = isMaskedView ? 'password' : 'text';
-          const btn = input.nextElementSibling;
-          if (btn && btn.classList.contains('btn-icon-inside')) {
-            btn.textContent = isMaskedView ? '👁️' : '🙈';
-          }
-        }
-      });
-
-      renderConfigGrid();
-      showToast(isMaskedView ? 'Passwords masked (Hidden)' : 'Passwords unmasked (Visible)', 'ok');
-    }
-
-    function toggleInputVisibility(inputId, btn) {
-      const input = document.getElementById(inputId);
-      if (input.type === 'password') {
-        input.type = 'text';
-        btn.textContent = '🙈';
-      } else {
-        input.type = 'password';
-        btn.textContent = '👁️';
-      }
-    }
-
-    function renderConfigGrid() {
-      const grid = document.getElementById('configGrid');
-      if (!grid) return;
-      const cfg = isMaskedView ? maskedConfig : rawConfig;
-      const keys = Object.keys(rawConfig);
-      
-      if (keys.length === 0) {
-        grid.innerHTML = '<div class="empty-state">No configuration variables defined in ~/.gaet/.env</div>';
-        return;
-      }
-      
-      grid.innerHTML = '';
-      keys.forEach(k => {
-        const val = cfg[k] ?? rawConfig[k] ?? '';
-        const card = document.createElement('div');
-        card.className = 'config-card-styled';
-        card.innerHTML = `
-          <div class="key">${k}</div>
-          <div class="val">${val || '<span style="color:var(--text-muted)">Not set</span>'}</div>
-        `;
-        grid.appendChild(card);
-      });
     }
 
     async function fetchConfig() {
       try {
         const r = await fetch('/api/config');
         const d = await r.json();
-        rawConfig = d.config || {};
-        maskedConfig = d.masked_config || rawConfig;
-        
-        if (d.env_file) {
-          const badgeText = document.getElementById('envFilePathText');
-          if (badgeText) badgeText.textContent = d.env_file;
-        }
-        
-        renderConfigGrid();
+        const cfg = d.config || {};
 
-        // Update nav subtitles dynamically
-        const localSub = document.getElementById('navLocalStatus');
-        if (localSub && rawConfig.GAET_LOCAL_URL) {
-          localSub.textContent = '✓ Configured';
-        }
-        const cloudSub = document.getElementById('navCloudStatus');
-        if (cloudSub && rawConfig.GAET_REMOTE_URL) {
-          cloudSub.textContent = '✓ Configured';
+        const localUrl = cfg.GAET_LOCAL_URL || '';
+        document.getElementById('cfgLocalUrl').value = localUrl;
+        document.getElementById('cfgLocalHost').value = cfg.GAET_LOCAL_DB_HOST || '';
+        document.getElementById('cfgLocalPort').value = cfg.GAET_LOCAL_DB_PORT || '';
+        document.getElementById('cfgLocalUser').value = cfg.GAET_LOCAL_DB_USER || '';
+        document.getElementById('cfgLocalDb').value = cfg.GAET_LOCAL_DB_NAME || '';
+
+        const passElem = document.getElementById('cfgLocalPass');
+        if (passElem) {
+          passElem.value = cfg.GAET_LOCAL_DB_PASS || '';
+          passElem.type = 'password'; // Always masked by default!
         }
 
-        // Populate Form Fields
-        document.getElementById('cfgLocalUrl').value = rawConfig.GAET_LOCAL_URL || '';
-        document.getElementById('cfgRemoteUrl').value = rawConfig.GAET_REMOTE_URL || '';
-        document.getElementById('cfgSslMode').value = rawConfig.GAET_REMOTE_SSLMODE || 'require';
-        document.getElementById('cfgRetention').value = rawConfig.GAET_RETENTION_DAYS || '7';
-        document.getElementById('cfgTables').value = rawConfig.GAET_TABLES || '';
-        document.getElementById('cfgPort').value = rawConfig.GAET_DASHBOARD_PORT || '9191';
-        document.getElementById('cfgHost').value = rawConfig.GAET_DASHBOARD_HOST || '0.0.0.0';
+        if (localUrl && (!cfg.GAET_LOCAL_DB_HOST || !cfg.GAET_LOCAL_DB_USER)) {
+          autoExtractLocalUrl(localUrl);
+        }
 
-        fetchAutoDetect(false);
+        document.getElementById('cfgRemoteUrl').value = cfg.GAET_REMOTE_URL || '';
+        document.getElementById('cfgSslMode').value = cfg.GAET_REMOTE_SSLMODE || 'require';
+
+        document.getElementById('cfgRetention').value = cfg.GAET_RETENTION_DAYS || '7';
+        document.getElementById('cfgPgTimeout').value = cfg.GAET_PG_TIMEOUT || '120';
+        document.getElementById('cfgTables').value = cfg.GAET_TABLES || '';
       } catch (e) {
-        console.error('Config fetch error:', e);
+        console.error('Config error:', e);
       }
     }
 
     async function saveConfig(e) {
       e.preventDefault();
+      syncGranularToLocalUrl(); // Ensure GAET_LOCAL_URL is 100% in sync with GAET_LOCAL_DB_PASS right before saving!
+
       const btn = document.getElementById('saveConfigBtn');
       btn.disabled = true;
       btn.textContent = 'Saving...';
@@ -1878,57 +2263,78 @@
       const payload = {
         config: {
           GAET_LOCAL_URL: document.getElementById('cfgLocalUrl').value.trim(),
+          GAET_LOCAL_DB_HOST: document.getElementById('cfgLocalHost').value.trim(),
+          GAET_LOCAL_DB_PORT: document.getElementById('cfgLocalPort').value.trim(),
+          GAET_LOCAL_DB_USER: document.getElementById('cfgLocalUser').value.trim(),
+          GAET_LOCAL_DB_NAME: document.getElementById('cfgLocalDb').value.trim(),
+          GAET_LOCAL_DB_PASS: document.getElementById('cfgLocalPass').value,
+
           GAET_REMOTE_URL: document.getElementById('cfgRemoteUrl').value.trim(),
           GAET_REMOTE_SSLMODE: document.getElementById('cfgSslMode').value,
+
           GAET_RETENTION_DAYS: document.getElementById('cfgRetention').value.trim(),
+          GAET_PG_TIMEOUT: document.getElementById('cfgPgTimeout').value.trim(),
           GAET_TABLES: document.getElementById('cfgTables').value.trim(),
-          GAET_DASHBOARD_PORT: document.getElementById('cfgPort').value.trim(),
-          GAET_DASHBOARD_HOST: document.getElementById('cfgHost').value.trim(),
         }
       };
 
       try {
         const r = await fetch('/api/config', {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         const d = await r.json();
-        if (d.ok) {
-          showToast(d.msg, 'ok');
-          fetchConfig();
-          fetchFullStatus();
-        } else {
-          showToast(d.msg, 'err');
-        }
+        if (d.ok) { showToast(d.msg, 'ok'); fetchConfig(); fetchFullStatus(); }
+        else showToast(d.msg, 'err');
       } catch (err) {
         showToast('Failed to save configuration', 'err');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Save & Apply Configuration';
+        btn.textContent = '💾 Save Configuration';
       }
     }
 
     async function doAction(action, loadingLabel, label) {
-      const btn = event?.target?.closest('.btn');
-      const originalText = btn ? btn.innerHTML : label;
-      if (btn) { btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> ${loadingLabel}`; }
-      
+      const modal = document.getElementById('actionModal');
+      const titleElem = document.getElementById('actionModalTitle');
+      const progressElem = document.getElementById('actionModalProgress');
+      const statusText = document.getElementById('actionModalStatusText');
+      const outputElem = document.getElementById('actionModalOutput');
+
+      if (titleElem) titleElem.textContent = `[ ${action.toUpperCase()} ] ${label}`;
+      if (statusText) statusText.textContent = loadingLabel;
+      if (outputElem) outputElem.textContent = `> gaet ${action}\n[ INFO ] Executing zero-dependency engine task...`;
+      if (progressElem) progressElem.style.display = 'flex';
+      if (modal) modal.style.display = 'flex';
+
+      showToast(loadingLabel, 'ok');
+      setOpProgress(true, loadingLabel);
+
       try {
         const url = action === 'auto' ? '/api/push?auto=6' : `/api/${action}`;
         const r = await fetch(url, { method: 'POST' });
         const d = await r.json();
-        if (d.ok) showToast(d.msg || 'Success!', 'ok');
-        else showToast(d.msg || 'Action failed', 'err');
+
+        setOpProgress(false);
+        if (progressElem) progressElem.style.display = 'none';
+
+        if (d.ok) {
+          showToast(d.msg || 'Success!', 'ok');
+          if (outputElem) outputElem.textContent = `[ OK ] ${d.msg || 'Execution completed successfully.'}\n\n` + (d.output || '(Execution finished with exit code 0)');
+        } else {
+          showToast(d.msg || 'Action failed', 'err');
+          if (outputElem) outputElem.textContent = `[ FAIL ] ${d.msg || 'Execution failed.'}\n\n` + (d.error || d.output || '(Command returned non-zero status code)');
+        }
         fetchFullStatus();
-      } catch {
+      } catch (err) {
+        setOpProgress(false);
+        if (progressElem) progressElem.style.display = 'none';
+        if (outputElem) outputElem.textContent = `[ FAIL ] Network error: ${err.message || 'Failed to reach server'}`;
         showToast('Failed to connect to server', 'err');
-      } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
       }
     }
 
-    // Modal & CLI Feature Actions
     function closeModal(modalId) {
       const modal = document.getElementById(modalId);
       if (modal) modal.style.display = 'none';
@@ -1938,286 +2344,114 @@
       const modal = document.getElementById('doctorModal');
       const outElem = document.getElementById('doctorOutput');
       modal.style.display = 'flex';
-      outElem.textContent = 'Running gaet doctor diagnostic check...';
+      outElem.textContent = 'Running doctor diagnostic check...';
       try {
         const r = await fetch('/api/doctor');
         const d = await r.json();
-        outElem.textContent = d.output || (d.ok ? 'All system checks passed successfully!' : 'Doctor check completed with warnings.');
+        outElem.textContent = d.output || (d.ok ? 'All system checks passed!' : 'Doctor completed with warnings.');
       } catch (e) {
-        outElem.textContent = 'Failed to execute doctor check: ' + e.message;
+        outElem.textContent = 'Failed to execute doctor: ' + e.message;
       }
-    }
-
-    function inspectTable(name, localRows, cloudRows) {
-      const modal = document.getElementById('tableModal');
-      const title = document.getElementById('tableModalTitle');
-      const body = document.getElementById('tableModalBody');
-      if (!modal || !body) return;
-
-      title.innerHTML = `🔍 Table Inspection: <code style="color:var(--accent); font-family:var(--font-mono);">${name}</code>`;
-      
-      const isSync = (localRows === cloudRows);
-      const statusBadge = isSync 
-        ? '<span class="badge badge-success">✓ Synced</span>' 
-        : '<span class="badge badge-warning">⚡ Differences Detected</span>';
-
-      body.innerHTML = `
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px;">
-          <div style="background:var(--bg-secondary); padding:14px; border-radius:var(--radius-sm); border:1px solid var(--border);">
-            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Local Database</div>
-            <div style="font-size:22px; font-weight:700; font-family:var(--font-mono); color:var(--text-primary);">${fmt(localRows)} <span style="font-size:12px; font-weight:400; color:var(--text-secondary);">rows</span></div>
-          </div>
-          <div style="background:var(--bg-secondary); padding:14px; border-radius:var(--radius-sm); border:1px solid var(--border);">
-            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Cloud Database</div>
-            <div style="font-size:22px; font-weight:700; font-family:var(--font-mono); color:var(--text-primary);">${fmt(cloudRows)} <span style="font-size:12px; font-weight:400; color:var(--text-secondary);">rows</span></div>
-          </div>
-        </div>
-        <div style="background:var(--bg-card); padding:14px; border-radius:var(--radius-sm); border:1px solid var(--border); margin-bottom:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <h4 style="font-size:13px; margin:0;">Schema & Sync State</h4>
-            ${statusBadge}
-          </div>
-          <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin:0;">
-            ${isSync 
-              ? 'Table row counts match perfectly between local PostgreSQL and cloud database target.' 
-              : `Variance detected: ${Math.abs(localRows - cloudRows)} records difference between local and remote environments.`}
-          </p>
-        </div>
-        <div style="display:flex; gap:10px; justify-content:flex-end;">
-          <button class="btn btn-secondary btn-sm" onclick="closeModal('tableModal'); runDiffAnalysis();">🔍 Detailed Diff</button>
-          <button class="btn btn-secondary btn-sm" onclick="closeModal('tableModal')">Close</button>
-        </div>
-      `;
-
-      modal.style.display = 'flex';
     }
 
     async function runDiffAnalysis() {
       const modal = document.getElementById('diffModal');
       const outElem = document.getElementById('diffOutput');
       modal.style.display = 'flex';
-      outElem.textContent = 'Analyzing local vs cloud database schema diff...';
+      outElem.textContent = 'Analyzing schema diff...';
       try {
         const r = await fetch('/api/diff');
         const d = await r.json();
         outElem.textContent = d.output || 'No diff output received.';
       } catch (e) {
-        outElem.textContent = 'Failed to execute diff analysis: ' + e.message;
+        outElem.textContent = 'Failed to execute diff: ' + e.message;
       }
     }
 
-    async function testRemoteConnection() {
-      showToast('Testing cloud target connection...', 'ok');
-      try {
-        const r = await fetch('/api/remote/test');
-        const d = await r.json();
-        if (d.connected || d.ok) {
-          showToast('Cloud DB connection successful! ☁️ OK', 'ok');
-        } else {
-          showToast('Cloud DB connection failed: ' + (d.output || 'Unreachable'), 'err');
-        }
-      } catch (e) {
-        showToast('Remote connection test failed', 'err');
-      }
-    }
-
-    async function openExportModal() {
-      const modal = document.getElementById('exportModal');
-      const outElem = document.getElementById('exportOutput');
-      modal.style.display = 'flex';
-      outElem.textContent = 'Loading shell export statements...';
-      try {
-        const r = await fetch('/api/export');
-        const d = await r.json();
-        outElem.textContent = d.env_vars || '# No export variables available';
-      } catch (e) {
-        outElem.textContent = 'Failed to fetch export variables: ' + e.message;
-      }
-    }
-
-    function copyExportText() {
-      const text = document.getElementById('exportOutput').textContent;
-      navigator.clipboard.writeText(text).then(() => {
-        showToast('Export statements copied to clipboard!', 'ok');
-      }).catch(() => {
-        showToast('Failed to copy text', 'err');
-      });
-    }
-
-    function copyLogTerminal() {
-      const body = document.getElementById('terminalBody');
+    function copyConsoleLogs() {
+      const body = document.getElementById('consoleBody');
       if (!body) return;
       navigator.clipboard.writeText(body.textContent).then(() => {
-        showToast('Log contents copied to clipboard!', 'ok');
-      }).catch(() => {
-        showToast('Failed to copy logs', 'err');
+        showToast('Console stream copied to clipboard', 'ok');
       });
     }
 
-    // Instant Table Schema Matrix Search
     function filterTableMatrix() {
       const input = document.getElementById('tableSearchInput');
-      const summary = document.getElementById('tableCountSummary');
       if (!input) return;
       const query = input.value.toLowerCase().trim();
       const rows = document.querySelectorAll('#tableBody tr');
-      let visible = 0;
-      let total = 0;
       rows.forEach(row => {
         if (row.cells.length < 2) return;
-        total++;
         const tableName = row.cells[0]?.textContent?.toLowerCase() || '';
-        if (tableName.includes(query)) {
-          row.style.display = '';
-          visible++;
-        } else {
-          row.style.display = 'none';
-        }
+        row.style.display = tableName.includes(query) ? '' : 'none';
       });
-      if (summary) {
-        summary.textContent = query ? `Showing ${visible} of ${total} tables` : `Showing all ${total} tables`;
-      }
     }
 
-    // Log Level Filter
-    let activeLogFilter = 'all';
-
-    function setLogFilter(filterType, btnElem) {
-      activeLogFilter = filterType;
-      const groupBtns = document.querySelectorAll('#logFilterGroup button');
-      groupBtns.forEach(b => {
-        b.style.background = 'var(--bg-card)';
-        b.style.color = 'var(--text-primary)';
-      });
-      if (btnElem) {
-        btnElem.style.background = 'var(--accent)';
-        btnElem.style.color = 'white';
-      }
-      fetchLogs();
-    }
-
-    // Command Palette Logic
     const COMMAND_ITEMS = [
-      { label: '↑ Push to Cloud Database', desc: 'Sync local database state to remote target', icon: '↑', action: () => { toggleCommandPalette(); doAction('push', 'Pushing to Cloud...', '↑ Push to Cloud'); } },
-      { label: '↓ Fetch from Cloud Database', desc: 'Pull remote database state to local PostgreSQL', icon: '↓', action: () => { toggleCommandPalette(); doAction('fetch', 'Fetching from Cloud...', '↓ Fetch from Cloud'); } },
-      { label: '🩺 Run Doctor System Diagnostic', desc: 'Verify CLI tools, database reachability & scheduler', icon: '🩺', action: () => { toggleCommandPalette(); runDoctorCheck(); } },
-      { label: '🔍 Run Schema Diff Analysis', desc: 'Compare table structures and row count differences', icon: '🔍', action: () => { toggleCommandPalette(); runDiffAnalysis(); } },
-      { label: '⚡ Dry Run Cloud Push', desc: 'Simulate cloud sync without making permanent changes', icon: '⚡', action: () => { toggleCommandPalette(); doAction('push?dry_run=1', 'Simulating push...', '⚡ Dry Run'); } },
-      { label: '📋 Export Environment Variables', desc: 'View and copy export GAET_LOCAL_URL shell statements', icon: '📋', action: () => { toggleCommandPalette(); openExportModal(); } },
-      { label: '👁️ Toggle Sensitive Passwords', desc: 'Show/Mask passwords across forms and active config grid', icon: '👁️', action: () => { toggleCommandPalette(); toggleMasking(); } },
-      { label: '📊 Switch to Overview Tab', desc: 'View stat cards and database schema matrix', icon: '📊', action: () => { toggleCommandPalette(); switchTab('overview'); } },
-      { label: '💾 Switch to Snapshots Tab', desc: 'Manage local database backup snapshots', icon: '💾', action: () => { toggleCommandPalette(); switchTab('snapshots'); } },
-      { label: '🖥️ Switch to Real-Time Logs Tab', desc: 'View live execution output from gaet CLI', icon: '🖥️', action: () => { toggleCommandPalette(); switchTab('logs'); } },
-      { label: '⚙️ Switch to Settings Tab', desc: 'Configure database URIs and scheduler retention', icon: '⚙️', action: () => { toggleCommandPalette(); switchTab('settings'); } },
+      { label: 'Push Cloud Backup', desc: 'Sync local database state to cloud remote', action: () => { toggleCommandPalette(); doAction('push', 'Pushing to Cloud Target...', 'Push Cloud Backup'); } },
+      { label: 'Fetch Cloud DB', desc: 'Pull cloud database state to local PostgreSQL', action: () => { toggleCommandPalette(); doAction('fetch', 'Fetching Cloud State...', 'Fetch Cloud DB'); } },
+      { label: 'Doctor Diagnostic', desc: 'Verify CLI tools & database reachability', action: () => { toggleCommandPalette(); runDoctorCheck(); } },
+      { label: 'Schema Diff Analysis', desc: 'Compare table structures and row counts', action: () => { toggleCommandPalette(); runDiffAnalysis(); } },
+      { label: 'Overview Tab', desc: 'View stat summary and database schema matrix', action: () => { toggleCommandPalette(); switchTab('overview'); } },
+      { label: 'Snapshots Tab', desc: 'Manage local database backup dump files', action: () => { toggleCommandPalette(); switchTab('snapshots'); } },
+      { label: 'CLI Logs Tab', desc: 'View live execution output from gaet CLI', action: () => { toggleCommandPalette(); switchTab('logs'); } },
+      { label: 'Settings Tab', desc: 'Configure database URIs and connection secrets', action: () => { toggleCommandPalette(); switchTab('settings'); } },
     ];
 
-    let selectedCmdIndex = 0;
-
     function toggleCommandPalette() {
-      const modal = document.getElementById('cmdPaletteModal');
+      const modal = document.getElementById('cmdModal');
       if (!modal) return;
       if (modal.style.display === 'flex') {
         modal.style.display = 'none';
       } else {
         modal.style.display = 'flex';
-        const input = document.getElementById('cmdPaletteInput');
+        const input = document.getElementById('cmdInput');
         input.value = '';
-        selectedCmdIndex = 0;
         renderCmdPalette('');
         setTimeout(() => input.focus(), 50);
       }
     }
 
     function renderCmdPalette(filterText) {
-      const container = document.getElementById('cmdPaletteResults');
+      const container = document.getElementById('cmdResults');
       if (!container) return;
       const q = filterText.toLowerCase().trim();
-      const filtered = COMMAND_ITEMS.filter(item => 
-        item.label.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q)
-      );
+      const filtered = COMMAND_ITEMS.filter(item => item.label.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q));
 
       if (filtered.length === 0) {
-        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">No commands found matching "' + filterText + '"</div>';
+        container.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-dim);font-family:var(--font-mono);">No commands found</div>';
         return;
       }
 
-      if (selectedCmdIndex >= filtered.length) {
-        selectedCmdIndex = Math.max(0, filtered.length - 1);
-      }
-
-      container.innerHTML = filtered.map((item, idx) => `
-        <div class="cmd-item" 
-             onclick="COMMAND_ITEMS[${COMMAND_ITEMS.indexOf(item)}].action()"
-             onmouseenter="selectedCmdIndex=${idx}; renderCmdPalette(document.getElementById('cmdPaletteInput').value);"
-             style="padding:10px 14px; border-radius:var(--radius-sm); margin-bottom:4px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:${idx === selectedCmdIndex ? 'rgba(59, 151, 151, 0.2)' : 'transparent'}; border:1px solid ${idx === selectedCmdIndex ? 'var(--border-accent)' : 'transparent'}; transition:all 0.15s ease;">
-          <div style="display:flex; align-items:center; gap:12px;">
-            <span style="font-size:16px;">${item.icon}</span>
-            <div>
-              <div style="font-size:13px; font-weight:600; color:var(--text-primary);">${item.label}</div>
-              <div style="font-size:11px; color:var(--text-muted);">${item.desc}</div>
-            </div>
+      container.innerHTML = filtered.map((item) => `
+        <div onclick="COMMAND_ITEMS[${COMMAND_ITEMS.indexOf(item)}].action()"
+             style="padding:8px 12px; border-radius:var(--radius-sm); margin-bottom:4px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:var(--bg-subtle-card); border:1px solid var(--border-default);">
+          <div>
+            <div style="font-size:12px; font-weight:600; color:var(--text-main); font-family:var(--font-mono);">${item.label}</div>
+            <div style="font-size:11px; color:var(--text-muted);">${item.desc}</div>
           </div>
-          <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">↵ Execute</span>
+          <span style="font-size:10px; color:var(--text-dim); font-family:var(--font-mono);">↵ Run</span>
         </div>
       `).join('');
     }
 
-    function handleCmdPaletteKeydown(e) {
-      const modal = document.getElementById('cmdPaletteModal');
-      if (!modal || modal.style.display !== 'flex') return;
-
-      const input = document.getElementById('cmdPaletteInput');
-      const q = input.value.toLowerCase().trim();
-      const filtered = COMMAND_ITEMS.filter(item => 
-        item.label.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q)
-      );
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        if (filtered.length > 0) {
-          selectedCmdIndex = (selectedCmdIndex + 1) % filtered.length;
-          renderCmdPalette(input.value);
-          scrollCmdItemIntoView();
-        }
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        if (filtered.length > 0) {
-          selectedCmdIndex = (selectedCmdIndex - 1 + filtered.length) % filtered.length;
-          renderCmdPalette(input.value);
-          scrollCmdItemIntoView();
-        }
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        if (filtered.length > 0 && selectedCmdIndex < filtered.length) {
-          filtered[selectedCmdIndex].action();
-        }
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        toggleCommandPalette();
-      }
-    }
-
-    function scrollCmdItemIntoView() {
-      const container = document.getElementById('cmdPaletteResults');
-      if (!container) return;
-      const activeItem = container.children[selectedCmdIndex];
-      if (activeItem) {
-        activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    }
-
-    // Global Keyboard Shortcuts Navigation
+    // Hotkeys Navigation — Keyboard-Centric Flow
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        const activeModals = document.querySelectorAll('.modal-backdrop');
-        let closedAny = false;
-        activeModals.forEach(m => {
-          if (m.style.display && m.style.display !== 'none') {
-            m.style.display = 'none';
-            closedAny = true;
-          }
-        });
-        if (closedAny) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        if (e.key === 'Escape') document.activeElement.blur();
+        return;
+      }
+
+      // Check if any modal is visible
+      const openModal = Array.from(document.querySelectorAll('.modal-overlay')).find(m => m.style.display === 'flex');
+      if (openModal) {
+        if (e.key === 'Escape' || e.key === 'Enter') {
+          e.preventDefault();
+          openModal.style.display = 'none';
+        }
+        return;
       }
 
       if ((e.altKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -2226,29 +2460,22 @@
         return;
       }
 
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable) return;
-
-      const k = e.key.toLowerCase();
-
-      if ((e.altKey && (k === '1' || k === 'o')) || k === '1') {
+      if (e.key === '/') {
         e.preventDefault();
         switchTab('overview');
-      } else if ((e.altKey && (k === '2' || k === 's')) || k === '2') {
-        e.preventDefault();
-        switchTab('snapshots');
-      } else if ((e.altKey && (k === '3' || k === 'l')) || k === '3') {
-        e.preventDefault();
-        switchTab('logs');
-      } else if ((e.altKey && (k === '4' || k === 'e')) || k === '4') {
-        e.preventDefault();
-        switchTab('settings');
-      } else if (e.altKey && k === 'd') {
-        e.preventDefault();
-        runDoctorCheck();
-      } else if (e.altKey && k === 'r') {
-        e.preventDefault();
-        fetchFullStatus(true);
+        document.getElementById('tableSearchInput')?.focus();
+        return;
       }
+
+      if (e.key === '1') switchTab('overview');
+      if (e.key === '2') switchTab('snapshots');
+      if (e.key === '3') switchTab('logs');
+      if (e.key === '4') switchTab('settings');
+      if (e.key.toLowerCase() === 'r') fetchFullStatus(true);
+      if (e.key.toLowerCase() === 'p') doAction('push', 'Pushing to Cloud Target...', 'Push Cloud Backup');
+      if (e.key.toLowerCase() === 'f') doAction('fetch', 'Fetching Cloud State...', 'Fetch Cloud DB');
+      if (e.key.toLowerCase() === 'd') runDoctorCheck();
+      if (e.key.toLowerCase() === 's') runDiffAnalysis();
     });
 
     // Auto-poll status
@@ -2256,4 +2483,5 @@
     setInterval(fetchFullStatus, 4000);
   </script>
 </body>
+
 </html>

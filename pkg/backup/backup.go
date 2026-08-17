@@ -37,9 +37,9 @@ func RunPush(opts PushOptions) error {
 	if opts.DryRun {
 		core.BoxTitle("gaet push --dry-run")
 		core.BoxSection("Simulation Details")
-		core.StatusArrow(fmt.Sprintf("Source: %s@%s:%s/%s", u, h, p, n))
+		core.StatusArrow(fmt.Sprintf("Source: %s", core.FormatConnTarget(u, h, p, n)))
 		if parsed != nil {
-			core.StatusArrow(fmt.Sprintf("Target: %s@%s:%s/%s", parsed.User, parsed.Host, parsed.Port, parsed.DB))
+			core.StatusArrow(fmt.Sprintf("Target: %s", core.FormatConnTarget(parsed.User, parsed.Host, parsed.Port, parsed.DB)))
 		} else {
 			core.StatusWarn("Target: Cloud not configured")
 		}
@@ -67,8 +67,8 @@ func RunPush(opts PushOptions) error {
 		Category: "BACKUP",
 		Action:   "PUSH",
 		Status:   "STARTED",
-		Message:  fmt.Sprintf("Push started: %s@%s:%s/%s", u, h, p, n),
-		Details:  map[string]interface{}{"host": h, "port": p, "database": n},
+		Message:  fmt.Sprintf("Push started: %s", core.FormatConnTarget(u, h, p, n)),
+		Details:  map[string]interface{}{"host": core.CleanHost(h), "port": p, "database": n},
 	})
 	core.BoxTitle("gaet push")
 
@@ -77,12 +77,23 @@ func RunPush(opts PushOptions) error {
 	timestamp := time.Now().Format("20060102_150405")
 	backupFile := filepath.Join(backupDir, "gaet_"+timestamp+".dump")
 
-	core.StatusInfo(fmt.Sprintf("Dumping local database %s@%s:%s/%s...", u, h, p, n))
+	core.StatusInfo(fmt.Sprintf("Dumping local database %s...", core.FormatConnTarget(u, h, p, n)))
 	envLocal := core.PGEnv(u, w, "")
 	_, errOut, rc := core.RunCmdSimple(tools.PgDump,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n,
 			"--format=custom", "--compress=9", "--file=" + backupFile},
 		envLocal, timeout)
+	if (rc != 0 || !fileExists(backupFile)) && w == "" {
+		fbArgs := []string{"-w", "-p", p, "-U", u, "-d", n,
+			"--format=custom", "--compress=9", "--file=" + backupFile}
+		_, fbErrOut, fbRc := core.RunCmdSimple(tools.PgDump, fbArgs, envLocal, timeout)
+		if fbRc == 0 && fileExists(backupFile) {
+			rc = 0
+			errOut = ""
+		} else if fbErrOut != "" {
+			errOut = fbErrOut
+		}
+	}
 	if rc != 0 || !fileExists(backupFile) {
 		os.Remove(backupFile)
 		return core.Die(fmt.Sprintf("Local dump failed: %s", errOut), core.ExitLocalDown)
@@ -99,7 +110,7 @@ func RunPush(opts PushOptions) error {
 	}
 
 	ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
-	core.StatusInfo(fmt.Sprintf("Syncing to cloud %s@%s:%s/%s...", parsed.User, parsed.Host, parsed.Port, parsed.DB))
+	core.StatusInfo(fmt.Sprintf("Syncing to cloud %s...", core.FormatConnTarget(parsed.User, parsed.Host, parsed.Port, parsed.DB)))
 
 	if ok, errMsg := resetTargetObjects(tools.Psql, parsed.Host, parsed.Port, parsed.User, parsed.DB, parsed.Password, ssl); !ok {
 		return core.Die(fmt.Sprintf("Failed to clean cloud database: %s", errMsg), core.ExitCloudDown)
@@ -116,13 +127,14 @@ func RunPush(opts PushOptions) error {
 	}
 	core.StatusOK("Synchronization complete!")
 	applyRetention(env, backupDir)
-	core.StatusOK(fmt.Sprintf("Push complete — %.1f MB synced to %s@%s/%s", sizeMB, parsed.User, parsed.Host, parsed.DB))
+	cleanTarget := core.FormatConnTarget(parsed.User, parsed.Host, parsed.Port, parsed.DB)
+	core.StatusOK(fmt.Sprintf("Push complete — %.1f MB synced to %s", sizeMB, cleanTarget))
 	core.WriteJSONLog(core.LogEntry{
 		Level:    "INFO",
 		Category: "BACKUP",
 		Action:   "PUSH",
 		Status:   "SUCCESS",
-		Message:  fmt.Sprintf("Push complete — %.1f MB synced to %s@%s/%s", sizeMB, parsed.User, parsed.Host, parsed.DB),
+		Message:  fmt.Sprintf("Push complete — %.1f MB synced to %s", sizeMB, cleanTarget),
 		Details:  map[string]interface{}{"size_mb": sizeMB, "snapshot": filepath.Base(backupFile)},
 	})
 
@@ -157,11 +169,11 @@ func RunFetch(opts FetchOptions) error {
 	if opts.DryRun {
 		core.BoxTitle("gaet fetch --dry-run")
 		if parsed != nil {
-			core.StatusArrow(fmt.Sprintf("Cloud: %s@%s:%s/%s", parsed.User, parsed.Host, parsed.Port, parsed.DB))
+			core.StatusArrow(fmt.Sprintf("Cloud: %s", core.FormatConnTarget(parsed.User, parsed.Host, parsed.Port, parsed.DB)))
 		} else {
 			core.StatusWarn("Cloud: not configured")
 		}
-		core.StatusArrow(fmt.Sprintf("Local: %s@%s:%s/%s", u, h, p, n))
+		core.StatusArrow(fmt.Sprintf("Local: %s", core.FormatConnTarget(u, h, p, n)))
 		core.StatusInfo("Dry-run: no changes will be made")
 		return nil
 	}
@@ -176,7 +188,7 @@ func RunFetch(opts FetchOptions) error {
 		if !core.IsStdinTTY() {
 			return core.Die("gaet fetch in non-interactive mode requires --yes flag", core.ExitConfig)
 		}
-		core.StatusWarn(fmt.Sprintf("WARNING: This will OVERWRITE local database '%s@%s:%s/%s'!", u, h, p, n))
+		core.StatusWarn(fmt.Sprintf("WARNING: This will OVERWRITE local database '%s'!", core.FormatConnTarget(u, h, p, n)))
 		ans := core.SafeInput("  Type 'yes' to proceed: ", "")
 		if strings.ToLower(strings.TrimSpace(ans)) != "yes" {
 			core.Echo("  Fetch cancelled.")
@@ -225,6 +237,16 @@ func RunFetch(opts FetchOptions) error {
 	_, errOut3, rc3 := core.RunCmdSimple(tools.PgRestore,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, fetchFile},
 		envLocal, timeout)
+	if rc3 != 0 && w == "" {
+		fbArgs := []string{"-w", "-p", p, "-U", u, "-d", n, fetchFile}
+		_, fbErrOut3, fbRc3 := core.RunCmdSimple(tools.PgRestore, fbArgs, envLocal, timeout)
+		if fbRc3 == 0 {
+			rc3 = 0
+			errOut3 = ""
+		} else if fbErrOut3 != "" {
+			errOut3 = fbErrOut3
+		}
+	}
 	os.Remove(fetchFile)
 
 	if rc3 != 0 {
@@ -351,6 +373,16 @@ func RunRestore(opts RestoreOptions) error {
 	_, errOut, rc := core.RunCmdSimple(tools.PgRestore,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, target},
 		envLocal, timeout)
+	if rc != 0 && w == "" {
+		fbArgs := []string{"-w", "-p", p, "-U", u, "-d", n, target}
+		_, fbErrOut, fbRc := core.RunCmdSimple(tools.PgRestore, fbArgs, envLocal, timeout)
+		if fbRc == 0 {
+			rc = 0
+			errOut = ""
+		} else if fbErrOut != "" {
+			errOut = fbErrOut
+		}
+	}
 
 	if rc != 0 {
 		return core.Die(fmt.Sprintf("Restore failed (rc=%d): %s", rc, lastNLines(errOut, 3)), core.ExitGeneral)
@@ -408,6 +440,14 @@ func RunPushCron() error {
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n,
 			"--format=custom", "--compress=9", "--file=" + cronFile},
 		envLocal, timeout)
+	if (rc != 0 || !fileExists(cronFile)) && w == "" {
+		fbArgs := []string{"-w", "-p", p, "-U", u, "-d", n,
+			"--format=custom", "--compress=9", "--file=" + cronFile}
+		_, _, fbRc := core.RunCmdSimple(tools.PgDump, fbArgs, envLocal, timeout)
+		if fbRc == 0 && fileExists(cronFile) {
+			rc = 0
+		}
+	}
 	if rc != 0 || !fileExists(cronFile) {
 		os.Remove(cronFile)
 		core.AppendCronLog("[cron] Local dump failed!")
@@ -449,6 +489,17 @@ func resetTargetObjects(psql, host, port, user, db, passwd, sslMode string) (boo
 	_, errOut, rc := core.RunCmdSimple(psql,
 		[]string{"-w", "-h", host, "-p", port, "-U", user, "-d", db, "-v", "ON_ERROR_STOP=1", "-c", sql},
 		env, 30*time.Second)
+	if rc != 0 && passwd == "" && (host == "127.0.0.1" || host == "localhost" || strings.HasPrefix(host, "/")) {
+		_, fbErrOut, fbRc := core.RunCmdSimple(psql,
+			[]string{"-w", "-p", port, "-U", user, "-d", db, "-v", "ON_ERROR_STOP=1", "-c", sql},
+			env, 30*time.Second)
+		if fbRc == 0 {
+			return true, ""
+		}
+		if fbErrOut != "" {
+			errOut = fbErrOut
+		}
+	}
 	if rc != 0 {
 		return false, errOut
 	}

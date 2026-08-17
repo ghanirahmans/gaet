@@ -82,19 +82,15 @@ func runCheckInner(env map[string]string, tools core.PGTools, silent bool) map[s
 	h, p, u, n, w := core.GetLocalDB(env)
 	localOK := false
 	if tools.Psql != "" {
-		envDB := core.PGEnv(u, w, "")
-		out, _, rc := core.RunCmdSimple(tools.Psql,
-			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
-			envDB, 5*time.Second)
-		localOK = rc == 0 && strings.TrimSpace(out) == "1"
+		_, localOK = testLocalDB(tools.Psql, h, p, u, n, w, "SELECT 1;", 5*time.Second)
 	}
-	checks["local_db"] = map[string]any{"ok": localOK, "host": h, "port": p, "user": u, "database": n}
+	checks["local_db"] = map[string]any{"ok": localOK, "host": core.CleanHost(h), "port": p, "user": u, "database": n}
 	if localOK {
-		print(func() { core.StatusOK(fmt.Sprintf("Local database %s@%s:%s/%s", u, h, p, n)) })
+		print(func() { core.StatusOK(fmt.Sprintf("Local database %s", core.FormatConnTarget(u, h, p, n))) })
 	} else {
 		result["ok"] = false
-		failedChecks = append(failedChecks, fmt.Sprintf("Local database connection (%s:%s/%s)", h, p, n))
-		print(func() { core.StatusFail(fmt.Sprintf("Cannot connect to local database %s:%s/%s", h, p, n)) })
+		failedChecks = append(failedChecks, fmt.Sprintf("Local database connection (%s)", core.FormatConnTarget(u, h, p, n)))
+		print(func() { core.StatusFail(fmt.Sprintf("Cannot connect to local database %s", core.FormatConnTarget(u, h, p, n))) })
 	}
 
 	// Remote DB
@@ -189,13 +185,9 @@ func RunStatus(opts StatusOptions) error {
 	// Local DB
 	core.BoxSection("Local Database")
 	if tools.Psql != "" {
-		envDB := core.PGEnv(u, w, "")
-		out, _, rc := core.RunCmdSimple(tools.Psql,
-			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
-				"SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"},
-			envDB, 10*time.Second)
-		if rc == 0 {
-			core.StatusOK(fmt.Sprintf("%s tables in local database", strings.TrimSpace(out)))
+		out, ok := testLocalDB(tools.Psql, h, p, u, n, w, "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';", 10*time.Second)
+		if ok {
+			core.StatusOK(fmt.Sprintf("%s tables in local database", out))
 		} else {
 			core.StatusWarn("Local database unavailable")
 		}
@@ -244,14 +236,10 @@ func RunDiff(opts DiffOptions) error {
 	localCount := 0
 	localOK := false
 	if tools.Psql != "" {
-		envDB := core.PGEnv(u, w, "")
-		out, _, rc := core.RunCmdSimple(tools.Psql,
-			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
-				"SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"},
-			envDB, 10*time.Second)
-		if rc == 0 {
+		out, ok := testLocalDB(tools.Psql, h, p, u, n, w, "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';", 10*time.Second)
+		if ok {
 			localOK = true
-			fmt.Sscanf(strings.TrimSpace(out), "%d", &localCount)
+			fmt.Sscanf(out, "%d", &localCount)
 		}
 	}
 
@@ -353,11 +341,7 @@ func RunDoctor(opts DoctorOptions) error {
 	h, p, u, n, w := core.GetLocalDB(env)
 	localOK := false
 	if tools.Psql != "" {
-		envDB := core.PGEnv(u, w, "")
-		out, _, rc := core.RunCmdSimple(tools.Psql,
-			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
-			envDB, 5*time.Second)
-		localOK = rc == 0 && strings.TrimSpace(out) == "1"
+		_, localOK = testLocalDB(tools.Psql, h, p, u, n, w, "SELECT 1;", 5*time.Second)
 	}
 	checks["local_db"] = map[string]any{"ok": localOK, "host": h, "port": p, "user": u, "database": n}
 	if !localOK {
@@ -431,11 +415,8 @@ func CheckLocalDB(env map[string]string, tools core.PGTools) (h, p, u, n, w stri
 		err = core.Die("psql not found", core.ExitTools)
 		return
 	}
-	envDB := core.PGEnv(u, w, "")
-	out, _, rc := core.RunCmdSimple(tools.Psql,
-		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
-		envDB, 5*time.Second)
-	if rc != 0 || strings.TrimSpace(out) != "1" {
+	_, localOK := testLocalDB(tools.Psql, h, p, u, n, w, "SELECT 1;", 5*time.Second)
+	if !localOK {
 		err = core.Die(fmt.Sprintf("Cannot connect to local database %s:%s/%s", h, p, n), core.ExitLocalDown)
 	}
 	return
@@ -445,13 +426,29 @@ func buildStatusJSON(env map[string]string, tools core.PGTools) map[string]any {
 	h, p, u, n, w := core.GetLocalDB(env)
 	result := map[string]any{"local": map[string]any{"host": h, "port": p, "user": u, "db": n}, "ok": false}
 	if tools.Psql != "" {
-		envDB := core.PGEnv(u, w, "")
-		out, _, rc := core.RunCmdSimple(tools.Psql,
-			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", "SELECT 1;"},
-			envDB, 5*time.Second)
-		result["local_ok"] = rc == 0 && strings.TrimSpace(out) == "1"
+		_, localOK := testLocalDB(tools.Psql, h, p, u, n, w, "SELECT 1;", 5*time.Second)
+		result["local_ok"] = localOK
 	}
 	return result
+}
+
+func testLocalDB(psql, host, port, user, db, pass, query string, timeout time.Duration) (string, bool) {
+	envDB := core.PGEnv(user, pass, "")
+	out, _, rc := core.RunCmdSimple(psql,
+		[]string{"-w", "-h", host, "-p", port, "-U", user, "-d", db, "-tAc", query},
+		envDB, timeout)
+	if rc == 0 {
+		return strings.TrimSpace(out), true
+	}
+	if pass == "" && (host == "127.0.0.1" || host == "localhost" || strings.HasPrefix(host, "/")) {
+		fbOut, _, fbRc := core.RunCmdSimple(psql,
+			[]string{"-w", "-p", port, "-U", user, "-d", db, "-tAc", query},
+			envDB, timeout)
+		if fbRc == 0 {
+			return strings.TrimSpace(fbOut), true
+		}
+	}
+	return "", false
 }
 
 func fileExists(path string) bool {
