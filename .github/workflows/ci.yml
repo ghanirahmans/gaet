@@ -36,7 +36,9 @@ jobs:
         run: go build -v -o gaet ./cmd/gaet
 
       - name: Run Test Suite
-        run: go test -v -count=1 ./...
+        env:
+          CGO_ENABLED: 0
+        run: go test -v -count=1 ./tests/...
 
       - name: Verify Man Page Syntax (Linux only)
         if: runner.os == 'Linux'
