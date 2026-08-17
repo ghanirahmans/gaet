@@ -216,6 +216,96 @@ func RunStatus(opts StatusOptions) error {
 	return nil
 }
 
+// DiffOptions holds flags for `gaet diff`.
+type DiffOptions struct {
+	JSON bool
+}
+
+// RunDiff implements `gaet diff` — comparing table counts between local DB and cloud DB.
+func RunDiff(opts DiffOptions) error {
+	env, err := core.LoadEnv(core.EnvFile())
+	if err != nil {
+		return err
+	}
+	tools := core.FindPGTools(env)
+
+	h, p, u, n, w := core.GetLocalDB(env)
+	localCount := 0
+	localOK := false
+	if tools.Psql != "" {
+		envDB := core.PGEnv(u, w, "")
+		out, _, rc := core.RunCmdSimple(tools.Psql,
+			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
+				"SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"},
+			envDB, 10*time.Second)
+		if rc == 0 {
+			localOK = true
+			fmt.Sscanf(strings.TrimSpace(out), "%d", &localCount)
+		}
+	}
+
+	remoteURL := core.GetEnvStr(env, "GAET_REMOTE_URL", "")
+	if remoteURL == "" {
+		remoteURL = core.GetEnvStr(env, "GAET_SUPABASE_URL", "")
+	}
+	cloudCount := 0
+	cloudOK := false
+	parsed, parseErr := core.ParseRemoteURL(remoteURL)
+	if parseErr == nil && tools.Psql != "" {
+		ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
+		envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
+		out, _, rc := core.RunCmdSimple(tools.Psql,
+			[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc",
+				"SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"},
+			envCloud, 10*time.Second)
+		if rc == 0 {
+			cloudOK = true
+			fmt.Sscanf(strings.TrimSpace(out), "%d", &cloudCount)
+		}
+	}
+
+	if opts.JSON {
+		res := map[string]any{
+			"command":  "diff",
+			"local_db": map[string]any{"ok": localOK, "table_count": localCount},
+			"cloud_db": map[string]any{"ok": cloudOK, "table_count": cloudCount},
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(res)
+	}
+
+	core.BoxTitle("gaet diff")
+	if localOK {
+		core.StatusOK(fmt.Sprintf("Local DB: %d tables (%s@%s:%s/%s)", localCount, u, h, p, n))
+	} else {
+		core.StatusWarn(fmt.Sprintf("Local DB: unreachable (%s:%s/%s)", h, p, n))
+	}
+
+	if cloudOK && parsed != nil {
+		core.StatusOK(fmt.Sprintf("Cloud DB: %d tables (%s@%s:%s/%s)", cloudCount, parsed.User, parsed.Host, parsed.Port, parsed.DB))
+	} else if parsed != nil {
+		core.StatusWarn("Cloud DB: unreachable")
+	} else {
+		core.StatusWarn("Cloud DB: not configured")
+	}
+
+	fmt.Println()
+	if localOK && cloudOK {
+		diff := localCount - cloudCount
+		if diff == 0 {
+			core.StatusOK("Local DB and Cloud DB schemas are in sync!")
+		} else if diff > 0 {
+			core.StatusWarn(fmt.Sprintf("Local DB has %d more table(s) than Cloud DB", diff))
+		} else {
+			core.StatusWarn(fmt.Sprintf("Cloud DB has %d more table(s) than Local DB", -diff))
+		}
+	}
+
+	core.PrintDocsFooter()
+	return nil
+}
+
 // DoctorOptions holds flags for `gaet doctor`.
 type DoctorOptions struct {
 	JSON bool
