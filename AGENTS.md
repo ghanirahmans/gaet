@@ -150,3 +150,43 @@ When modifying `install.sh` or `install.ps1`:
   3. CLI Launcher creation (`gaet` / `gaet.cmd`)
   4. Configuration state (`.env`)
   5. PATH verification
+
+---
+
+## 7. Mandatory Architectural & Scaling Principles (Non-Negotiable)
+
+To ensure Gaet remains maintainable, highly readable, and infinitely scalable, all code changes **MUST** strictly comply with the following 6 core architectural constraints:
+
+### 7.1. Zero-Dependency Constraint
+- Core CLI runtime must remain **100% standard library Python 3.8+**.
+- Never introduce third-party PyPI dependencies (`requests`, `rich`, `click`, etc.) to core CLI packages.
+- Future integrations (e.g. S3 uploads, GPG encryption) must rely on standard Python modules (`urllib.request`, `subprocess`, `hashlib`) or optional subprocess tool detection with graceful degradation.
+
+### 7.2. Strict Subcommand & Business Logic Isolation
+- Subcommand modules in `src/gaet/` must never import business logic directly from sibling subcommand modules.
+- Shared utilities, configuration getters, subprocess wrappers, and status formatters **MUST** reside in `src/gaet/core.py` or dedicated helper modules (`detect.py`, `registry.py`).
+
+### 7.3. Empathetic Error Handling & Fail-Safe Defaults
+- Never display raw Python tracebacks to end users unless `--debug` is explicitly supplied.
+- Every error message must be formatted via `status_fail()` or `die()` and must contain:
+  1. **Clear Problem Description**: What failed.
+  2. **Contextual Rationale**: Why it failed.
+  3. **Actionable Remediation Hint**: Exact CLI command or setting to fix the issue.
+  4. **Documentation / Troubleshooting Link**: Pointing to docs or `TROUBLESHOOTING.md`.
+
+### 7.4. Scripting & CI/CD First-Class Support
+Every CLI command MUST respect global flags:
+- `--json`: Output machine-readable JSON payloads for automation.
+- `--plain` / Non-TTY stdout: Automatically strip ANSI colors and formatting.
+- `--quiet` (`-q`): Suppress non-error output.
+- `--yes` (`-y`): Auto-confirm interactive prompts in automated CI/CD pipelines.
+
+### 7.5. Test-Driven Development (TDD) & Regression Prevention
+- Every new feature, bug fix, or CLI flag **MUST** include corresponding unit tests in `tests/`.
+- Unit tests must be fast, completely self-contained, and mock external system calls (`pg_dump`, network calls).
+- Pipeline invariant: `python3 -m unittest discover -s tests -v` **MUST** pass 100% with 0 errors before any commit or merge.
+
+### 7.6. Cross-Platform Path Invariance
+- Never hardcode POSIX slashes (`/`) or Windows backslashes (`\`) directly in string paths.
+- Always use `pathlib.Path` or `os.path.join()` for cross-platform filesystem operations.
+
