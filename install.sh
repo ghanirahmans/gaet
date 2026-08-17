@@ -39,6 +39,7 @@ mkdir -p "$GAET_CONFIG"
 rm -rf "$HOME/.local/share/gaet" 2>/dev/null || true
 
 # ── 3. Install binary ──────────────────────────────────────────────────────
+rm -f "$GAET_BIN_DIR/gaet" 2>/dev/null || true
 # If running in local repository or go toolchain is available, build directly
 if [ -f "go.mod" ] && command -v go &>/dev/null; then
     echo "  [INFO]  Building gaet binary from source..."

@@ -349,11 +349,15 @@ func runUninstall(args []string) error {
 		core.StatusOK(fmt.Sprintf("Removed app bundle: %s", appDir))
 	}
 
-	// Remove user data
+	// Remove user data unless --save is specified
 	gaetDir := core.GaetDir()
-	if _, err := os.Stat(gaetDir); err == nil {
-		os.RemoveAll(gaetDir)
-		core.StatusOK(fmt.Sprintf("Removed user data: %s", gaetDir))
+	if !save {
+		if _, err := os.Stat(gaetDir); err == nil {
+			os.RemoveAll(gaetDir)
+			core.StatusOK(fmt.Sprintf("Removed user data: %s", gaetDir))
+		}
+	} else {
+		core.StatusOK(fmt.Sprintf("Preserved user data & backups: %s", gaetDir))
 	}
 
 	fmt.Println()
