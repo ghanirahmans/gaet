@@ -49,3 +49,13 @@ Gaet aims to evolve from a zero-dependency CLI database backup tool into the **d
 ### Phase 9: Developer Ecosystem & IDE Integrations
 - [ ] **Official GitHub Action (`ghanirahmans/gaet-action@v1`)**: Pre-built CI/CD step for database backups prior to automated deployment or migration tasks.
 - [ ] **VS Code Extension**: Lightweight extension for monitoring Gaet status, triggering backups, and launching `gaet serve` directly inside VS Code.
+
+### Phase 10: Next-Gen Peer-to-Peer & High-Availability Engine
+- [ ] **P2P Machine-to-Machine DB Clone (`gaet clone <peer>`)**: Direct encrypted database streaming between developer machines over Tailscale/WireGuard or LAN without cloud intermediaries.
+- [ ] **Continuous WAL Replication & Point-In-Time Recovery (PITR)**: Write-Ahead Log (WAL) archiving for second-accurate database restoration before incidents occur.
+- [ ] **Mobile PWA & Push Notifications (`gaet serve`)**: Progressive Web App dashboard with real-time push alerts to mobile devices on backup status.
+
+### Phase 11: Compliance, Intelligence & Multi-Engine Bridge
+- [ ] **Cryptographic Verification & Attestation (`gaet verify`)**: Digital GPG/SSH signature signing for backup dumps to provide tamper-proof compliance audit trails.
+- [ ] **Automated Index & Schema Optimizer (`gaet optimize`)**: Static analysis of table bloat and query statistics to generate `CREATE INDEX` recommendations.
+- [ ] **Cross-Database Migration Bridge (`gaet export --to-sqlite`)**: Data format translation engine for migrating legacy DBs or seeding SQLite for local testing.
