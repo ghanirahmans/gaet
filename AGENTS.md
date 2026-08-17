@@ -77,3 +77,18 @@ go build -ldflags="-s -w" -o gaet ./cmd/gaet
 2. **Strict Subcommand Isolation**: Subcommand packages in `pkg/` interact via shared utilities in `pkg/core`.
 3. **CI/CD First-Class Support**: Every command must support `--json`, `--plain`, `-q/--quiet`, and `-y/--yes`.
 4. **Cross-Platform Invariance**: Always use `filepath.Join` or `os.PathSeparator`.
+
+---
+
+## 6. Git Branching & Release Strategy
+
+| Branch | Platform Engine | Maintenance Mode | Purpose |
+| :--- | :--- | :--- | :--- |
+| **`main`** | **Golang** | **Active Development** | Daily active development for new Go features and enhancements. |
+| **`lts/v1.1`** | **Golang** | **LTS Active (v1.1.x)** | Stable production release branch for Go v1.1.x series. Receives patch fixes. |
+| **`lts/v1.0`** | **Python** | **Maintenance Only** | Legacy Python release branch (v1.0.x). Receives critical security patches only until Aug 2027. |
+
+### Development Workflow Rules
+- **New Features**: Always branch off and merge into **`main`** (Golang).
+- **Go LTS Bug Fixes**: Apply patch fixes to **`lts/v1.1`**, then merge/cherry-pick into **`main`**.
+- **Legacy Python Security Fixes**: Apply fixes directly to **`lts/v1.0`** only (do NOT merge Python code into Go branches).
