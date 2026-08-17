@@ -83,3 +83,9 @@ Gaet aims to evolve from a zero-dependency CLI database backup tool into the **d
 - [ ] **Extensible Plugin Architecture (`gaet plugin`)**: Standard-library-based hook and plugin system for third-party storage adapters, notification channels, and data transformers.
 - [ ] **Geo-Redundant Multi-Cloud Mirroring**: Parallel backup mirroring across multiple international cloud regions and providers.
 - [ ] **Interactive Terminal UI (`gaet tui`)**: Rich curses-based text interface for SSH power users to inspect snapshots, logs, and sync status without starting a web server.
+
+### Phase 16: Cloud Native Kubernetes Operator & Ransomware Defense
+- [ ] **Autonomous Anti-Ransomware Daemon (`gaet watch --anti-ransomware`)**: Real-time entropy and anomaly monitoring daemon that locks snapshots and sends emergency alerts during sudden row wipes or encryption attacks.
+- [ ] **Kubernetes Native Operator & CRD (`GaetBackup`)**: Declarative Kubernetes Operator supporting custom resource definitions for automated cloud-native backup management.
+- [ ] **Multi-Database Cluster Management (`gaet cluster`)**: Centralized single-CLI control plane for managing dozens of PostgreSQL databases simultaneously.
+- [ ] **Storage & Cloud Cost Optimization Advisor (`gaet advisor`)**: Cost optimization engine suggesting retention policy tweaks and compression algorithms to minimize cloud storage bills.
