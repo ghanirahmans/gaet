@@ -113,12 +113,13 @@ func BoxTitle(title string) {
 		return
 	}
 	if IsPlain() {
-		fmt.Printf("\n  ==> %s\n\n", title)
+		fmt.Printf("\n  ==> %s <==\n\n", title)
 		return
 	}
-	fmt.Printf("\n  %s▌%s  %s%s%s\n\n",
+	fmt.Printf("\n  %s▌%s  %s%s%s  %s▌%s\n\n",
 		ColorBCyan, ColorReset,
-		ColorBold, title, ColorReset)
+		ColorBold, title, ColorReset,
+		ColorBCyan, ColorReset)
 }
 
 // BoxSection prints a sub-section header.
