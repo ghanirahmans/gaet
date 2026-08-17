@@ -11,8 +11,6 @@ jobs:
   publish:
     name: Build & Publish SDK to NPM
     runs-on: ubuntu-latest
-    # Skip if NPM_TOKEN secret is not configured
-    if: ${{ secrets.NPM_TOKEN != '' }}
 
     steps:
       - name: Checkout Code
