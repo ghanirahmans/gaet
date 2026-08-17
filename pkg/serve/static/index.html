@@ -977,6 +977,101 @@
       overflow-y: auto;
     }
 
+    /* ── Stepper & Preset Chips ── */
+    .preset-chip {
+      background: var(--bg-element);
+      border: 1px solid var(--border-default);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 6px 13px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s var(--ease-fluid);
+      user-select: none;
+    }
+
+    .preset-chip:hover {
+      background: var(--bg-panel-hover);
+      color: var(--text-main);
+      border-color: var(--gaet-teal);
+    }
+
+    .preset-chip.active {
+      background: var(--gaet-teal-subtle);
+      color: var(--gaet-teal);
+      border-color: var(--gaet-teal);
+      font-weight: 700;
+      box-shadow: 0 0 10px rgba(13, 148, 136, 0.2);
+    }
+
+    .stepper-group {
+      display: flex;
+      align-items: center;
+      background: var(--bg-element);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      padding: 6px 10px;
+      transition: all 0.2s var(--ease-fluid);
+    }
+
+    .stepper-group:focus-within {
+      border-color: var(--gaet-teal);
+      box-shadow: 0 0 0 3px var(--gaet-teal-subtle);
+    }
+
+    .stepper-btn {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-default);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 16px;
+      font-weight: 700;
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s var(--ease-fluid);
+      user-select: none;
+    }
+
+    .stepper-btn:hover {
+      background: var(--gaet-teal);
+      color: #ffffff;
+      border-color: var(--gaet-teal);
+    }
+
+    .stepper-input {
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      width: 60px;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+
+    .stepper-input::-webkit-inner-spin-button,
+    .stepper-input::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .stepper-unit {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
     /* ── Comprehensive Responsive Media Queries ── */
 
     /* Laptops & Medium Screens (max-width: 1024px) */
@@ -1672,7 +1767,7 @@
 
   <!-- Daemon Scheduler Modal -->
   <div id="scheduleModal" class="modal-overlay" onclick="if(event.target===this) closeModal('scheduleModal')">
-    <div class="modal-card" style="max-width: 480px;">
+    <div class="modal-card" style="max-width: 500px;">
       <div class="modal-header">
         <h3>[ AUTO ] Configure Daemon Scheduler</h3>
         <div style="display:flex; align-items:center; gap:6px;">
@@ -1680,21 +1775,39 @@
           <button class="btn btn-xs" onclick="closeModal('scheduleModal')">✕</button>
         </div>
       </div>
-      <div class="modal-body" style="padding: 20px;">
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-          Automate background PostgreSQL snapshots via your operating system's native daemon (systemd / launchd / Task Scheduler).
+      <div class="modal-body" style="padding: 22px;">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5;">
+          Automate background PostgreSQL snapshots via your operating system's native daemon service (systemd / launchd / Task Scheduler).
         </p>
-        <div class="form-group" style="margin-bottom: 20px;">
-          <label class="form-label" for="scheduleHoursInput">Backup Interval (Hours)</label>
-          <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
-            <input type="number" id="scheduleHoursInput" min="1" max="168" value="6" class="form-input" style="font-family:var(--font-mono); font-size:16px; font-weight:600; text-align:center; padding: 10px; width: 120px;" onkeydown="if(event.key==='Enter') applyScheduleFromModal()">
-            <span style="font-size:13px; color:var(--text-muted); font-weight:500;">hours</span>
+        <div class="form-group" style="margin-bottom: 22px;">
+          <label class="form-label" style="font-size: 12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; display:block; color:var(--text-muted);">
+            Backup Interval Rate
+          </label>
+          
+          <!-- Quick Preset Chips -->
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+            <button type="button" class="preset-chip" onclick="setScheduleHours(1)">1h</button>
+            <button type="button" class="preset-chip" onclick="setScheduleHours(3)">3h</button>
+            <button type="button" class="preset-chip active" id="presetChip6" onclick="setScheduleHours(6)">6h (Default)</button>
+            <button type="button" class="preset-chip" onclick="setScheduleHours(12)">12h</button>
+            <button type="button" class="preset-chip" onclick="setScheduleHours(24)">24h (Daily)</button>
           </div>
-          <span class="form-hint" style="margin-top:6px; display:block;">Default: <b>6 hours</b> (Range: 1 – 168 hours). Press <b>Enter</b> to apply immediately.</span>
+
+          <!-- Custom Stepper Controls -->
+          <div class="stepper-group" style="width: 100%; justify-content: space-between;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button type="button" class="stepper-btn" onclick="stepScheduleHours(-1)">−</button>
+              <input type="number" id="scheduleHoursInput" min="1" max="168" value="6" class="stepper-input" oninput="onScheduleHoursChange()" onkeydown="if(event.key==='Enter') applyScheduleFromModal()">
+              <button type="button" class="stepper-btn" onclick="stepScheduleHours(1)">+</button>
+            </div>
+            <span class="stepper-unit">HOURS / CYCLE</span>
+          </div>
+          
+          <span class="form-hint" style="margin-top:10px; display:block; font-size:11.5px;">Range: <b>1 – 168 hours</b> (7 days max). Press <b>Enter</b> to apply immediately.</span>
         </div>
-        <div id="scheduleStatusInfo" class="code-box" style="margin-bottom:20px; padding:10px; font-size:12px; display:none;"></div>
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top: 15px;">
-          <button id="stopSchedulerBtn" class="btn btn-danger" onclick="stopScheduleFromModal()" style="display:none; font-size:12px; padding:6px 12px;">
+        <div id="scheduleStatusInfo" class="code-box" style="margin-bottom:20px; padding:12px; font-size:12px; display:none; border-radius:var(--radius-sm);"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top: 18px;">
+          <button id="stopSchedulerBtn" class="btn btn-danger" onclick="stopScheduleFromModal()" style="display:none; font-size:12px; padding:7px 14px;">
             🛑 Stop Daemon
           </button>
           <div style="display:flex; gap:10px; margin-left:auto;">
@@ -2412,6 +2525,38 @@
       }
     }
 
+    function setScheduleHours(val) {
+      const input = document.getElementById('scheduleHoursInput');
+      if (!input) return;
+      input.value = Math.max(1, Math.min(168, val));
+      onScheduleHoursChange();
+    }
+
+    function stepScheduleHours(delta) {
+      const input = document.getElementById('scheduleHoursInput');
+      if (!input) return;
+      let val = parseInt(input.value) || 6;
+      val = Math.max(1, Math.min(168, val + delta));
+      input.value = val;
+      onScheduleHoursChange();
+    }
+
+    function onScheduleHoursChange() {
+      const input = document.getElementById('scheduleHoursInput');
+      if (!input) return;
+      const val = parseInt(input.value) || 6;
+      const chips = document.querySelectorAll('.preset-chip');
+      chips.forEach(chip => {
+        const text = chip.textContent.trim();
+        const chipHours = parseInt(text);
+        if (chipHours === val) {
+          chip.classList.add('active');
+        } else {
+          chip.classList.remove('active');
+        }
+      });
+    }
+
     async function openScheduleModal() {
       const modal = document.getElementById('scheduleModal');
       const input = document.getElementById('scheduleHoursInput');
@@ -2424,6 +2569,7 @@
         const data = await res.json();
         if (data.ok) {
           input.value = data.hours || 6;
+          onScheduleHoursChange();
           if (data.active) {
             statusBox.style.display = 'block';
             statusBox.innerHTML = `<span style="color:var(--green); font-weight:600;">[ ONLINE ]</span> Daemon active: Every <b>${data.hours}h</b> via <b>${data.scheduler}</b>`;
