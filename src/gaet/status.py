@@ -689,7 +689,7 @@ def cmd_status(args: argparse.Namespace) -> None:
                         synced = lo == re
                         if synced:
                             synced_count += 1
-                        status_icon = f"{G}✓{NC}" if synced else f"{R}✗{NC}"
+                        status_icon = f"{G}YES{NC}" if synced else f"{R}NO{NC}"
                     else:
                         # Cloud not reachable/configured — sync state unknown
                         synced = False

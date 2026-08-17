@@ -76,27 +76,27 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     try:
         if scheduler_is_active(DEF_SERVICE_PREFIX):
             scheduler_disable(DEF_SERVICE_PREFIX)
-            echo(f"    {G}✓{NC} Scheduler stopped")
+            echo(f"    {G}[ OK ]{NC} Scheduler stopped")
         else:
             echo(f"    {D}  Scheduler not active{NC}")
     except Exception as e:
-        echo(f"    {Y}⚠  Scheduler error: {e}{NC}")
+        echo(f"    {Y}[WARN]  Scheduler error: {e}{NC}")
     
     # Stop dashboard
     try:
         if _svc_is_running():
             ok, msg = _svc_stop()
             if ok:
-                echo(f"    {G}✓{NC} Dashboard stopped")
+                echo(f"    {G}[ OK ]{NC} Dashboard stopped")
             else:
-                echo(f"    {Y}⚠  Failed to stop dashboard: {msg}{NC}")
+                echo(f"    {Y}[WARN]  Failed to stop dashboard: {msg}{NC}")
         else:
             echo(f"    {D}  Dashboard not active{NC}")
     except Exception as e:
-        echo(f"    {Y}⚠  Dashboard error: {e}{NC}")
+        echo(f"    {Y}[WARN]  Dashboard error: {e}{NC}")
     
     # ── 2. Disable services ──────────────────────────────────────────
-    echo(f"  {C}▸{NC} Disabling services...")
+    echo(f"  {C}[INFO]{NC} Disabling services...")
     
     if IS_LINUX:
         # Disable systemd services
@@ -106,12 +106,12 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
             svc = f"{prefix}-backup.service"
             
             run_cmd(["systemctl", "--user", "disable", "--now", timer], timeout=10)
-            echo(f"    {G}✓{NC} Timer disabled: {timer}")
+            echo(f"    {G}[ OK ]{NC} Timer disabled: {timer}")
             
             run_cmd(["systemctl", "--user", "disable", "--now", svc], timeout=10)
-            echo(f"    {G}✓{NC} Service disabled: {svc}")
+            echo(f"    {G}[ OK ]{NC} Service disabled: {svc}")
         except Exception as e:
-            echo(f"    {Y}⚠  Disable error: {e}{NC}")
+            echo(f"    {Y}[WARN]  Disable error: {e}{NC}")
     
     elif IS_MACOS:
         # Unload launchd plists
@@ -122,9 +122,9 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
                 if plist_path.exists():
                     run_cmd(["launchctl", "unload", str(plist_path)], timeout=10)
                     plist_path.unlink()
-                    echo(f"    {G}✓{NC} Unloaded: {pattern}")
+                    echo(f"    {G}[ OK ]{NC} Unloaded: {pattern}")
         except Exception as e:
-            echo(f"    {Y}⚠  Unload error: {e}{NC}")
+            echo(f"    {Y}[WARN]  Unload error: {e}{NC}")
     
     elif IS_WINDOWS:
         # Remove Task Scheduler tasks
@@ -132,12 +132,12 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
             _, _, rc = run_cmd(["schtasks", "/Query", "/TN", f"{DEF_SERVICE_PREFIX}-backup"], timeout=10)
             if rc == 0:
                 run_cmd(["schtasks", "/Delete", "/TN", f"{DEF_SERVICE_PREFIX}-backup", "/F"], timeout=10)
-                echo(f"    {G}✓{NC} Task Scheduler removed")
+                echo(f"    {G}[ OK ]{NC} Task Scheduler removed")
         except Exception as e:
-            echo(f"    {Y}⚠  Task removal error: {e}{NC}")
+            echo(f"    {Y}[WARN]  Task removal error: {e}{NC}")
     
     # ── 3. Remove CLI and scripts ────────────────────────────────────
-    echo(f"  {C}▸{NC} Removing gaet CLI...")
+    echo(f"  {C}[INFO]{NC} Removing gaet CLI...")
     
     bin_dir = Path.home() / ".local" / "bin"
     
@@ -146,19 +146,19 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
         bfile = bin_dir / bname
         if bfile.exists():
             bfile.unlink()
-            echo(f"    {G}✓{NC} Removed: {bfile}")
+            echo(f"    {G}[ OK ]{NC} Removed: {bfile}")
     
     # Remove legacy un-isolated directories from ~/.local/bin if present
     for leg in ["scripts", "gaet_pkg", "dashboard", "completions"]:
         leg_dir = bin_dir / leg
         if leg_dir.exists():
             shutil.rmtree(leg_dir, ignore_errors=True)
-            echo(f"    {G}✓{NC} Removed legacy: {leg_dir}")
+            echo(f"    {G}[ OK ]{NC} Removed legacy: {leg_dir}")
 
     # Remove isolated app bundle directory (GAET_APP_DIR)
     if GAET_APP_DIR.exists():
         shutil.rmtree(GAET_APP_DIR, ignore_errors=True)
-        echo(f"    {G}✓{NC} Removed app bundle: {GAET_APP_DIR}")
+        echo(f"    {G}[ OK ]{NC} Removed app bundle: {GAET_APP_DIR}")
         
     # Also clean up legacy ~/.gaet/app if present
     leg_app = GAET_DIR / "app"
@@ -167,7 +167,7 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
     
     # ── 4. Purge mode: remove service files + config ────────────────
     if purge:
-        echo(f"  {C}▸{NC} Removing service files...")
+        echo(f"  {C}[INFO]{NC} Removing service files...")
         
         prefix = DEF_SERVICE_PREFIX
         if IS_LINUX:
@@ -178,12 +178,12 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
                 unit_path = systemd_dir / pattern
                 if unit_path.exists():
                     unit_path.unlink()
-                    echo(f"    {G}✓{NC} Removed: {unit_path}")
+                    echo(f"    {G}[ OK ]{NC} Removed: {unit_path}")
             
             # Reload systemd daemon
             try:
                 run_cmd(["systemctl", "--user", "daemon-reload"], timeout=10)
-                echo(f"    {G}✓{NC} Systemd daemon reloaded")
+                echo(f"    {G}[ OK ]{NC} Systemd daemon reloaded")
             except Exception:
                 pass
         
@@ -195,7 +195,7 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
             # Tasks already removed in step 2
             echo(f"    {D}  Tasks removed{NC}")
         
-        echo(f"  {C}▸{NC} Removing configuration and data...")
+        echo(f"  {C}[INFO]{NC} Removing configuration and data...")
         
         config_dir = GAET_DIR
         if config_dir.exists():
@@ -204,15 +204,15 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
                 backup_path = HOME / f".gaet.backup.{ts}.tar.gz"
                 with tarfile.open(backup_path, "w:gz") as tar:
                     tar.add(str(config_dir), arcname=".gaet")
-                echo(f"    {G}✓{NC} Config archived to: {backup_path}")
+                echo(f"    {G}[ OK ]{NC} Config archived to: {backup_path}")
             shutil.rmtree(config_dir, ignore_errors=True)
-            echo(f"    {G}✓{NC} Removed: {config_dir}")
+            echo(f"    {G}[ OK ]{NC} Removed: {config_dir}")
         else:
             echo(f"    {D}  Config directory not found{NC}")
     
     # ── 5. Summary ───────────────────────────────────────────────────
     echo()
-    echo(f"  {G}✓ Uninstall complete ({mode} mode){NC}")
+    echo(f"  {G}[ OK ] Uninstall complete ({mode} mode){NC}")
     echo()
     if save and backup_path:
         echo(f"  Config archived at: {backup_path.name} (restore: gaet init)")

@@ -182,7 +182,7 @@ def _local_db_menu(detected, cur_host, cur_port, cur_user, cur_db, cur_pass) -> 
                 n = _select_db_from_instance(inst)
                 w = ""
                 host_disp = f"socket:{h}" if h.startswith('/') else h
-                echo(f"  {G}✓{NC} Selected: {u}@{host_disp}:{p}/{n}")
+                echo(f"  {G}[ OK ]{NC} Selected: {u}@{host_disp}:{p}/{n}")
                 return h, p, u, n, w
             else:
                 echo(f"  {R}Invalid number option (choose 1-{num_detected}).{NC}")
@@ -193,7 +193,7 @@ def _local_db_menu(detected, cur_host, cur_port, cur_user, cur_db, cur_pass) -> 
             echo(f"  {Y}Init cancelled by user.{NC}")
             sys.exit(0)
         elif ch == "E" and cur_host:
-            echo(f"  {G}✓{NC} Using current config: {cur_user}@{cur_host}:{cur_port}/{cur_db}")
+            echo(f"  {G}[ OK ]{NC} Using current config: {cur_user}@{cur_host}:{cur_port}/{cur_db}")
             return cur_host, cur_port, cur_user, cur_db, cur_pass
         elif ch == "U":
             return _url_input()
@@ -205,7 +205,7 @@ def _local_db_menu(detected, cur_host, cur_port, cur_user, cur_db, cur_pass) -> 
             u = cur_user or "postgres"
             n = cur_db or "postgres"
             w = cur_pass or ""
-            echo(f"  {G}✓{NC} Selected default: {u}@{h}:{p}/{n}")
+            echo(f"  {G}[ OK ]{NC} Selected default: {u}@{h}:{p}/{n}")
             return h, p, u, n, w
         else:
             echo(f"  {R}Invalid option '{choice}'.{NC}")
@@ -246,14 +246,14 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
     is_interactive = sys.stdin.isatty() and not _is_hermes and not _is_ci
 
     if not is_interactive:
-        echo(f"  {Y}⚠ Non-interactive mode detected — applying configuration.{NC}")
+        echo(f"  {Y}[INFO] Non-interactive mode detected — applying configuration.{NC}")
         echo()
 
         # Preserve existing local DB config if present
         cur_host, cur_port, cur_user, cur_db, cur_pass = get_local_db(env)
         if cur_host:
             h, p, u, n, w = cur_host, cur_port, cur_user, cur_db, cur_pass
-            echo(f"  {G}✓{NC} Preserved existing local DB config: {u}@{h}:{p}/{n}")
+            echo(f"  {G}[ OK ]{NC} Preserved existing local DB config: {u}@{h}:{p}/{n}")
         else:
             # Fallback to detection or 127.0.0.1
             h, p, u, n, w = "127.0.0.1", "5432", "postgres", "postgres", ""
@@ -267,11 +267,11 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
                     p = inst["port"]
                     u = inst["user"]
                     n = inst.get("default_db", "postgres")
-                    echo(f"  {G}✓{NC} Auto-detected local PG: {u}@{h}:{p}/{n}")
+                    echo(f"  {G}[ OK ]{NC} Auto-detected local PG: {u}@{h}:{p}/{n}")
                 else:
-                    echo(f"  {Y}⚠{NC} No local PostgreSQL detected, using default 127.0.0.1:5432")
+                    echo(f"  {Y}[WARN]{NC} No local PostgreSQL detected, using default 127.0.0.1:5432")
             else:
-                echo(f"  {Y}⚠{NC} psql tool not found, using default 127.0.0.1:5432")
+                echo(f"  {Y}[WARN]{NC} psql tool not found, using default 127.0.0.1:5432")
 
         old_remote = env.get("GAET_REMOTE_URL") or env.get("GAET_SUPABASE_URL") or ""
         remote_url = old_remote if old_remote else ""
@@ -292,7 +292,7 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
         preset = PRESETS.get(preset_name.lower())
         if not preset:
             die(f"Preset '{preset_name}' not found. Available presets: {', '.join(PRESETS.keys())}")
-        echo(f"  {C}📋{NC}  Preset: {preset.get('description', preset_name)}")
+        echo(f"  {C}[INFO]{NC} Preset: {preset.get('description', preset_name)}")
 
     # Check PostgreSQL Client Tools
     box_section("PostgreSQL Tools Check")
@@ -357,7 +357,7 @@ def _cmd_init_inner(args: argparse.Namespace) -> None:
         else:
             h = "127.0.0.1"
             p = "5432"
-        echo(f"  {G}✓{NC} Preset target: {u}@{h}:{p}/{n}")
+        echo(f"  {G}[ OK ]{NC} Preset target: {u}@{h}:{p}/{n}")
 
     else:
         # Standard interactive selection
