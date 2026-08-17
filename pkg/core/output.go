@@ -142,10 +142,12 @@ func PrintDocsFooter() {
 	if Quiet {
 		return
 	}
-	fmt.Println()
-	Echo(fmt.Sprintf("  %sDocumentation: %s%s", ColorDim, DocsURL, ColorReset))
-	Echo(fmt.Sprintf("  %sTroubleshooting: %s%s", ColorDim, TroubleshootURL, ColorReset))
-	fmt.Println()
+	if IsPlain() {
+		fmt.Printf("\n  Documentation: %s\n", DocsURL)
+		return
+	}
+	fmt.Printf("\n  %sDocumentation:%s %s%s%s\n",
+		ColorDim, ColorReset, ColorCyan, DocsURL, ColorReset)
 }
 
 // PrintPGToolsInstructions prints OS-specific commands to install PostgreSQL client tools.
