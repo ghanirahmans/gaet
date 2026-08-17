@@ -101,3 +101,9 @@ Gaet aims to evolve from a zero-dependency CLI database backup tool into the **d
 - [ ] **Instant Zero-Copy CoW Branching (`gaet branch <name>`)**: OS-level Copy-on-Write (ZFS/Btrfs/APFS) instant 0.2-second database branching with 0 MB storage overhead.
 - [ ] **Autonomous AI Database Auto-Healer (`gaet heal`)**: Automated live database repair stitching clean snapshot data with uncorrupted WAL logs during crashes or index corruption.
 - [ ] **Hardware-Enforced Confidential Enclave Encryption**: Intel SGX / AWS Nitro Enclaves hardware-isolated encryption preventing memory inspection by root or cloud providers.
+
+### Phase 19: AI Pre-Migration Risk & Sovereign Data Controls
+- [ ] **AI Predictive Schema Migration Risk Assessment (`gaet check-migration`)**: Static analysis of Prisma/TypeORM/Django SQL migration scripts to detect table locks, slow queries, or data loss risks prior to production deployment.
+- [ ] **Geofencing & Data Sovereignty Engine (`gaet sovereign`)**: Strict geographical boundary controls ensuring backup data storage complies with EU GDPR or local data residency laws.
+- [ ] **Interactive Slack & Discord ChatOps Bot**: ChatOps bot allowing teams to trigger backups, check sync status, or restore dev databases directly inside Slack/Discord channels.
+- [ ] **Gamified Terminal CLI & Achievements (`gaet stats --achievements`)**: Gamified badges and CLI statistics rewarding reliable backup habits and fast recovery practices.
