@@ -2,6 +2,16 @@
 
 All notable changes to gaet are documented here.
 
+## [1.1.1] — 2026-08-17
+
+### Added & Improved
+- **Dashboard UI/UX Parity & Aesthetic Polish**: Harmonized light and dark mode color palettes to eliminate harsh grey contrast and align with studio-grade developer tool standards.
+- **Bi-Directional Password & URL Sync**: Typing or editing password/credentials in Settings (`GAET_LOCAL_DB_PASS`) now updates `GAET_LOCAL_URL` in real-time and vice versa.
+- **Masked Password Indicator**: Overview card footers display secure connection strings with password masking (`user:••••••@host:port/db`) for both local and cloud database targets.
+- **Live Process Environment Synchronization**: Saving configuration via web dashboard (`/api/config`) immediately updates live process environment variables (`os.Setenv` / `os.Unsetenv`) in memory without requiring a server restart.
+- **Zero Layout Shift (Stable Scrollbar Gutter)**: Enforced `scrollbar-gutter: stable;` across the dashboard to prevent horizontal layout jumping when content heights change across tabs.
+- **Responsive Navbar System**: Refined navbar breakpoints for desktop, laptop, tablet (4-column grid), and mobile viewports (2x2 grid tabs on small mobile screens).
+
 ## [1.1.0 LTS] — 2026-08-17
 
 Second Long-Term Support (LTS) Release — Complete Golang Engine Migration & UX Stabilization.

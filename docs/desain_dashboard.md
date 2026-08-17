@@ -19,30 +19,31 @@
   5. Monitor live operation logs and auto-backup schedules.
 
 ### Information Architecture
-- **Header**: Branding, Version Badge (`gaet v3.0.2`), Navigation Tabs, Live Status Pulse Pill, Diagnostic Action (`🩺 Doctor Check`), Refresh Action, Theme Switcher (Dark/Light).
-- **Tab 1: Overview**: System Health Banners, Stat Cards (Local DB Size, Cloud DB Size, Total Rows, Backup Count), Table Schema Matrix with per-table Sync Actions, Quick Actions Bar, and Live Activity Log stream.
-- **Tab 2: Snapshots**: Local Snapshot Management Table, Retention Rules Indicator, Download/Restore/Delete actions.
-- **Tab 3: Real-Time Logs**: Full log viewer with live 3-second auto-polling and clear log functionality.
-- **Tab 4: Settings**: Card-based configuration for Local DB, Cloud Target DB, Auto-Backup Retention, Dashboard Port/Host, Diagnostics, Active Environment Grid, and Shell Env Exporter.
+- **Header**: Branding, Version Badge (`gaet v1.1.x`), Navigation Tabs, Live Status Pulse Pill (`[ OK ] Engine Active`), Refresh Action, Theme Switcher (Dark/Light).
+- **Tab 1: Overview**: System Health Banners, Stat Cards (Local DB, Cloud Target, Snapshot Vault, Auto-Backup Daemon), Table Schema Matrix with per-table Sync Actions, Command Hub Bar, and Live Activity Log stream.
+- **Tab 2: Snapshots**: Local Snapshot Dump Vault Table (`~/.gaet/backups`), Filename Search Filter, Create Dump, Restore & Delete actions.
+- **Tab 3: CLI Logs**: Realtime CLI log stream viewer (`~/.gaet/gaet.log`), live filter input, auto-scroll toggle, and copy stream functionality.
+- **Tab 4: Settings**: 2-Way Synced Local DB Config (`GAET_LOCAL_URL` ↔ granular fields), Remote Cloud Target Config, Auto-Backup Retention, PostgreSQL auto-discovery scanner (`fetchAutoDetect`), and Save & Apply.
 
 ---
 
 ## 2. Current UI Architecture
 
-The Gaet Dashboard is purposefully engineered with **zero external JavaScript or CSS framework dependencies** to ensure maximum performance, security, and portability:
+The Gaet Dashboard is purposefully engineered with **zero external JavaScript or CSS framework dependencies** and is embedded directly into the Go single binary via `//go:embed`:
 
 ```text
-dashboard/
-├── server.py              # Lightweight Python stdlib (http.server) API & static file server
-├── static/
-│   └── index.html         # Single-file HTML5 app containing CSS Tokens, Component UI, and Vanilla JS
+pkg/serve/
+├── server.go              # Standard library Go net/http REST API & static file server
+└── static/
+    └── index.html         # Embedded HTML5 app with CSS design tokens, responsive layout, and Vanilla JS
 ```
 
 ### Key Technical Patterns
-- **Styling**: Pure Vanilla CSS using CSS Custom Properties (`:root` for Dark Theme, `[data-theme="light"]` for Light Theme).
-- **Icons**: Clean Unicode emojis and SVG icons matching developer tool aesthetics.
-- **Typography**: Google Fonts (`Inter` for UI typography, `JetBrains Mono` for code snippets, SQL schemas, and tables).
-- **State & Polling**: Native Vanilla JS with `fetch()` API. Auto-polls `/api/status` every 4 seconds and `/api/logs` every 3 seconds.
+- **Embedded Asset Distribution**: Static assets are compiled directly into the executable using Go `//go:embed static/*`.
+- **Default Port**: Served at `http://127.0.0.1:6161` by default (overridable via `--port`).
+- **Styling & Layout**: Pure Vanilla CSS with CSS Custom Properties (`:root` for Dark Theme, `[data-theme="light"]` for Light Theme). `scrollbar-gutter: stable` prevents layout shifts.
+- **Security & Masking**: Sensitive database connection strings display masked password indicators (`user:••••••@host:port/db`) in stat footers.
+- **State & Live Sync**: Native Vanilla JS with `fetch()` API. Saving settings via `/api/config` instantly updates Go process memory (`os.Setenv`) and triggers automatic status re-fetch without requiring server restarts.
 
 ---
 
