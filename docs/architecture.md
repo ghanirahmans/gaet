@@ -718,6 +718,23 @@ def test_command_args_safe():
 
 ---
 
+## 9. Git Branching & Release Strategy
+
+Gaet follows a strict 3-branch strategy to maintain high code quality across Golang active development and legacy Python LTS maintenance:
+
+| Branch | Engine | Maintenance Mode | Purpose |
+| :--- | :--- | :--- | :--- |
+| **`main`** | **Golang** | **Active Development** | Primary target for daily development of new Go features and refactoring. |
+| **`lts/v1.1`** | **Golang** | **LTS Active (v1.1.x)** | Stable production release branch for Golang v1.1.x series. Receives patch fixes. |
+| **`lts/v1.0`** | **Python** | **Maintenance Only** | Legacy Python release branch (v1.0.x). Receives critical security patches only until Aug 2027. |
+
+### Development Rules
+- **New Go Features**: Branch off and merge into **`main`**.
+- **Go LTS Patch Fixes**: Apply fixes directly to **`lts/v1.1`**, then merge into **`main`**.
+- **Legacy Python Patch Fixes**: Apply fixes directly to **`lts/v1.0`** only (do NOT merge Python code into Go branches).
+
+---
+
 ## Conclusion
 
 gaet prioritizes **reliability** and **simplicity** over features. Every architectural decision is made to:
