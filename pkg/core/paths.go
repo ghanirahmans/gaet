@@ -25,8 +25,9 @@ const (
 	DefDashboardPort = 6161
 	DefDashboardHost = "127.0.0.1"
 	DefRemoteSSLMode = "prefer"
-	DefPGTimeout     = 900
-	DefServicePrefix = "gaet"
+	DefPGTimeout      = 900
+	DefPGTimeoutPerGB = 300
+	DefServicePrefix  = "gaet"
 )
 
 // GaetDir returns the user data directory (~/.gaet or $GAET_DIR).
