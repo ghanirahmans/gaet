@@ -81,11 +81,17 @@ def cmd_get(args: argparse.Namespace) -> None:
         show_config_schema()
         return
 
+    if not ENV_FILE.is_file():
+        status_warn(f"No configuration file found at {ENV_FILE}")
+        echo(f"  {D}Run 'gaet init' or 'gaet get --list' to view available keys.{NC}")
+        echo()
+        return
+
     env = load_env()
 
     if not env:
-        status_warn(f"No configuration file found at {ENV_FILE}")
-        echo(f"  {D}Run 'gaet init' or 'gaet get --list' to view available keys.{NC}")
+        status_warn(f"No variables configured in {ENV_FILE}")
+        echo(f"  {D}Run 'gaet init' or 'gaet set KEY=value' to add configuration.{NC}")
         echo()
         return
 
