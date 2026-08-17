@@ -1,8 +1,8 @@
-# gaet (Official TypeScript / JavaScript SDK)
+# @ghanirahmans/gaet (Official TypeScript / JavaScript SDK)
 
 > Official TypeScript & JavaScript client SDK for **Gaet** — Zero-dependency PostgreSQL Database Backup & Cloud Sync CLI & Service.
 
-[![npm version](https://img.shields.io/npm/v/gaet.svg)](https://www.npmjs.com/package/gaet)
+[![npm version](https://img.shields.io/npm/v/@ghanirahmans/gaet.svg)](https://www.npmjs.com/package/@ghanirahmans/gaet)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -10,13 +10,13 @@
 ## Installation
 
 ```bash
-npm install gaet
+npm install @ghanirahmans/gaet
 # or
-pnpm add gaet
+pnpm add @ghanirahmans/gaet
 # or
-yarn add gaet
+yarn add @ghanirahmans/gaet
 # or
-bun add gaet
+bun add @ghanirahmans/gaet
 ```
 
 ---
@@ -38,7 +38,7 @@ gaet serve --auto
 ## Quick Start (Next.js / TypeScript)
 
 ```typescript
-import { gaet } from 'gaet';
+import { gaet } from '@ghanirahmans/gaet';
 
 // 1. Check Database Sync Status
 const status = await gaet.status();
@@ -63,7 +63,7 @@ snapshots.forEach(s => {
 ## Custom Client Configuration
 
 ```typescript
-import { GaetClient } from 'gaet';
+import { GaetClient } from '@ghanirahmans/gaet';
 
 const gaetClient = new GaetClient({
   baseUrl: 'http://127.0.0.1:6161', // Custom REST API endpoint
