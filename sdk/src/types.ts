@@ -21,6 +21,29 @@ export interface GaetClientOptions {
 }
 
 /**
+ * Options for auto-starting the Gaet serve daemon via `startServer()`.
+ */
+export interface GaetStartServerOptions {
+  /**
+   * Custom path to the gaet CLI binary executable.
+   * @default "gaet" (searched in system PATH)
+   */
+  binPath?: string;
+
+  /**
+   * Port for the gaet serve daemon to listen on.
+   * @default 6161
+   */
+  port?: number;
+
+  /**
+   * Environment variables to pass directly to the gaet process (e.g. GAET_REMOTE_URL, GAET_LOCAL_DB_NAME).
+   * Automatically inherits process.env by default.
+   */
+  env?: Record<string, string>;
+}
+
+/**
  * Status check response from `GET /api/status`.
  */
 export interface GaetStatusResponse {

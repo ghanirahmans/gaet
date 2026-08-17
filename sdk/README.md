@@ -5,20 +5,9 @@ Official TypeScript and JavaScript client SDK for **Gaet**, a PostgreSQL databas
 [![npm version](https://img.shields.io/npm/v/@ghanirahmans/gaet.svg)](https://www.npmjs.com/package/@ghanirahmans/gaet)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Architecture
+## How It Works
 
-```text
- ┌───────────────────────────┐      HTTP REST API       ┌───────────────────────────┐
- │   Your Web Application    │   (http://127.0.0.1:6161) │     Gaet Service Daemon   │
- │   (Next.js / React / Node)├─────────────────────────►│     (gaet serve --auto)   │
- └─────────────┬─────────────┘                          └─────────────┬─────────────┘
-               │                                                      │
-               │ import { gaet } from '@ghanirahmans/gaet'             │ PostgreSQL Engine
-               ▼                                                      ▼
-   ┌──────────────────────┐                             ┌───────────────────────────┐
-   │  TypeScript SDK      │                             │ Local DB <---> Cloud Remote│
-   └──────────────────────┘                             └───────────────────────────┘
-```
+This SDK is a lightweight TypeScript client wrapper for the `gaet serve` REST API (running by default at `http://127.0.0.1:6161`). Your web application calls SDK methods like `gaet.push()`, which send HTTP requests to the local Gaet daemon to perform database backups and syncs.
 
 ## Installation
 
@@ -46,13 +35,19 @@ gaet serve --auto
 
 ## Quick Start
 
+### Option A: Auto-Start Server from Code (Recommended for Node.js)
+
 ```typescript
 import { gaet } from '@ghanirahmans/gaet';
 
-// Check connection status
-const status = await gaet.status();
-console.log('Local DB connected:', status.local_ok);
-console.log('Remote Cloud configured:', status.remote_configured);
+// Start daemon with inline environment configuration
+await gaet.startServer({
+  env: {
+    GAET_LOCAL_DB_HOST: '127.0.0.1',
+    GAET_LOCAL_DB_NAME: 'my_app_db',
+    GAET_REMOTE_URL: 'postgresql://postgres:secret@aws.supabase.com:5432/postgres',
+  },
+});
 
 // Trigger a backup to cloud
 const pushResult = await gaet.push();
@@ -60,11 +55,23 @@ if (pushResult.ok) {
   console.log('Backup created:', pushResult.snapshot);
 }
 
-// List local snapshot dumps
-const { snapshots } = await gaet.snapshots();
-snapshots.forEach(s => {
-  console.log(`${s.filename} (${s.size_mb} MB)`);
-});
+// Stop daemon process when app shuts down (optional)
+await gaet.stopServer();
+```
+
+### Option B: Use Existing Background Server
+
+Start `gaet serve` in a terminal or as an OS service (`gaet serve --auto`), then connect directly:
+
+```typescript
+import { gaet } from '@ghanirahmans/gaet';
+
+// Check connection status
+const status = await gaet.status();
+console.log('Local DB connected:', status.local_ok);
+
+// Trigger a backup
+await gaet.push();
 ```
 
 ## Code Examples
@@ -139,6 +146,8 @@ console.log('PostgreSQL tools ok:', checkResult.checks.tools.ok);
 
 | Method | Return Type | Description |
 | :--- | :--- | :--- |
+| `gaet.startServer(options?)` | `Promise<{ ok: boolean; msg: string; pid?: number }>` | Auto-spawns `gaet serve` daemon process from Node.js code if not running. |
+| `gaet.stopServer()` | `Promise<{ ok: boolean; msg: string }>` | Stops the spawned `gaet serve` process. |
 | `gaet.status()` | `Promise<GaetStatusResponse>` | Returns local and cloud database connection status. |
 | `gaet.push()` | `Promise<GaetPushResponse>` | Triggers database backup from local database to cloud remote. |
 | `gaet.fetch()` | `Promise<GaetFetchResponse>` | Fetches cloud database state and restores it locally. |

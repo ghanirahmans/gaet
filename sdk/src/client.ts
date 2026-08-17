@@ -6,6 +6,7 @@ import type {
   GaetLogsResponse,
   GaetPushResponse,
   GaetSnapshotsResponse,
+  GaetStartServerOptions,
   GaetStatusResponse,
 } from './types.js';
 
@@ -18,6 +19,7 @@ export class GaetClient {
   private baseUrl: string;
   private timeout: number;
   private fetchFn: typeof globalThis.fetch;
+  private spawnedProcess: any = null;
 
   constructor(options: GaetClientOptions = {}) {
     this.baseUrl = (options.baseUrl || 'http://127.0.0.1:6161').replace(/\/+$/, '');
@@ -70,6 +72,71 @@ export class GaetClient {
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  /**
+   * Auto-start the gaet serve daemon process directly from Node.js / backend code.
+   *
+   * If gaet serve is already running, this method returns immediately without spawning a duplicate process.
+   */
+  async startServer(options: GaetStartServerOptions = {}): Promise<{ ok: boolean; msg: string; pid?: number }> {
+    // 1. Check if server is already running
+    try {
+      await this.status();
+      return { ok: true, msg: 'Gaet service daemon is already running.' };
+    } catch {
+      // Server is not running, proceed to spawn
+    }
+
+    const binPath = options.binPath || 'gaet';
+    const port = options.port || 6161;
+
+    try {
+      const childProcess = await import('node:child_process');
+      const processEnv = typeof process !== 'undefined' ? process.env : {};
+      const spawnEnv = {
+        ...processEnv,
+        ...(options.env || {}),
+      };
+
+      this.spawnedProcess = childProcess.spawn(binPath, ['serve', '--no-open', '--port', String(port)], {
+        detached: false,
+        stdio: 'ignore',
+        env: spawnEnv as Record<string, string>,
+      });
+
+      // Poll until server responds or 10s timeout
+      const startTime = Date.now();
+      while (Date.now() - startTime < 10000) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        try {
+          await this.status();
+          return { ok: true, msg: 'Gaet serve daemon started successfully.', pid: this.spawnedProcess.pid };
+        } catch {
+          // continue polling
+        }
+      }
+
+      throw new Error(`Failed to verify Gaet serve daemon startup on port ${port} after 10s.`);
+    } catch (err: any) {
+      throw new Error(`Unable to start Gaet serve process: ${err.message}`);
+    }
+  }
+
+  /**
+   * Stop the gaet serve daemon process spawned by startServer().
+   */
+  async stopServer(): Promise<{ ok: boolean; msg: string }> {
+    if (this.spawnedProcess) {
+      try {
+        this.spawnedProcess.kill('SIGTERM');
+        this.spawnedProcess = null;
+        return { ok: true, msg: 'Gaet serve daemon stopped.' };
+      } catch (err: any) {
+        return { ok: false, msg: `Failed to stop process: ${err.message}` };
+      }
+    }
+    return { ok: true, msg: 'No active spawned Gaet process to stop.' };
   }
 
   /**

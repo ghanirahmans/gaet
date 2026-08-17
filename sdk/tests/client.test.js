@@ -38,3 +38,25 @@ test('GaetClient handles mock fetch request', async () => {
   assert.equal(status.db, 'postgres');
   assert.equal(status.remote_configured, true);
 });
+
+test('startServer detects when daemon is already running', async () => {
+  const mockFetch = async (url) => {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ local_ok: true }),
+    };
+  };
+
+  const client = new GaetClient({ fetch: mockFetch });
+  const res = await client.startServer();
+  assert.equal(res.ok, true);
+  assert.equal(res.msg, 'Gaet service daemon is already running.');
+});
+
+test('stopServer gracefully handles unspawned process', async () => {
+  const client = new GaetClient();
+  const res = await client.stopServer();
+  assert.equal(res.ok, true);
+  assert.equal(res.msg, 'No active spawned Gaet process to stop.');
+});
