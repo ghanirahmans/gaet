@@ -12,7 +12,7 @@ from .core import (
 
 CONFIG_CATEGORIES: List[Dict[str, Any]] = [
     {
-        "category": "💾 Local Database",
+        "category": "Local Database",
         "keys": [
             ("GAET_LOCAL_URL", "URL", "Full connection URL (postgresql://user:pass@host:port/db)"),
             ("GAET_LOCAL_DB_HOST", "String", "Host / socket path for PostgreSQL (default: 127.0.0.1)"),
@@ -23,14 +23,14 @@ CONFIG_CATEGORIES: List[Dict[str, Any]] = [
         ],
     },
     {
-        "category": "☁️ Cloud Remote",
+        "category": "Cloud Remote",
         "keys": [
             ("GAET_REMOTE_URL", "URL", "Cloud PostgreSQL URL (Supabase, Neon, RDS, VPS)"),
             ("GAET_REMOTE_SSLMODE", "String", "Cloud SSL connection mode (default: require)"),
         ],
     },
     {
-        "category": "⚙️ Backup & Options",
+        "category": "Backup & Options",
         "keys": [
             ("GAET_RETENTION_DAYS", "Int", "Retention period for local .dump backups in days (default: 7)"),
             ("GAET_PG_TIMEOUT", "Int", "Max timeout in seconds for pg_dump & pg_restore (default: 3600)"),

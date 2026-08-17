@@ -34,7 +34,7 @@ $GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/$commitSha"
 
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║  gaet — Database Backup & Sync CLI                   ║" -ForegroundColor Cyan
+Write-Host "║  gaet - Database Backup & Sync CLI                   ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
@@ -83,13 +83,12 @@ New-Item -ItemType Directory -Force -Path "$GAET_APP_DIR\dashboard\static" | Out
 New-Item -ItemType Directory -Force -Path "$GAET_APP_DIR\dashboard\public" | Out-Null
 
 # ── 4. Download gaet app bundle ───────────────────────────────────────────
-Write-Host "  Downloading gaet bundle..."
 try {
     Invoke-WebRequest -Uri "$GITHUB_RAW/gaet.py" -OutFile "$GAET_APP_DIR\gaet.py" -UseBasicParsing
     Write-Host "  [ OK ]  gaet.py -> $GAET_APP_DIR\gaet.py" -ForegroundColor Green
 } catch {
     Write-Host "  [FAIL]  Could not download gaet.py" -ForegroundColor Red
-    Write-Host "  ✗ Download failed. Check your internet connection."
+    Write-Host "          Download failed. Check your internet connection."
     Write-Host ""
     Read-Host "Press Enter to exit"
     return
@@ -107,7 +106,7 @@ foreach ($f in $pkgFiles) {
     try {
         Invoke-WebRequest -Uri "$GITHUB_RAW/src/gaet/$f" -OutFile "$pkgDir\$f" -UseBasicParsing
     } catch {
-        Write-Host "  ⚠  Failed to download src/gaet/$f" -ForegroundColor Yellow
+        Write-Host "  [FAIL]  Failed to download src/gaet/$f" -ForegroundColor Red
     }
 }
 Write-Host "  [ OK ]  src/gaet -> $GAET_APP_DIR\src\gaet\" -ForegroundColor Green
@@ -118,7 +117,7 @@ foreach ($f in $scripts) {
     try {
         Invoke-WebRequest -Uri "$GITHUB_RAW/scripts/$f" -OutFile "$GAET_APP_DIR\scripts\$f" -UseBasicParsing
     } catch {
-        Write-Host "  ⚠  Failed to download scripts/$f" -ForegroundColor Yellow
+        Write-Host "  [FAIL]  Failed to download scripts/$f" -ForegroundColor Red
     }
 }
 Write-Host "  [ OK ]  scripts -> $GAET_APP_DIR\scripts\" -ForegroundColor Green
@@ -130,7 +129,7 @@ foreach ($f in $compFiles) {
     try {
         Invoke-WebRequest -Uri "$GITHUB_RAW/completions/$f" -OutFile "$compDir\$f" -UseBasicParsing
     } catch {
-        Write-Host "  ⚠  Failed to download completions/$f" -ForegroundColor Yellow
+        Write-Host "  [FAIL]  Failed to download completions/$f" -ForegroundColor Red
     }
 }
 Write-Host "  [ OK ]  completions -> $GAET_APP_DIR\completions\" -ForegroundColor Green
@@ -142,7 +141,7 @@ foreach ($f in $dashboardFiles) {
     try {
         Invoke-WebRequest -Uri "$GITHUB_RAW/dashboard/$f" -OutFile "$dashboardDir\$f" -UseBasicParsing
     } catch {
-        Write-Host "  ⚠  Failed to download dashboard/$f" -ForegroundColor Yellow
+        Write-Host "  [FAIL]  Failed to download dashboard/$f" -ForegroundColor Red
     }
 }
 Write-Host "  [ OK ]  dashboard -> $GAET_APP_DIR\dashboard\" -ForegroundColor Green
@@ -200,7 +199,7 @@ if ($userPath -like "*$GAET_DIR*") {
 # ── 9. Done ───────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║  ✓ Installation complete!                           ║" -ForegroundColor Green
+Write-Host "║     Installation complete!                           ║" -ForegroundColor Green
 Write-Host "╚══════════════════════════════════════════════════════╝" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Next steps:"
