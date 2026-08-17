@@ -9,7 +9,7 @@ import (
 
 const (
 	AppName        = "gaet"
-	Version        = "1.1.0"
+	Version        = "1.1.2"
 	DocsURL        = "https://github.com/ghanirahmans/gaet"
 	TroubleshootURL = "https://github.com/ghanirahmans/gaet/blob/main/docs/troubleshooting.md"
 	GitHubAPI      = "https://api.github.com/repos/ghanirahmans/gaet/releases/latest"

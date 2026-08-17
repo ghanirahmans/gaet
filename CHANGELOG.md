@@ -2,6 +2,15 @@
 
 All notable changes to gaet are documented here.
 
+## [1.1.2] — 2026-08-17
+
+### Added & Improved
+- **Robust Unix Domain Socket Fallback Engine**: Updated `RunPush`, `RunFetch`, `RunRestore`, and `resetTargetObjects` across `pkg/backup`, `pkg/status`, and `pkg/serve` so that all local database operations automatically fall back to Unix domain sockets (peer authentication) whenever TCP connection or password auth fails, regardless of password presence.
+- **Interactive Daemon Auto-Backup Modal (`gaet auto`)**: Added dedicated `[ AUTO ]` configuration modal accessible via header button (`A`), Command Palette, or hotkey `A`. Features quick preset pills (`1h`, `3h`, `6h`, `12h`, `24h`) and studio-grade stepper controls (`−` / `+`).
+- **Keyboard-Centric Hotkeys**: Added shortcut support (`Shift+Delete` / `Alt+X`) with kbd-tag badges for stopping the background daemon service.
+- **Live Daemon Status Card Sync**: Updated `/api/status` endpoint to expose `cron_active`, `cron_hours`, and `scheduler_name` so Overview Card 4 dynamically renders live daemon status (`[ ONLINE ]` / `[ INACTIVE ]`).
+- **NPM TypeScript/JavaScript SDK Release**: Updated `@ghanirahmans/gaet` to **v1.1.7** with updated build artifacts and type definitions.
+
 ## [1.1.1] — 2026-08-17
 
 ### Added & Improved
