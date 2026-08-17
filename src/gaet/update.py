@@ -7,7 +7,7 @@ import time
 import tarfile
 import textwrap
 from datetime import datetime
-from .core import C, D, DEF_SERVICE_PREFIX, G, GAET_DIR, GITHUB_API, GITHUB_RAW, HOME, IS_LINUX, IS_MACOS, IS_WINDOWS, NAME, NC, Path, Y, _gh_download, _raw_download, argparse, box_section, box_title, die, echo, get_env_str, load_env, run_cmd, safe_input, scheduler_disable, scheduler_is_active, shutil, status_arrow, status_fail, status_info, status_ok, status_warn, sys, time
+from .core import C, D, DEF_SERVICE_PREFIX, G, GAET_APP_DIR, GAET_DIR, GITHUB_API, GITHUB_RAW, HOME, IS_LINUX, IS_MACOS, IS_WINDOWS, NAME, NC, Path, Y, _gh_download, _raw_download, argparse, box_section, box_title, die, echo, get_env_str, load_env, run_cmd, safe_input, scheduler_disable, scheduler_is_active, shutil, status_arrow, status_fail, status_info, status_ok, status_warn, sys, time
 from .scheduler import _svc_is_running, _svc_stop
 
 def cmd_install(args: argparse.Namespace) -> None:
@@ -155,11 +155,15 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
             shutil.rmtree(leg_dir, ignore_errors=True)
             echo(f"    {G}✓{NC} Removed legacy: {leg_dir}")
 
-    # Remove isolated app bundle directory ~/.gaet/app
-    app_dir = GAET_DIR / "app"
-    if app_dir.exists():
-        shutil.rmtree(app_dir, ignore_errors=True)
-        echo(f"    {G}✓{NC} Removed app bundle: {app_dir}")
+    # Remove isolated app bundle directory (GAET_APP_DIR)
+    if GAET_APP_DIR.exists():
+        shutil.rmtree(GAET_APP_DIR, ignore_errors=True)
+        echo(f"    {G}✓{NC} Removed app bundle: {GAET_APP_DIR}")
+        
+    # Also clean up legacy ~/.gaet/app if present
+    leg_app = GAET_DIR / "app"
+    if leg_app.exists() and leg_app != GAET_APP_DIR:
+        shutil.rmtree(leg_app, ignore_errors=True)
     
     # ── 4. Purge mode: remove service files + config ────────────────
     if purge:
@@ -222,7 +226,7 @@ def _write_launcher_script(install_dir: Path) -> Path:
     """Create clean single launcher script in ~/.local/bin/gaet."""
     install_dir.mkdir(parents=True, exist_ok=True)
     dst = install_dir / ("gaet.cmd" if IS_WINDOWS else "gaet")
-    app_entry = GAET_DIR / "app" / "gaet.py"
+    app_entry = GAET_APP_DIR / "gaet.py"
     
     if IS_WINDOWS:
         cmd_content = f'@echo off\r\npython "{app_entry}" %*\r\n'
@@ -244,10 +248,10 @@ def _write_launcher_script(install_dir: Path) -> Path:
     return dst
 
 def _update_download(install_dir: Path, skip_build: bool = False) -> None:
-    """Update gaet by downloading files from GitHub into isolated ~/.gaet/app."""
+    """Update gaet by downloading files from GitHub into isolated GAET_APP_DIR."""
     status_info("Downloading latest gaet bundle from GitHub...")
 
-    app_dir = GAET_DIR / "app"
+    app_dir = GAET_APP_DIR
     app_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Main entry shim gaet.py
@@ -409,10 +413,10 @@ def cmd_update(args: argparse.Namespace) -> None:
     else:
         status_ok("Already up to date!")
     
-    # Always sync app bundle to ~/.gaet/app
+    # Always sync app bundle to GAET_APP_DIR
     echo()
     box_section("Installing App Bundle")
-    app_dir = GAET_DIR / "app"
+    app_dir = GAET_APP_DIR
     app_dir.mkdir(parents=True, exist_ok=True)
     
     # 1. Main entry gaet.py

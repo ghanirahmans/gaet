@@ -77,10 +77,10 @@ dl() {
     return 1
 }
 
-GAET_APP_DIR="$GAET_CONFIG/app"
+GAET_APP_DIR="$HOME/.local/share/gaet"
 
-# Clean up legacy un-isolated folders in ~/.local/bin if present
-rm -rf "$GAET_DIR/gaet_pkg" "$GAET_DIR/scripts" "$GAET_DIR/dashboard" "$GAET_DIR/completions" 2>/dev/null || true
+# Clean up legacy un-isolated folders if present
+rm -rf "$GAET_DIR/gaet_pkg" "$GAET_DIR/scripts" "$GAET_DIR/dashboard" "$GAET_DIR/completions" "$GAET_CONFIG/app" 2>/dev/null || true
 
 # ── 3. Create directories ─────────────────────────────────────────────────
 mkdir -p "$GAET_DIR"
@@ -136,7 +136,7 @@ echo " OK ($PKG_OK pkg, $SCRIPTS_OK scripts, $DASH_OK dash)"
 echo -n "  Creating launcher binary..."
 cat > "$GAET_DIR/gaet" << 'EOF'
 #!/usr/bin/env bash
-exec python3 "$HOME/.gaet/app/gaet.py" "$@"
+exec python3 "$HOME/.local/share/gaet/gaet.py" "$@"
 EOF
 chmod +x "$GAET_DIR/gaet"
 echo " OK (~/.local/bin/gaet)"
