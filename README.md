@@ -120,12 +120,18 @@ curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.s
 irm https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.ps1 | iex
 ```
 
-### Method 2: System Package / Source Installation
+### Method 2: Build from Source / Go Toolchain
 
+**Option A: Install via `go install`**
+```bash
+go install github.com/ghanirahmans/gaet/cmd/gaet@latest
+```
+
+**Option B: Clone & Build Binary**
 ```bash
 git clone https://github.com/ghanirahmans/gaet.git
 cd gaet
-pip install -e .
+go build -ldflags="-s -w" -o ~/.local/bin/gaet ./cmd/gaet
 ```
 
 ### Shell Auto-Completion Setup
@@ -160,8 +166,8 @@ gaet completion fish > ~/.config/fish/completions/gaet.fish
   Installs executable symlinks and system service integration.
 - **`gaet update`**  
   Checks and updates the local `gaet` installation to the latest stable release.
-- **`gaet uninstall [--purge]`**  
-  Safely removes binary symlinks and background tasks. Use `--purge` to delete `~/.gaet` data.
+- **`gaet uninstall [--save] [-y]`**  
+  Launches interactive uninstallation wizard (`1` Clean Uninstall, `2` Safe Uninstall, `0` Cancel [default]) to safely remove CLI executable, `.env` config, and local backups.
 
 ### 2. Data Synchronization
 
