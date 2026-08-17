@@ -256,15 +256,21 @@ func dispatch(command string, args []string) error {
 		env, _ := core.LoadEnv(core.EnvFile())
 		port := core.GetEnvInt(env, "GAET_DASHBOARD_PORT", core.DefDashboardPort)
 		host := core.GetEnvStr(env, "GAET_DASHBOARD_HOST", core.DefDashboardHost)
+		noOpen := hasFlag(args, "--no-open")
+		auto := hasFlag(args, "--auto")
 		for i, a := range args {
 			if a == "--port" && i+1 < len(args) {
 				fmt.Sscanf(args[i+1], "%d", &port)
+			} else if strings.HasPrefix(a, "--port=") {
+				fmt.Sscanf(strings.TrimPrefix(a, "--port="), "%d", &port)
 			}
 			if a == "--host" && i+1 < len(args) {
 				host = args[i+1]
+			} else if strings.HasPrefix(a, "--host=") {
+				host = strings.TrimPrefix(a, "--host=")
 			}
 		}
-		return serve.RunServe(serve.ServeOptions{Host: host, Port: port})
+		return serve.RunServe(serve.ServeOptions{Host: host, Port: port, NoOpen: noOpen, Auto: auto})
 
 	// ── log ───────────────────────────────────────────────────────────
 	case "log":
@@ -499,7 +505,7 @@ func printHelp(args []string) {
 		{"export", "Export .env as shell variables"},
 		{"auto", "Enable auto-backup (platform scheduler)"},
 		{"stop", "Stop auto-backup scheduler"},
-		{"serve", "Start web dashboard (port 9191)"},
+		{"serve", "Start web dashboard (port 6161)"},
 		{"log", "View backup history log"},
 		{"completion", "Generate shell autocompletion script"},
 		{"update", "Update to latest version"},
@@ -539,7 +545,7 @@ func printCommandHelp(cmd string) {
 		"set":        "gaet set KEY=value [...]\n  Update configuration variables in .env.",
 		"auto":       "gaet auto [interval_hours]\n  Enable auto-backup scheduler (default: 6h).",
 		"stop":       "gaet stop\n  Stop auto-backup scheduler.",
-		"serve":      "gaet serve [--port=9191] [--host=127.0.0.1]\n  Start embedded web dashboard.",
+		"serve":      "gaet serve [--port=6161] [--host=127.0.0.1] [--no-open] [--auto]\n  Start embedded web dashboard.",
 		"log":        "gaet log [N] [--filter=KW] [--since=DATE] [--follow]\n  View backup log.",
 		"completion": "gaet completion [bash|zsh|fish|powershell]\n  Generate shell autocompletion script.",
 		"init":       "gaet init [--preset=name] [-y/--yes]\n  Interactive first-run setup wizard.",

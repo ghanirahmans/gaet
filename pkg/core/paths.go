@@ -22,7 +22,7 @@ const (
 	DefLocalPass     = ""
 	DefRetentionDays = 7
 	DefAutoInterval  = 6
-	DefDashboardPort = 9191
+	DefDashboardPort = 6161
 	DefDashboardHost = "127.0.0.1"
 	DefRemoteSSLMode = "prefer"
 	DefPGTimeout     = 120
