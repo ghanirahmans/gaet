@@ -187,9 +187,15 @@ def _run_cli() -> None:
     if args.command is None:
         box_title(f"{NAME} {VERSION}")
         echo()
-        if ENV_FILE.is_file():
-            echo(f"  {G}✓ Configuration found.{NC}")
+        env = load_env()
+        if env:
+            echo(f"  {G}✓ Configuration active ({len(env)} variables).{NC}")
             echo(f"  {D}Config file:{NC} {ENV_FILE}")
+            echo()
+        elif ENV_FILE.is_file():
+            echo(f"  {Y}⚠ Configuration file exists but no variables are set.{NC}")
+            echo(f"  {D}Config file:{NC} {ENV_FILE}")
+            echo(f"  {D}Run 'gaet init' to configure database connections.{NC}")
             echo()
         else:
             echo(f"  {Y}Not configured yet.{NC}")
