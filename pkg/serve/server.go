@@ -177,14 +177,14 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 
 	if tools.Psql != "" && localOK {
 		envDB := core.PGEnv(u, ww, "")
+		localCounts := make(map[string]int)
+		catQuery := "SELECT c.relname, c.reltuples::bigint FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY c.relname;"
 		outLocal, _, rcLocal := core.RunCmdSimple(tools.Psql,
-			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc",
-				"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"},
+			[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", catQuery},
 			envDB, 5*time.Second)
 		if rcLocal != 0 && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/") || h == "") {
 			fbOut, _, fbRc := core.RunCmdSimple(tools.Psql,
-				[]string{"-w", "-p", p, "-U", u, "-d", n, "-tAc",
-					"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"},
+				[]string{"-w", "-p", p, "-U", u, "-d", n, "-tAc", catQuery},
 				envDB, 5*time.Second)
 			if fbRc == 0 {
 				rcLocal = 0
@@ -192,24 +192,19 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		localCounts := make(map[string]int)
 		if rcLocal == 0 {
-			tList := filterEmptyLines(strings.Split(strings.TrimSpace(outLocal), "\n"))
-			for _, tbl := range tList {
-				cntStr, _, rcCnt := core.RunCmdSimple(tools.Psql,
-					[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, "-tAc", fmt.Sprintf("SELECT count(*) FROM %s;", tbl)},
-					envDB, 3*time.Second)
-				if rcCnt != 0 && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/") || h == "") {
-					fbCnt, _, fbRc := core.RunCmdSimple(tools.Psql,
-						[]string{"-w", "-p", p, "-U", u, "-d", n, "-tAc", fmt.Sprintf("SELECT count(*) FROM %s;", tbl)},
-						envDB, 3*time.Second)
-					if fbRc == 0 {
-						cntStr = fbCnt
+			lines := filterEmptyLines(strings.Split(strings.TrimSpace(outLocal), "\n"))
+			for _, line := range lines {
+				parts := strings.Split(line, "|")
+				if len(parts) == 2 {
+					tbl := strings.TrimSpace(parts[0])
+					var cnt int
+					fmt.Sscanf(strings.TrimSpace(parts[1]), "%d", &cnt)
+					if cnt < 0 {
+						cnt = 0
 					}
+					localCounts[tbl] = cnt
 				}
-				cnt := 0
-				fmt.Sscanf(strings.TrimSpace(cntStr), "%d", &cnt)
-				localCounts[tbl] = cnt
 			}
 		}
 
@@ -218,21 +213,21 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 			ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
 			envCloud := core.PGEnv(parsed.User, parsed.Password, ssl)
 			outRemote, _, rcRemote := core.RunCmdSimple(tools.Psql,
-				[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc",
-					"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"},
+				[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc", catQuery},
 				envCloud, 5*time.Second)
 			if rcRemote == 0 {
-				tListRemote := filterEmptyLines(strings.Split(strings.TrimSpace(outRemote), "\n"))
-				for _, tbl := range tListRemote {
-					cntStr, _, rcCnt := core.RunCmdSimple(tools.Psql,
-						[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB, "-tAc", fmt.Sprintf("SELECT count(*) FROM %s;", tbl)},
-						envCloud, 3*time.Second)
-					if rcCnt != 0 {
-						cntStr = "0"
+				linesRemote := filterEmptyLines(strings.Split(strings.TrimSpace(outRemote), "\n"))
+				for _, line := range linesRemote {
+					parts := strings.Split(line, "|")
+					if len(parts) == 2 {
+						tbl := strings.TrimSpace(parts[0])
+						var cnt int
+						fmt.Sscanf(strings.TrimSpace(parts[1]), "%d", &cnt)
+						if cnt < 0 {
+							cnt = 0
+						}
+						cloudCounts[tbl] = cnt
 					}
-					cnt := 0
-					fmt.Sscanf(strings.TrimSpace(cntStr), "%d", &cnt)
-					cloudCounts[tbl] = cnt
 				}
 			}
 		}
