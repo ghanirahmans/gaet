@@ -329,42 +329,51 @@ type githubRelease struct {
 	HTMLURL string `json:"html_url"`
 }
 
-func runUpdate(_ []string) error {
+func runUpdate(args []string) error {
+	force := hasFlag(args, "--force") || hasFlag(args, "-f")
 	core.BoxTitle("gaet update")
 	core.StatusInfo(fmt.Sprintf("Current version: gaet v%s", core.Version))
 	core.StatusInfo("Checking for updates from GitHub...")
 
 	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequest("GET", core.GitHubAPI, nil)
+	isNewAvailable := false
+	latestTag := core.Version
+
 	if err == nil {
 		req.Header.Set("User-Agent", "gaet/"+core.Version)
 		resp, err := client.Do(req)
 		if err == nil && resp.StatusCode == http.StatusOK {
 			var rel githubRelease
 			if decodeErr := json.NewDecoder(resp.Body).Decode(&rel); decodeErr == nil {
-				resp.Body.Close()
-				latestTag := strings.TrimPrefix(rel.TagName, "v")
+				latestTag = strings.TrimPrefix(rel.TagName, "v")
 				currentTag := strings.TrimPrefix(core.Version, "v")
-
 				if latestTag != "" && latestTag != currentTag {
-					core.StatusInfo(fmt.Sprintf("New version available: v%s (current: v%s)", latestTag, currentTag))
-					core.StatusInfo("Updating gaet binary...")
-					cmd := exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash")
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
-					if err := cmd.Run(); err != nil {
-						return core.Die(fmt.Sprintf("update failed: %v", err), core.ExitGeneral)
-					}
-					core.StatusOK(fmt.Sprintf("Successfully updated to gaet v%s!", latestTag))
-					core.PrintDocsFooter()
-					return nil
+					isNewAvailable = true
 				}
 			}
 			resp.Body.Close()
 		}
 	}
 
+	if isNewAvailable || force {
+		if isNewAvailable {
+			core.StatusInfo(fmt.Sprintf("New release version available: v%s", latestTag))
+		}
+		core.StatusInfo("Updating gaet binary via installer...")
+		cmd := exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return core.Die(fmt.Sprintf("Update failed: %v", err), core.ExitGeneral)
+		}
+		core.StatusOK("Successfully updated gaet binary!")
+		core.PrintDocsFooter()
+		return nil
+	}
+
 	core.StatusOK(fmt.Sprintf("gaet is already up to date (v%s)", core.Version))
+	core.StatusArrow("Tip: Use 'gaet update --force' to re-install the latest binary from lts/v1.1.")
 	core.PrintDocsFooter()
 	return nil
 }
