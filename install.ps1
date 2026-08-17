@@ -34,7 +34,7 @@ $GITHUB_RAW = "https://raw.githubusercontent.com/ghanirahmans/gaet/$commitSha"
 
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║  gaet — Database Backup & Sync CLI                  ║" -ForegroundColor Cyan
+Write-Host "║  gaet — Database Backup & Sync CLI                   ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
