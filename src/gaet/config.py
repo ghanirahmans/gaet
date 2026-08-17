@@ -91,7 +91,7 @@ def cmd_get(args: argparse.Namespace) -> None:
 
     if not env:
         status_warn(f"No variables configured in {ENV_FILE}")
-        echo(f"  {D}Run 'gaet init' or 'gaet set KEY=value' to add configuration.{NC}")
+        echo(f"  {D}Run 'gaet init', 'gaet set KEY=value', or 'gaet get --list' to view available keys.{NC}")
         echo()
         return
 
