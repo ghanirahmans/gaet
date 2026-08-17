@@ -502,9 +502,13 @@ jobs:
 
 ## 12. Prosedur Rollback & Pemeliharaan LTS
 
-* **Branch `lts/v1.0`**: Tetap dipertahankan sebagai versi **Python 3.8+ LTS** untuk pengguna lama yang memerlukan script Python murni.
-* **Branch `feat/golang-migration`**: Menjadi lokasi aktif untuk pengembangan versi Go hingga siap dirilis sebagai **Gaet V2.0**.
-* **Keamanan Data**: File data pengguna di `~/.gaet` (`.env` dan `backups/*.dump`) **100% kompatibel** antara versi Python (V1) dan versi Go (V2).
+* **Strategi Rilis LTS v1.1.0 (Golang Stable)**:
+  - Branch `feat/golang-migration` (Versi Go) akan dikembangkan dan diuji hingga 100% stabil.
+  - Setelah versi Go ini lulus seluruh test parity dan dinyatakan stabil di lingkungan produksi, versi ini akan **dipromosikan secara langsung sebagai rilis LTS Baru: `lts/v1.1.0`** (serta merge ke `main`).
+* **Branch `lts/v1.0` (Python Standard Baseline)**:
+  - Tetap dipertahankan sebagai versi **Python 3.8+ LTS Baseline** legasi.
+* **Keamanan Data**:
+  - File data pengguna di `~/.gaet` (`.env` dan `backups/*.dump`) **100% kompatibel** antara versi Python (v1.0) dan versi Go (LTS v1.1.0).
 
 ---
 
