@@ -415,7 +415,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     
     # Always sync app bundle to GAET_APP_DIR
     echo()
-    box_section("Installing App Bundle")
+    box_section("Installing gaet Bundle")
     app_dir = GAET_APP_DIR
     app_dir.mkdir(parents=True, exist_ok=True)
     
@@ -423,6 +423,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     if (project_dir / "gaet.py").is_file():
         shutil.copy2(str(project_dir / "gaet.py"), str(app_dir / "gaet.py"))
         (app_dir / "gaet.py").chmod(0o755) if not IS_WINDOWS else None
+        status_ok(f"gaet.py -> {app_dir / 'gaet.py'}")
 
     # 2. Package dir src/gaet
     pkg_src = project_dir / "src" / "gaet"
