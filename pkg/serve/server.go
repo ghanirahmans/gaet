@@ -88,6 +88,7 @@ func RunServe(opts ServeOptions) error {
 	mux.HandleFunc("/api/push", handlePush)
 	mux.HandleFunc("/api/fetch", handleFetch)
 	mux.HandleFunc("/api/restore", handleRestore)
+	mux.HandleFunc("/api/schedule", handleSchedule)
 	mux.HandleFunc("/api/stop", handleStop)
 
 	// ── Static Assets (Embedded) ─────────────────────────────────────────
@@ -842,6 +843,59 @@ func handleStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sendJSON(w, http.StatusOK, map[string]any{"ok": true, "msg": "Auto-backup scheduler stopped successfully!"})
+}
+
+func handleSchedule(w http.ResponseWriter, r *http.Request) {
+	env, _ := core.LoadEnv(core.EnvFile())
+	prefix := core.GetEnvStr(env, "GAET_SERVICE_PREFIX", core.DefServicePrefix)
+
+	switch r.Method {
+	case http.MethodGet:
+		active := scheduler.IsActive(prefix)
+		hours := core.GetEnvInt(env, "GAET_AUTO_BACKUP_HOURS", 6)
+		sendJSON(w, http.StatusOK, map[string]any{
+			"ok":        true,
+			"active":    active,
+			"hours":     hours,
+			"scheduler": scheduler.SchedulerName(),
+		})
+
+	case http.MethodPost:
+		body := readJSONBody(r)
+		hours := 6
+		if hNum, ok := body["hours"].(float64); ok && hNum > 0 {
+			hours = int(hNum)
+		} else if hStr, ok := body["hours"].(string); ok {
+			if n, err := strconv.Atoi(hStr); err == nil && n > 0 {
+				hours = n
+			}
+		}
+
+		_ = core.SetEnvKey(core.EnvFile(), "GAET_AUTO_BACKUP_HOURS", fmt.Sprintf("%d", hours))
+		os.Setenv("GAET_AUTO_BACKUP_HOURS", fmt.Sprintf("%d", hours))
+
+		err := scheduler.EnableAuto(prefix, hours, "")
+		if err != nil {
+			sendJSON(w, http.StatusOK, map[string]any{"ok": false, "msg": fmt.Sprintf("Failed to enable daemon scheduler: %v", err)})
+			return
+		}
+		sendJSON(w, http.StatusOK, map[string]any{
+			"ok":    true,
+			"msg":   fmt.Sprintf("Daemon auto-backup scheduler enabled every %d hours!", hours),
+			"hours": hours,
+		})
+
+	case http.MethodDelete:
+		err := scheduler.DisableAuto(prefix)
+		if err != nil {
+			sendJSON(w, http.StatusOK, map[string]any{"ok": false, "msg": fmt.Sprintf("Failed to stop daemon scheduler: %v", err)})
+			return
+		}
+		sendJSON(w, http.StatusOK, map[string]any{"ok": true, "msg": "Daemon auto-backup scheduler stopped successfully!"})
+
+	default:
+		sendJSON(w, http.StatusMethodNotAllowed, map[string]any{"ok": false, "msg": "Method not allowed"})
+	}
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────

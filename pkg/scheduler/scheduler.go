@@ -14,7 +14,7 @@ import (
 // EnableAuto activates the platform scheduler for gaet auto-backup.
 func EnableAuto(prefix string, intervalHours int, cliPath string) error {
 	core.BoxTitle("gaet auto")
-	core.StatusInfo(fmt.Sprintf("Enabling auto-backup every %d hours (scheduler: %s)...", intervalHours, schedulerName()))
+	core.StatusInfo(fmt.Sprintf("Enabling auto-backup every %d hours (scheduler: %s)...", intervalHours, SchedulerName()))
 
 	switch runtime.GOOS {
 	case "linux":
@@ -31,7 +31,7 @@ func EnableAuto(prefix string, intervalHours int, cliPath string) error {
 // EnableServeAuto activates the platform scheduler for auto-starting gaet serve on OS boot.
 func EnableServeAuto(prefix string, host string, port int, cliPath string) error {
 	core.BoxTitle("gaet serve --auto")
-	core.StatusInfo(fmt.Sprintf("Enabling dashboard auto-start on OS boot (scheduler: %s)...", schedulerName()))
+	core.StatusInfo(fmt.Sprintf("Enabling dashboard auto-start on OS boot (scheduler: %s)...", SchedulerName()))
 
 	if cliPath == "" {
 		cliPath = findExecutablePath()
@@ -363,7 +363,7 @@ func taskSchedulerIsActive(prefix string) bool {
 
 // ─── helpers ──────────────────────────────────────────────────────────────
 
-func schedulerName() string {
+func SchedulerName() string {
 	switch runtime.GOOS {
 	case "linux":
 		return "systemd"

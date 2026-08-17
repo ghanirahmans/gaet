@@ -1276,6 +1276,13 @@
               </svg>
               <span>gaet doctor</span> <span class="kbd-tag">D</span>
             </button>
+            <button class="btn" onclick="openScheduleModal()">
+              <svg class="icon-svg" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>gaet auto</span> <span class="kbd-tag">A</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1659,6 +1666,42 @@
       </div>
       <div class="modal-body">
         <pre id="diffOutput" class="code-box"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daemon Scheduler Modal -->
+  <div id="scheduleModal" class="modal-overlay" onclick="if(event.target===this) closeModal('scheduleModal')">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3>[ AUTO ] Configure Daemon Scheduler</h3>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="kbd-tag" style="font-size:10px;">ESC</span>
+          <button class="btn btn-xs" onclick="closeModal('scheduleModal')">✕</button>
+        </div>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Automate background PostgreSQL snapshots via your operating system's native daemon (systemd / launchd / Task Scheduler).
+        </p>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label class="form-label" for="scheduleHoursInput">Backup Interval (Hours)</label>
+          <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+            <input type="number" id="scheduleHoursInput" min="1" max="168" value="6" class="form-input" style="font-family:var(--font-mono); font-size:16px; font-weight:600; text-align:center; padding: 10px; width: 120px;" onkeydown="if(event.key==='Enter') applyScheduleFromModal()">
+            <span style="font-size:13px; color:var(--text-muted); font-weight:500;">hours</span>
+          </div>
+          <span class="form-hint" style="margin-top:6px; display:block;">Default: <b>6 hours</b> (Range: 1 – 168 hours). Press <b>Enter</b> to apply immediately.</span>
+        </div>
+        <div id="scheduleStatusInfo" class="code-box" style="margin-bottom:20px; padding:10px; font-size:12px; display:none;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top: 15px;">
+          <button id="stopSchedulerBtn" class="btn btn-danger" onclick="stopScheduleFromModal()" style="display:none; font-size:12px; padding:6px 12px;">
+            🛑 Stop Daemon
+          </button>
+          <div style="display:flex; gap:10px; margin-left:auto;">
+            <button class="btn" onclick="closeModal('scheduleModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="applyScheduleFromModal()">⚡ Apply Scheduler (Enter)</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2368,6 +2411,78 @@
       }
     }
 
+    async function openScheduleModal() {
+      const modal = document.getElementById('scheduleModal');
+      const input = document.getElementById('scheduleHoursInput');
+      const statusBox = document.getElementById('scheduleStatusInfo');
+      const stopBtn = document.getElementById('stopSchedulerBtn');
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch('/api/schedule');
+        const data = await res.json();
+        if (data.ok) {
+          input.value = data.hours || 6;
+          if (data.active) {
+            statusBox.style.display = 'block';
+            statusBox.innerHTML = `<span style="color:var(--green); font-weight:600;">[ ONLINE ]</span> Daemon active: Every <b>${data.hours}h</b> via <b>${data.scheduler}</b>`;
+            if (stopBtn) stopBtn.style.display = 'inline-flex';
+          } else {
+            statusBox.style.display = 'block';
+            statusBox.innerHTML = `<span style="color:var(--yellow); font-weight:600;">[ INACTIVE ]</span> Daemon is stopped (System: ${data.scheduler}).`;
+            if (stopBtn) stopBtn.style.display = 'none';
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch schedule state', e);
+      }
+
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 50);
+    }
+
+    async function applyScheduleFromModal() {
+      const input = document.getElementById('scheduleHoursInput');
+      const hours = parseInt(input.value) || 6;
+      showToast('Enabling daemon scheduler...', 'info');
+      try {
+        const res = await fetch('/api/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hours })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          closeModal('scheduleModal');
+          showToast(data.msg || `Daemon scheduler enabled every ${hours}h!`, 'ok');
+          fetchFullStatus(true);
+        } else {
+          showToast(data.msg || 'Failed to enable daemon scheduler', 'err');
+        }
+      } catch (e) {
+        showToast('Error enabling scheduler: ' + e.message, 'err');
+      }
+    }
+
+    async function stopScheduleFromModal() {
+      showToast('Stopping daemon scheduler...', 'info');
+      try {
+        const res = await fetch('/api/schedule', { method: 'DELETE' });
+        const data = await res.json();
+        if (data.ok) {
+          closeModal('scheduleModal');
+          showToast(data.msg || 'Daemon auto-backup stopped', 'ok');
+          fetchFullStatus(true);
+        } else {
+          showToast(data.msg || 'Failed to stop scheduler', 'err');
+        }
+      } catch (e) {
+        showToast('Error stopping scheduler: ' + e.message, 'err');
+      }
+    }
+
     function copyConsoleLogs() {
       const body = document.getElementById('consoleBody');
       if (!body) return;
@@ -2392,6 +2507,7 @@
       { label: 'Push Cloud Backup', desc: 'Sync local database state to cloud remote', action: () => { toggleCommandPalette(); doAction('push', 'Pushing to Cloud Target...', 'Push Cloud Backup'); } },
       { label: 'Fetch Cloud DB', desc: 'Pull cloud database state to local PostgreSQL', action: () => { toggleCommandPalette(); doAction('fetch', 'Fetching Cloud State...', 'Fetch Cloud DB'); } },
       { label: 'Doctor Diagnostic', desc: 'Verify CLI tools & database reachability', action: () => { toggleCommandPalette(); runDoctorCheck(); } },
+      { label: 'Daemon Auto Scheduler', desc: 'Configure background backup interval (systemd/launchd/TaskScheduler)', action: () => { toggleCommandPalette(); openScheduleModal(); } },
       { label: 'Schema Diff Analysis', desc: 'Compare table structures and row counts', action: () => { toggleCommandPalette(); runDiffAnalysis(); } },
       { label: 'Overview Tab', desc: 'View stat summary and database schema matrix', action: () => { toggleCommandPalette(); switchTab('overview'); } },
       { label: 'Snapshots Tab', desc: 'Manage local database backup dump files', action: () => { toggleCommandPalette(); switchTab('snapshots'); } },
@@ -2475,6 +2591,7 @@
       if (e.key.toLowerCase() === 'p') doAction('push', 'Pushing to Cloud Target...', 'Push Cloud Backup');
       if (e.key.toLowerCase() === 'f') doAction('fetch', 'Fetching Cloud State...', 'Fetch Cloud DB');
       if (e.key.toLowerCase() === 'd') runDoctorCheck();
+      if (e.key.toLowerCase() === 'a') openScheduleModal();
       if (e.key.toLowerCase() === 's') runDiffAnalysis();
     });
 
