@@ -16,9 +16,13 @@ Dokumen ini adalah **Spesifikasi Teknikal & Panduan Eksekusi Komprehensif** untu
    - [5.3 Cross-Platform Subprocess & Timeout Runner (`pkg/core/exec.go`)](#53-cross-platform-subprocess--timeout-runner-pkgcoreexecgo)
    - [5.4 Embedded Dashboard Engine (`pkg/serve/embed.go`)](#54-embedded-dashboard-engine-pkgserveembedgo)
 6. [Manajemen Layanan Background (Systemd, Launchd, Task Scheduler)](#6-manajemen-layanan-background-systemd-launchd-task-scheduler)
-7. [Strategi Pengujian (Go Native Testing & Mocking)](#7-strategi-pengujian-go-native-testing--mocking)
-8. [Perencanaan Rilis, Build Pipeline & GitHub Actions](#8-perencanaan-rilis-build-pipeline--github-actions)
-9. [Prosedur Rollback & Pemeliharaan LTS](#9-prosedur-rollback--pemeliharaan-lts)
+7. [Mekanisme Concurrency File Locking & Log Rotation (`pkg/core/lock.go`)](#7-mekanisme-concurrency-file-locking--log-rotation-pkgcorelockgo)
+8. [Keamanan, Masking Password & Sanitasi Terminal](#8-keamanan-masking-password--sanitasi-terminal)
+9. [Generator Autocompletion Shell Native (`pkg/completion`)](#9-generator-autocompletion-shell-native-pkgcompletion)
+10. [Strategi Pengujian & Benchmarking Kinerja (Python vs Go)](#10-strategi-pengujian--benchmarking-kinerja-python-vs-go)
+11. [Perencanaan Rilis, Build Pipeline & GitHub Actions](#11-perencanaan-rilis-build-pipeline--github-actions)
+12. [Prosedur Rollback & Pemeliharaan LTS](#12-prosedur-rollback--pemeliharaan-lts)
+13. [Checklist Task Eksekusi Pengembang (Developer Implementation Roadmap)](#13-checklist-task-eksekusi-pengembang-developer-implementation-roadmap)
 
 ---
 
@@ -64,6 +68,8 @@ gaet/ (Branch: feat/golang-migration)
 │   │   ├── output.go            # ASCII status formatters, ANSI color definitions, Box printers
 │   │   ├── env.go               # .env file reader, writer, and variable parser
 │   │   ├── exec.go              # Subprocess exec runner with timeout & env injection
+│   │   ├── lock.go              # Cross-platform file lock (GAET_DIR/gaet.lock)
+│   │   ├── logger.go            # Structured log writer & auto-rotation (log/slog)
 │   │   ├── errors.go            # Typed error definitions (GaetError, ConfigError, DBError)
 │   │   └── core_test.go         # Core package unit tests
 │   ├── registry/                # Command registration & dispatch engine
@@ -96,6 +102,8 @@ gaet/ (Branch: feat/golang-migration)
 │   ├── serve/                   # Embedded Web Dashboard Server
 │   │   ├── server.go            # net/http server & API endpoints (/api/status, /api/snapshots)
 │   │   └── embed.go             # //go:embed static assets
+│   ├── completion/              # Shell Autocompletion Generator
+│   │   └── completion.go        # Subcommand: gaet completion (bash, zsh, fish, powershell)
 │   ├── log/                     # Log history viewer
 │   │   └── log.go               # Subcommand: gaet log
 │   └── update/                  # Self-updater & Purge engine
@@ -110,8 +118,6 @@ gaet/ (Branch: feat/golang-migration)
 ---
 
 ## 3. Spesifikasi Tipe Data & Struct Utama (Go Domain Models)
-
-Untuk menjamin kejelasan alur data, berikut adalah tipe data domain utama yang akan digunakan di seluruh paket Go:
 
 ```go
 package domain
@@ -144,21 +150,21 @@ type PGInstance struct {
 
 // Snapshot metadata model for local dumps
 type SnapshotFile struct {
-	Name    string    `json:"name"`
-	Path    string    `json:"path"`
-	SizeBytes int64   `json:"size_bytes"`
-	SizeMB   float64   `json:"size_mb"`
-	ModTime  time.Time `json:"mod_time"`
-	IsLatest bool      `json:"is_latest"`
+	Name      string    `json:"name"`
+	Path      string    `json:"path"`
+	SizeBytes int64     `json:"size_bytes"`
+	SizeMB    float64   `json:"size_mb"`
+	ModTime   time.Time `json:"mod_time"`
+	IsLatest  bool      `json:"is_latest"`
 }
 
 // Global execution options passed from CLI flags
 type GlobalOptions struct {
-	JSONOutput bool
+	JSONOutput  bool
 	PlainOutput bool
-	Quiet      bool
-	Yes        bool
-	Debug      bool
+	Quiet       bool
+	Yes         bool
+	Debug       bool
 }
 ```
 
@@ -181,6 +187,7 @@ type GlobalOptions struct {
 | `gaet set` | `src/gaet/config.py` | `pkg/config` | Memperbarui variabel kunci pada `.env`. |
 | `gaet auto` | `src/gaet/scheduler.py` | `pkg/scheduler` | Aktivasi/Deaktivasi Systemd Timer, Launchd Plist, atau Windows Task Scheduler. |
 | `gaet serve` | `src/gaet/serve.py` | `pkg/serve` | Menjalankan HTTP Web Server port 8080 dengan aset frontend embedded (`//go:embed`). |
+| `gaet completion`| `src/gaet/status.py`| `pkg/completion` | Membangkitkan skrip autokomplit terminal (.bash, .zsh, .fish, .ps1). |
 | `gaet log` | `src/gaet/log.py` | `pkg/log` | Membaca & menampilkan isi file log riwayat eksekusi (`GAET_DIR/gaet.log`). |
 | `gaet export` | `src/gaet/export.py` | `pkg/export` | Ekspor data atau konfigurasi dalam format JSON/YAML. |
 | `gaet update` | `src/gaet/update.py` | `pkg/update` | Memeriksa GitHub Releases, mendownload binary baru, dan mengganti binary berjalan. |
@@ -197,10 +204,8 @@ package core
 
 import (
 	"fmt"
-	"os"
 )
 
-// Standardized ANSI color codes (disabled automatically if --plain or non-TTY)
 var (
 	ColorReset  = "\033[0m"
 	ColorRed    = "\033[31m"
@@ -211,27 +216,22 @@ var (
 	ColorBold   = "\033[1m"
 )
 
-// Print standard ASCII status OK tag
 func StatusOK(msg string) {
 	fmt.Printf("  %s[ OK ]%s  %s\n", ColorGreen, ColorReset, msg)
 }
 
-// Print standard ASCII status FAIL tag
 func StatusFail(msg string) {
 	fmt.Printf("  %s[FAIL]%s  %s\n", ColorRed, ColorReset, msg)
 }
 
-// Print standard ASCII status WARN tag
 func StatusWarn(msg string) {
 	fmt.Printf("  %s[WARN]%s  %s\n", ColorYellow, ColorReset, msg)
 }
 
-// Print standard ASCII status INFO tag
 func StatusInfo(msg string) {
 	fmt.Printf("  %s[INFO]%s  %s\n", ColorCyan, ColorReset, msg)
 }
 
-// Print standard ASCII status NOTE tag
 func StatusNote(label, value string) {
 	fmt.Printf("  %s[NOTE]%s  %-15s %s\n", ColorDim, ColorReset, label+":", value)
 }
@@ -251,14 +251,13 @@ import (
 	"strings"
 )
 
-// LoadEnv reads a .env file and parses key-value pairs into a map
 func LoadEnv(filePath string) (map[string]string, error) {
 	envMap := make(map[string]string)
 
 	file, err := os.Open(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return envMap, nil // Return empty map if file doesn't exist yet
+			return envMap, nil
 		}
 		return nil, fmt.Errorf("failed to open env file: %w", err)
 	}
@@ -268,13 +267,12 @@ func LoadEnv(filePath string) (map[string]string, error) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
-			continue // Skip comments and empty lines
+			continue
 		}
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) == 2 {
 			key := strings.TrimSpace(parts[0])
 			val := strings.TrimSpace(parts[1])
-			// Strip quotes if present
 			val = strings.Trim(val, `"'`)
 			envMap[key] = val
 		}
@@ -305,14 +303,12 @@ type ExecResult struct {
 	ExitCode int
 }
 
-// RunCmd executes an external command with timeout and environment variable injection
 func RunCmd(ctx context.Context, name string, args []string, env map[string]string, timeout time.Duration) (*ExecResult, error) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(timeoutCtx, name, args...)
 	
-	// Inject custom environment variables (e.g. PGPASSWORD)
 	if len(env) > 0 {
 		cmd.Env = exec.Command(name).Environ()
 		for k, v := range env {
@@ -355,12 +351,9 @@ import (
 	"net/http"
 )
 
-// Go embed directive wrapping all frontend assets in dashboard/static
-//
 //go:embed static/*
 var embeddedAssets embed.FS
 
-// GetFileSystem returns an http.FileSystem backed by the embedded static assets
 func GetFileSystem() (http.FileSystem, error) {
 	subFS, err := fs.Sub(embeddedAssets, "static")
 	if err != nil {
@@ -387,38 +380,88 @@ Porting `pkg/scheduler` akan menangani integrasi background timer secara native 
 
 ---
 
-## 7. Strategi Pengujian (Go Native Testing & Mocking)
+## 7. Mekanisme Concurrency File Locking & Log Rotation (`pkg/core/lock.go`)
 
-Semua unit test di Go akan memanfaatkan paket standar `testing`:
+Untuk mencegah dua proses `gaet push` atau `gaet restore` berjalan bersamaan (misalnya dipicu bersamaan oleh Systemd Timer dan manual user):
 
+### 7.1 Cross-Platform Lockfile (`GAET_DIR/gaet.lock`)
 ```go
-package core_test
+package core
 
 import (
-	"testing"
-	"github.com/ghanirahmans/gaet/pkg/core"
+	"fmt"
+	"os"
+	"path/filepath"
 )
 
-func TestLoadEnv(t *testing.T) {
-	// Test parsing .env functionality
-	envMap, err := core.LoadEnv("testdata/.env.test")
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
+type FileLock struct {
+	file *os.File
+}
 
-	if envMap["GAET_LOCAL_DB_PORT"] != "5432" {
-		t.Errorf("Expected port 5432, got %s", envMap["GAET_LOCAL_DB_PORT"])
+// AcquireLock attempts to obtain an exclusive file lock on gaet.lock
+func AcquireLock() (*FileLock, error) {
+	lockPath := filepath.Join(GetGaetDir(), "gaet.lock")
+	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+	if err != nil {
+		if os.IsExist(err) {
+			return nil, fmt.Errorf("another gaet process is currently running (lockfile present: %s)", lockPath)
+		}
+		return nil, err
+	}
+	return &FileLock{file: file}, nil
+}
+
+func (l *FileLock) Release() {
+	if l.file != nil {
+		l.file.Close()
+		os.Remove(l.file.Name())
 	}
 }
 ```
 
-### Protocol Kepatuhan Test:
-- Setiap perintah di `pkg/` harus memiliki pengujian unit terisolasi.
-- Running `go test -v ./...` wajib menghasilkan **100% PASS** tanpa error sebelum merge ke branch utama.
+### 7.2 Automatic Log Rotation (Limit 5 MB)
+Sistem pencatatan log pada `pkg/core/logger.go` menggunakan standard library `log/slog` dan secara otomatis memutar file log (`gaet.log` ➔ `gaet.log.old`) saat ukuran melebihi 5 MB.
 
 ---
 
-## 8. Perencanaan Rilis, Build Pipeline & GitHub Actions
+## 8. Keamanan, Masking Password & Sanitasi Terminal
+
+1. **URL Password Masking**:
+   - Seluruh cetakan URL koneksi database yang berisi password (seperti `postgresql://user:pass@host:5432/db`) wajib disanitasi menggunakan helper `MaskURLPassword(url)` menjadi `postgresql://user:***@host:5432/db`.
+2. **Memory Password Zeroing**:
+   - Karakter password yang dibaca via `term.ReadPassword()` disimpan dalam slice byte `[]byte` dan segera di-zero (`b[i] = 0`) setelah koneksi database selesai dibuka.
+
+---
+
+## 9. Generator Autocompletion Shell Native (`pkg/completion`)
+
+Subcommand `gaet completion` membangkitkan skrip autokomplit secara native tanpa ketergantungan luar:
+* `gaet completion --shell bash` ➔ Menghasilkan skrip bash completion.
+* `gaet completion --shell zsh` ➔ Menghasilkan skrip zsh completion.
+* `gaet completion --shell fish` ➔ Menghasilkan skrip fish completion.
+* `gaet completion --shell powershell` ➔ Menghasilkan skrip PowerShell completion.
+
+---
+
+## 10. Strategi Pengujian & Benchmarking Kinerja (Python vs Go)
+
+### 10.1 Benchmark Suite (`go test -bench=.`)
+Kinerja versi Go akan diukur menggunakan Go Benchmark suite untuk memastikan peningkatan kecepatan startup & efisiensi RAM:
+
+```go
+func BenchmarkStartupTime(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		core.LoadEnv(filepath.Join(b.TempDir(), ".env"))
+	}
+}
+```
+
+### 10.2 Parity Validation Matrix (Validasi Byte-for-Byte Output CLI)
+Setiap subcommand CLI versi Go diuji agar menghasilkan output byte-for-byte yang identik dengan versi Python (termasuk tag status ASCII `[ OK ]`, `[FAIL]`, `[WARN]`, `[INFO]`, `[NOTE]`).
+
+---
+
+## 11. Perencanaan Rilis, Build Pipeline & GitHub Actions
 
 Workflow GitHub Actions `.github/workflows/release.yml` akan secara otomatis melakukan kompilasi silang (*cross-compilation*) saat tag rilis `v2.x` di-push:
 
@@ -457,11 +500,67 @@ jobs:
 
 ---
 
-## 9. Prosedur Rollback & Pemeliharaan LTS
+## 12. Prosedur Rollback & Pemeliharaan LTS
 
 * **Branch `lts/v1.0`**: Tetap dipertahankan sebagai versi **Python 3.8+ LTS** untuk pengguna lama yang memerlukan script Python murni.
 * **Branch `feat/golang-migration`**: Menjadi lokasi aktif untuk pengembangan versi Go hingga siap dirilis sebagai **Gaet V2.0**.
 * **Keamanan Data**: File data pengguna di `~/.gaet` (`.env` dan `backups/*.dump`) **100% kompatibel** antara versi Python (V1) dan versi Go (V2).
+
+---
+
+## 13. Checklist Task Eksekusi Pengembang (Developer Implementation Roadmap)
+
+Berikut adalah panduan bertahap (task-by-task checklist) yang akan dicentang oleh pengembang selama proses penulisan kode Go:
+
+### 🟩 Phase 1: Core Engine & Modul Inisialisasi (`pkg/core`)
+- [ ] Inisialisasi `go.mod` (module `github.com/ghanirahmans/gaet`, Go 1.21+).
+- [ ] Implementasi `pkg/core/paths.go` (XDG Base Dir & AppData Windows).
+- [ ] Implementasi `pkg/core/output.go` (Status tags ASCII `[ OK ]`, `[FAIL]`, ANSI colors, Box printers).
+- [ ] Implementasi `pkg/core/env.go` (Parser file `.env` zero-dependency).
+- [ ] Implementasi `pkg/core/exec.go` (Subprocess runner `exec.CommandContext` dengan timeout).
+- [ ] Implementasi `pkg/core/lock.go` (Lockfile `gaet.lock` cross-platform).
+- [ ] Implementasi `pkg/core/logger.go` (Structured logging `slog` & auto-rotation 5MB).
+- [ ] Unit Test `pkg/core/*_test.go` (Target: 100% Pass).
+
+### 🟩 Phase 2: Command Router & Handler Konfigurasi (`pkg/registry`, `pkg/config`)
+- [ ] Implementasi `pkg/registry/router.go` (Interface `Command` & dispatcher).
+- [ ] Implementasi `pkg/registry/flags.go` (Global flags `--json`, `--plain`, `--quiet`, `--yes`).
+- [ ] Implementasi `pkg/config/config.go` (Perintah `gaet get` dan `gaet set`).
+- [ ] Unit Test `pkg/registry` & `pkg/config`.
+
+### 🟩 Phase 3: Auto-Discovery & Wizard Setup (`pkg/detect`, `pkg/init`)
+- [ ] Implementasi `pkg/detect/socket.go` (Scanner Unix Domain Socket `/run/postgresql`).
+- [ ] Implementasi `pkg/detect/tcp.go` (Ping check port 5432 TCP).
+- [ ] Implementasi `pkg/init/wizard.go` (Interactive TTY setup & preset non-interactive).
+- [ ] Unit Test `pkg/detect` & `pkg/init`.
+
+### 🟩 Phase 4: Backup, Restore & Snapshots Engine (`pkg/backup`, `pkg/restore`, `pkg/snapshots`)
+- [ ] Implementasi `pkg/backup/push.go` (Subprocess `pg_dump -F c`).
+- [ ] Implementasi `pkg/backup/fetch.go` (Remote cloud sync).
+- [ ] Implementasi `pkg/restore/restore.go` (`pg_restore`/`psql` + konfirmasi TTY `--yes`).
+- [ ] Implementasi `pkg/snapshots/snapshots.go` (Tabel snapshot ASCII & auto-retention).
+- [ ] Unit Test `pkg/backup`, `pkg/restore`, `pkg/snapshots`.
+
+### 🟩 Phase 5: Health Check, Doctor & Remote (`pkg/status`, `pkg/remote`)
+- [ ] Implementasi `pkg/status/status.go` (Perintah `gaet status` & `gaet check`).
+- [ ] Implementasi `pkg/status/doctor.go` (Diagnostik sistem & ketersediaan tool `pg_dump`).
+- [ ] Implementasi `pkg/remote/remote.go` (Perintah `gaet remote`).
+- [ ] Unit Test `pkg/status` & `pkg/remote`.
+
+### 🟩 Phase 6: Service Scheduler & Shell Completion (`pkg/scheduler`, `pkg/completion`)
+- [ ] Implementasi `pkg/scheduler/systemd.go` (Systemd timer/service manager).
+- [ ] Implementasi `pkg/scheduler/launchd.go` (macOS Launchd plist manager).
+- [ ] Implementasi `pkg/scheduler/windows.go` (Windows Task Scheduler manager).
+- [ ] Implementasi `pkg/completion/completion.go` (Perintah `gaet completion`).
+
+### 🟩 Phase 7: Embedded Dashboard Engine (`pkg/serve`)
+- [ ] Pembungkusan aset `dashboard/static/` via `//go:embed` pada `pkg/serve/embed.go`.
+- [ ] Implementasi HTTP REST API `/api/status`, `/api/snapshots`, `/api/logs` pada `pkg/serve/server.go`.
+
+### 🟩 Phase 8: Final Binary Build & Single File Installer
+- [ ] Membuat Makefile / build script kompilasi silang.
+- [ ] Meng-update `install.sh` & `install.ps1` untuk download single binary.
+- [ ] Verifikasi E2E full suite.
 
 ---
 
