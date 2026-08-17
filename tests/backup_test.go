@@ -1,5 +1,5 @@
 // Package backup_test tests gaet push/fetch/restore dry-run mode and helper functions.
-package backup_test
+package tests
 
 import (
 	"os"

@@ -1,5 +1,5 @@
 // Package scheduler_test tests auto-backup status detection.
-package scheduler_test
+package tests
 
 import (
 	"testing"

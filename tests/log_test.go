@@ -1,5 +1,5 @@
 // Package log_test tests the gaet log command.
-package log_test
+package tests
 
 import (
 	"os"

@@ -1,6 +1,6 @@
 // Package main_test contains CLI integration tests for the gaet binary.
 // Tests run against the compiled binary to validate end-to-end behavior.
-package main_test
+package tests
 
 import (
 	"encoding/json"

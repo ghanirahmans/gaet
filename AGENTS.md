@@ -31,8 +31,7 @@ This document provides essential architectural context, design standards, and co
 gaet/
 ├── cmd/
 │   └── gaet/
-│       ├── main.go              # Primary CLI entry point & global flag parser
-│       └── main_test.go         # End-to-end integration test suite
+│       └── main.go              # Primary CLI entry point & global flag parser
 ├── pkg/
 │   ├── backup/                  # Backup push, fetch, restore & target reset engine
 │   ├── completion/              # Shell autocompletions (bash, zsh, fish, powershell)
@@ -46,10 +45,12 @@ gaet/
 │   ├── serve/                   # Embedded web dashboard server & REST API handlers
 │   ├── snapshots/               # Local snapshot discovery, rotation & management
 │   └── status/                  # Health check & doctor diagnostic validators
+├── tests/                       # Comprehensive unit & integration test suite
+├── docs/                        # Project documentation, architecture ADRs & guides
 ├── install.sh                   # One-liner Linux/macOS binary installer
 ├── install.ps1                  # One-liner Windows PowerShell installer
 ├── go.mod                       # Go module definition
-└── migrasi_to_golang.md         # Golang migration blueprint & specifications
+└── gaet.1                       # Linux manpage documentation
 ```
 
 ---

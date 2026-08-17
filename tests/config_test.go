@@ -1,5 +1,5 @@
 // Package config_test tests gaet get / gaet set command logic.
-package config_test
+package tests
 
 import (
 	"os"

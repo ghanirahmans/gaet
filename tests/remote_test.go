@@ -1,5 +1,5 @@
 // Package remote_test tests the gaet remote command.
-package remote_test
+package tests
 
 import (
 	"os"

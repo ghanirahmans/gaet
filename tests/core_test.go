@@ -1,5 +1,5 @@
 // Package core_test contains unit tests for pkg/core — parity with Python tests/test_gaet.py
-package core_test
+package tests
 
 import (
 	"os"
