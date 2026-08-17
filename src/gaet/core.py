@@ -203,9 +203,9 @@ def print_docs_footer(doc_type: str = "main") -> None:
         return
     echo()
     if doc_type == "troubleshooting":
-        echo(f"  {D}💡 Troubleshooting guide:{NC} {C}{TROUBLESHOOTING_URL}{NC}")
+        echo(f"  {D}Troubleshooting guide:{NC} {C}{TROUBLESHOOTING_URL}{NC}")
     else:
-        echo(f"  {D}📖 Documentation & Support:{NC} {C}{DOCS_URL}{NC}")
+        echo(f"  {D}Documentation & Support:{NC} {C}{DOCS_URL}{NC}")
 
 def set_output_modes(quiet: bool, plain: bool) -> None:
     """Configure global QUIET/PLAIN from parsed args."""

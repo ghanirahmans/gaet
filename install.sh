@@ -86,7 +86,6 @@ mkdir -p "$GAET_APP_DIR/completions"
 mkdir -p "$GAET_APP_DIR/dashboard/static" "$GAET_APP_DIR/dashboard/public"
 
 # ── 4. Download gaet bundle ───────────────────────────────────────────────
-echo "  Downloading gaet bundle..."
 if dl "$RAW_BASE/gaet.py" "$GAET_APP_DIR/gaet.py"; then
     chmod +x "$GAET_APP_DIR/gaet.py"
     echo "  [ OK ]  gaet.py -> $GAET_APP_DIR/gaet.py"
