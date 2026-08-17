@@ -71,7 +71,7 @@ func RunServe(opts ServeOptions) error {
 
 	mux := http.NewServeMux()
 
-	// ── REST API Router ──────────────────────────────────────────────────
+	// -- REST API Router --------------------------------------------------
 	mux.HandleFunc("/api/status", handleStatus)
 	mux.HandleFunc("/api/check", handleCheck)
 	mux.HandleFunc("/api/doctor", handleDoctor)
@@ -91,7 +91,7 @@ func RunServe(opts ServeOptions) error {
 	mux.HandleFunc("/api/schedule", handleSchedule)
 	mux.HandleFunc("/api/stop", handleStop)
 
-	// ── Static Assets (Embedded) ─────────────────────────────────────────
+	// -- Static Assets (Embedded) -----------------------------------------
 	staticFS, err := fs.Sub(embeddedAssets, "static")
 	if err == nil {
 		fileServer := http.FileServer(http.FS(staticFS))
@@ -130,7 +130,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// ── Handler Implementations ──────────────────────────────────────────────
+// -- Handler Implementations ----------------------------------------------
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -227,7 +227,8 @@ func handleDoctor(w http.ResponseWriter, r *http.Request) {
 
 	var sb strings.Builder
 	sb.WriteString("Gaet Diagnostic Health Report\n")
-	sb.WriteString(strings.Repeat("─", 50) + "\n\n")
+	sb.WriteString(strings.Repeat("-", 50))
+	sb.WriteString("\n\n")
 
 	issues := 0
 
@@ -300,7 +301,9 @@ func handleDoctor(w http.ResponseWriter, r *http.Request) {
 	matches, _ := filepath.Glob(filepath.Join(backupDir, "*.dump"))
 	sb.WriteString(fmt.Sprintf("[ OK ] Backup Storage Vault: %s (%d snapshot dumps)\n", backupDir, len(matches)))
 
-	sb.WriteString("\n" + strings.Repeat("─", 50) + "\n")
+	sb.WriteString("\n")
+	sb.WriteString(strings.Repeat("-", 50))
+	sb.WriteString("\n")
 	if issues == 0 {
 		sb.WriteString("[ OK ] All diagnostic checks passed cleanly with zero errors!\n")
 	} else {
@@ -321,7 +324,8 @@ func handleDiff(w http.ResponseWriter, r *http.Request) {
 
 	var sb strings.Builder
 	sb.WriteString("Gaet Schema & Table Diff Analysis\n")
-	sb.WriteString(strings.Repeat("─", 58) + "\n\n")
+	sb.WriteString(strings.Repeat("-", 58))
+	sb.WriteString("\n\n")
 
 	cleanLocal := core.FormatConnTarget(u, h, p, n)
 	sb.WriteString(fmt.Sprintf("Local DB  : %s\n", cleanLocal))
@@ -411,7 +415,8 @@ func handleDiff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sb.WriteString(fmt.Sprintf("%-28s %-12s %-12s %s\n", "Table Name", "Local", "Cloud", "Sync Status"))
-	sb.WriteString(strings.Repeat("─", 58) + "\n")
+	sb.WriteString(strings.Repeat("-", 58))
+	sb.WriteString("\n")
 
 	diffCount := 0
 	for t := range allTables {
@@ -434,7 +439,8 @@ func handleDiff(w http.ResponseWriter, r *http.Request) {
 		sb.WriteString(fmt.Sprintf("%-28s %-12s %-12s %s\n", t, locStr, remStr, status))
 	}
 
-	sb.WriteString(strings.Repeat("─", 58) + "\n")
+	sb.WriteString(strings.Repeat("-", 58))
+	sb.WriteString("\n")
 	if diffCount == 0 {
 		sb.WriteString(fmt.Sprintf("[ OK ] All %d tables are perfectly synchronized!\n", len(localTables)))
 	} else {
@@ -762,11 +768,26 @@ func handleConfig(w http.ResponseWriter, r *http.Request) {
 		// Also extract GAET_LOCAL_URL into process env if present
 		if localURL, ok := env["GAET_LOCAL_URL"]; ok && localURL != "" {
 			if p, err := core.ParseRemoteURL(localURL); err == nil {
-				if p.Host != "" { env["GAET_LOCAL_DB_HOST"] = p.Host; _ = os.Setenv("GAET_LOCAL_DB_HOST", p.Host) }
-				if p.Port != "" { env["GAET_LOCAL_DB_PORT"] = p.Port; _ = os.Setenv("GAET_LOCAL_DB_PORT", p.Port) }
-				if p.User != "" { env["GAET_LOCAL_DB_USER"] = p.User; _ = os.Setenv("GAET_LOCAL_DB_USER", p.User) }
-				if p.DB != "" { env["GAET_LOCAL_DB_NAME"] = p.DB; _ = os.Setenv("GAET_LOCAL_DB_NAME", p.DB) }
-				if p.Password != "" { env["GAET_LOCAL_DB_PASS"] = p.Password; _ = os.Setenv("GAET_LOCAL_DB_PASS", p.Password) }
+				if p.Host != "" {
+					env["GAET_LOCAL_DB_HOST"] = p.Host
+					_ = os.Setenv("GAET_LOCAL_DB_HOST", p.Host)
+				}
+				if p.Port != "" {
+					env["GAET_LOCAL_DB_PORT"] = p.Port
+					_ = os.Setenv("GAET_LOCAL_DB_PORT", p.Port)
+				}
+				if p.User != "" {
+					env["GAET_LOCAL_DB_USER"] = p.User
+					_ = os.Setenv("GAET_LOCAL_DB_USER", p.User)
+				}
+				if p.DB != "" {
+					env["GAET_LOCAL_DB_NAME"] = p.DB
+					_ = os.Setenv("GAET_LOCAL_DB_NAME", p.DB)
+				}
+				if p.Password != "" {
+					env["GAET_LOCAL_DB_PASS"] = p.Password
+					_ = os.Setenv("GAET_LOCAL_DB_PASS", p.Password)
+				}
 			}
 		}
 
@@ -905,7 +926,7 @@ func handleSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────
+// -- Helpers --------------------------------------------------------------
 
 func sendJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
