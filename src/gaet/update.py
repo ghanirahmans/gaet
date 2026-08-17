@@ -13,7 +13,7 @@ from .scheduler import _svc_is_running, _svc_stop
 def cmd_install(args: argparse.Namespace) -> None:
     """Setup/install dependencies & config."""
     try:
-        from scripts.installer import run as installer_run
+        from scripts.installer import run as installer_run  # type: ignore[import-not-found] # pyright: ignore[reportMissingImports]
     except ImportError:
         box_title(f"{NAME} install")
         status_fail("installer module not found")
@@ -471,7 +471,7 @@ def cmd_update(args: argparse.Namespace) -> None:
 
         # Restart dashboard service if running
         try:
-            from scripts.service_manager import service_is_running, service_start, service_stop
+            from scripts.service_manager import service_is_running, service_start, service_stop  # type: ignore[import-not-found] # pyright: ignore[reportMissingImports]
             if service_is_running():
                 status_info("Restarting dashboard service...")
                 service_stop()
