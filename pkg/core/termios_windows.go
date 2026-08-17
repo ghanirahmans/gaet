@@ -5,6 +5,7 @@ package core
 import (
 	"os"
 	"syscall"
+	"unsafe"
 )
 
 type termios = uint32

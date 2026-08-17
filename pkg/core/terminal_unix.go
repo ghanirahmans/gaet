@@ -1,3 +1,5 @@
+//go:build !windows
+
 package core
 
 import (
@@ -13,7 +15,6 @@ func isTerminal(f *os.File) bool {
 	_, _, err := syscall.Syscall(
 		syscall.SYS_IOCTL,
 		f.Fd(),
-		// TCGETS = 0x5401 on Linux; on other platforms this may need build tags
 		0x5401,
 		uintptr(unsafe.Pointer(&termios)),
 	)

@@ -33,7 +33,7 @@ jobs:
         run: go vet ./...
 
       - name: Build Binary
-        run: go build -v -ldflags="-s -w" -o gaet ./cmd/gaet
+        run: go build -v -o gaet ./cmd/gaet
 
       - name: Run Test Suite
         run: go test -v -count=1 ./...
