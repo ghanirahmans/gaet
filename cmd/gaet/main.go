@@ -2,8 +2,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
+	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/ghanirahmans/gaet/pkg/backup"
 	"github.com/ghanirahmans/gaet/pkg/completion"
@@ -300,10 +305,47 @@ func dispatch(command string, args []string) error {
 	}
 }
 
+type githubRelease struct {
+	TagName string `json:"tag_name"`
+	HTMLURL string `json:"html_url"`
+}
+
 func runUpdate(_ []string) error {
 	core.BoxTitle("gaet update")
+	core.StatusInfo(fmt.Sprintf("Current version: gaet v%s", core.Version))
 	core.StatusInfo("Checking for updates from GitHub...")
-	core.StatusInfo("(Self-update via GitHub Releases not yet implemented in v2 — use: curl ... | bash)")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest("GET", core.GitHubAPI, nil)
+	if err == nil {
+		req.Header.Set("User-Agent", "gaet/"+core.Version)
+		resp, err := client.Do(req)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			var rel githubRelease
+			if decodeErr := json.NewDecoder(resp.Body).Decode(&rel); decodeErr == nil {
+				resp.Body.Close()
+				latestTag := strings.TrimPrefix(rel.TagName, "v")
+				currentTag := strings.TrimPrefix(core.Version, "v")
+
+				if latestTag != "" && latestTag != currentTag {
+					core.StatusInfo(fmt.Sprintf("New version available: v%s (current: v%s)", latestTag, currentTag))
+					core.StatusInfo("Updating gaet binary...")
+					cmd := exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash")
+					cmd.Stdout = os.Stdout
+					cmd.Stderr = os.Stderr
+					if err := cmd.Run(); err != nil {
+						return core.Die(fmt.Sprintf("update failed: %v", err), core.ExitGeneral)
+					}
+					core.StatusOK(fmt.Sprintf("Successfully updated to gaet v%s!", latestTag))
+					core.PrintDocsFooter()
+					return nil
+				}
+			}
+			resp.Body.Close()
+		}
+	}
+
+	core.StatusOK(fmt.Sprintf("gaet is already up to date (v%s)", core.Version))
 	core.PrintDocsFooter()
 	return nil
 }
