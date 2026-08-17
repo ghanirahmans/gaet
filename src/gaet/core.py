@@ -1359,7 +1359,7 @@ def _print_summary(env: Dict[str, str], tools: Dict[str, str]) -> None:
     psql = tools.get("psql", "")
 
     # Local DB status
-    echo(f"  {C}💾{NC}  Local:  {u}@{h}:{p}/{n}", end="")
+    echo(f"  {C}Local:{NC}   {u}@{h}:{p}/{n}", end="")
     if psql:
         env_dict = pg_env(u, w)
         out, _, rc = run_cmd(
@@ -1378,9 +1378,9 @@ def _print_summary(env: Dict[str, str], tools: Dict[str, str]) -> None:
     remote_url = get_env_str(env, "GAET_REMOTE_URL") or ""
     if remote_url:
         display_url = mask_url_password(remote_url)
-        echo(f"  {C}☁️{NC}   Remote: {display_url[:60]}{'...' if len(display_url) > 60 else ''}")
+        echo(f"  {C}Remote:{NC}  {display_url[:60]}{'...' if len(display_url) > 60 else ''}")
     else:
-        echo(f"  {C}☁️{NC}   Remote: {Y}not configured{NC} (set GAET_REMOTE_URL later)")
+        echo(f"  {C}Remote:{NC}  {Y}not configured{NC} (set GAET_REMOTE_URL later)")
 
     echo()
     echo(f"  {D}Config:{NC}  {ENV_FILE}")
