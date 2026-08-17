@@ -24,16 +24,14 @@ func binaryPath(t *testing.T) string {
 	if _, err := os.Stat(bin); err == nil {
 		return bin
 	}
-	// Auto-build binary if missing
-	cmd := exec.Command("go", "build", "-o", bin, "./cmd/gaet")
+	// Auto-build binary inside temp dir for isolation
+	tmpBin := filepath.Join(t.TempDir(), binName)
+	cmd := exec.Command("go", "build", "-o", tmpBin, "./cmd/gaet")
 	cmd.Dir = root
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to auto-build gaet binary for test: %v", err)
 	}
-	t.Cleanup(func() {
-		os.Remove(bin)
-	})
-	return bin
+	return tmpBin
 }
 
 func projectRoot(t *testing.T) string {

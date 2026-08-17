@@ -10,6 +10,8 @@ jobs:
   test:
     name: Build & Test (${{ matrix.os }}, Go ${{ matrix.go-version }})
     runs-on: ${{ matrix.os }}
+    env:
+      CGO_ENABLED: 0
     strategy:
       fail-fast: false
       matrix:
