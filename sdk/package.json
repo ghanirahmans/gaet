@@ -1,6 +1,6 @@
 {
   "name": "@ghanirahmans/gaet",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "type": "module",
   "description": "Official TypeScript/JavaScript SDK client for Gaet - Zero-dependency PostgreSQL Database Backup & Cloud Sync CLI & Service",
   "main": "./dist/index.js",
@@ -18,7 +18,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node -e \"import('fs').then(fs => fs.copyFileSync('dist/index.js', 'dist/index.mjs'))\"",
     "test": "node --test"
   },
   "keywords": [
