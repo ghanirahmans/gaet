@@ -204,10 +204,15 @@ gaet completion fish > ~/.config/fish/completions/gaet.fish
 
 ### 5. Services & Modern Web Dashboard
 
-- **`gaet serve [--port PORT] [--host HOST]`**  
-  Launches the lightweight zero-dependency web monitoring dashboard at `http://127.0.0.1:9191`.
+- **`gaet serve [--port PORT] [--host HOST] [--no-open] [--auto] [--stop]`**  
+  Launches the lightweight zero-dependency web monitoring dashboard at `http://127.0.0.1:6161` (automatically opens default browser).
+  - `--no-open`: Prevents automatic browser launch on startup.
+  - `--auto`: Registers OS startup daemon (systemd / launchd / Task Scheduler) to auto-start the dashboard on OS boot.
+  - `--stop`: Disables the OS startup daemon for the dashboard.
 - **`gaet stop`**  
-  Stops active web dashboard servers and background cron/systemd automated backup tasks.
+  Stops active background services (both automated backup scheduler and dashboard OS startup daemons).
+- **`gaet uninstall [--save] [-y]`**  
+  Launches an interactive uninstallation wizard (`1` Clean Uninstall, `2` Safe Uninstall, `0` Cancel [default]) to remove CLI executable, `.env` config, and local backups.
 
 #### 🎛️ Operations Dashboard Highlights (`gaet serve`)
 - **Theme Parity**: Modern glassmorphic aesthetic with seamless Dark Mode and Light Mode switching.

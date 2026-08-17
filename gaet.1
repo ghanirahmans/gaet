@@ -44,17 +44,14 @@ List all local backup snapshots in ~/.gaet/backups with file size and creation t
 .B gaet remote [show|set-url|remove]
 Git\-style management for Remote Cloud Database URL settings.
 .TP
-.B gaet serve
-Start web monitoring dashboard at http://127.0.0.1:9191.
+.B gaet serve [\-\-port=6161] [\-\-host=127.0.0.1] [\-\-no\-open] [\-\-auto] [\-\-stop]
+Start web monitoring dashboard at http://127.0.0.1:6161. Use \fB\-\-no\-open\fR to disable browser auto-launch, \fB\-\-auto\fR to enable OS startup daemon, or \fB\-\-stop\fR to disable the daemon.
 .TP
 .B gaet get [KEY] [\-\-list]
 Show configured environment variables (passwords masked). Add \fB\-\-list\fR for reference table.
 .TP
 .B gaet set KEY=VALUE
 Set environment variable in ~/.gaet/.env. Empty value deletes the variable key.
-.TP
-.B gaet install
-Setup/install dependencies, executable binary symlink, and system services.
 .TP
 .B gaet help [command]
 Show interactive command usage manual or machine\-readable JSON schema (\fB\-\-json\fR).
@@ -68,8 +65,8 @@ Generate shell auto\-completions for bash, zsh, fish, or ps1.
 .B gaet update
 Update gaet installation to the latest version from GitHub.
 .TP
-.B gaet uninstall [\-\-save]
-Remove gaet binary, packages, and config. Add \fB\-\-save\fR to archive config to ~/.gaet.backup.<ts>.tar.gz before removal.
+.B gaet uninstall [\-\-save] [\-\-yes]
+Launches interactive uninstallation menu (1=Clean, 2=Safe, 0=Cancel [default]).
 .TP
 .B gaet stop
 Stop active web dashboard server and background automated backup tasks.
