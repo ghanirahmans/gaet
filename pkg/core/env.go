@@ -102,6 +102,10 @@ func SetEnvKey(filePath, key, value string) error {
 			}
 			lines = append(lines, orig)
 		}
+		if scanErr := scanner.Err(); scanErr != nil {
+			f.Close()
+			return fmt.Errorf("read env file: %w", scanErr)
+		}
 		f.Close()
 	}
 
