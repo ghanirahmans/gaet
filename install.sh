@@ -46,7 +46,7 @@ if [ -f "go.mod" ] && command -v go &>/dev/null; then
     echo "  [ OK ]  Built gaet binary -> $GAET_BIN_DIR/gaet"
 elif command -v go &>/dev/null; then
     echo "  [INFO]  Installing gaet via go install..."
-    GOBIN="$GAET_BIN_DIR" go install github.com/ghanirahmans/gaet/cmd/gaet@lts/v1.1
+    GOPROXY=direct GOBIN="$GAET_BIN_DIR" go install github.com/ghanirahmans/gaet/cmd/gaet@latest
     echo "  [ OK ]  Installed gaet binary -> $GAET_BIN_DIR/gaet"
 else
     # Fallback to downloading GitHub Release binary asset
@@ -64,7 +64,7 @@ else
     else
         echo "  [WARN]  Could not download pre-compiled binary. Building locally if Go is available..."
         if command -v go &>/dev/null; then
-            GOBIN="$GAET_BIN_DIR" go install github.com/ghanirahmans/gaet/cmd/gaet@lts/v1.1
+            GOPROXY=direct GOBIN="$GAET_BIN_DIR" go install github.com/ghanirahmans/gaet/cmd/gaet@latest
         else
             echo "  [FAIL]  Installation failed. Please install Go or check GitHub release assets."
             exit 1
