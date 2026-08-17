@@ -1,4 +1,4 @@
-# gaet(1) — PostgreSQL Backup & Sync CLI
+# gaet - PostgreSQL Database Backup & Cloud Sync CLI
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
