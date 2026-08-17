@@ -48,6 +48,10 @@ func extractGlobalFlags(args []string) []string {
 			core.Quiet = true
 		case "--plain":
 			core.Plain = true
+		case "--json":
+			core.Quiet = true
+			core.Plain = true
+			remaining = append(remaining, a)
 		default:
 			remaining = append(remaining, a)
 		}

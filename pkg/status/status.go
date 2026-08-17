@@ -19,30 +19,38 @@ type CheckOptions struct {
 
 // RunCheck implements `gaet check`.
 func RunCheck(opts CheckOptions) error {
-	if opts.JSON {
-		core.Quiet = true
-		core.Plain = true
-	}
 	env, err := core.LoadEnv(core.EnvFile())
 	if err != nil {
 		return err
 	}
 	tools := core.FindPGTools(env)
-	result := runCheckInner(env, tools)
+
 	if opts.JSON {
+		// JSON mode: collect result silently, output pure JSON to stdout
+		oldQuiet := core.Quiet
+		oldPlain := core.Plain
+		core.Quiet = true
+		core.Plain = true
+		result := runCheckInner(env, tools, true)
+		core.Quiet = oldQuiet
+		core.Plain = oldPlain
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		enc.Encode(result)
-		if !result["ok"].(bool) {
-			os.Exit(1)
-		}
 		return nil
+	}
+
+	result := runCheckInner(env, tools, false)
+	if !result["ok"].(bool) {
+		core.PrintDocsFooter()
+		return core.Die("", core.ExitGeneral)
 	}
 	core.PrintDocsFooter()
 	return nil
 }
 
-func runCheckInner(env map[string]string, tools core.PGTools) map[string]any {
+func runCheckInner(env map[string]string, tools core.PGTools, silent bool) map[string]any {
+	print := func(fn func()) { if !silent { fn() } }
 	result := map[string]any{"ok": true, "checks": map[string]any{}}
 	checks := result["checks"].(map[string]any)
 
@@ -54,12 +62,14 @@ func runCheckInner(env map[string]string, tools core.PGTools) map[string]any {
 	}
 	if !toolsOK {
 		result["ok"] = false
-		core.StatusFail("PostgreSQL tools not found (pg_dump, pg_restore, psql)")
+		print(func() { core.StatusFail("PostgreSQL tools not found (pg_dump, pg_restore, psql)") })
 	} else {
-		core.StatusOK("PostgreSQL tools found")
-		core.StatusArrow(fmt.Sprintf("pg_dump    %s", tools.PgDump))
-		core.StatusArrow(fmt.Sprintf("pg_restore %s", tools.PgRestore))
-		core.StatusArrow(fmt.Sprintf("psql       %s", tools.Psql))
+		print(func() {
+			core.StatusOK("PostgreSQL tools found")
+			core.StatusArrow(fmt.Sprintf("pg_dump    %s", tools.PgDump))
+			core.StatusArrow(fmt.Sprintf("pg_restore %s", tools.PgRestore))
+			core.StatusArrow(fmt.Sprintf("psql       %s", tools.Psql))
+		})
 	}
 
 	// Local DB
@@ -74,10 +84,10 @@ func runCheckInner(env map[string]string, tools core.PGTools) map[string]any {
 	}
 	checks["local_db"] = map[string]any{"ok": localOK, "host": h, "port": p, "user": u, "database": n}
 	if localOK {
-		core.StatusOK(fmt.Sprintf("Local database %s@%s:%s/%s", u, h, p, n))
+		print(func() { core.StatusOK(fmt.Sprintf("Local database %s@%s:%s/%s", u, h, p, n)) })
 	} else {
 		result["ok"] = false
-		core.StatusFail(fmt.Sprintf("Cannot connect to local database %s:%s/%s", h, p, n))
+		print(func() { core.StatusFail(fmt.Sprintf("Cannot connect to local database %s:%s/%s", h, p, n)) })
 	}
 
 	// Remote DB
@@ -96,14 +106,16 @@ func runCheckInner(env map[string]string, tools core.PGTools) map[string]any {
 		checks["remote_db"] = map[string]any{"configured": true, "reachable": remoteOK,
 			"host": parsed.Host, "port": parsed.Port, "db": parsed.DB}
 		if remoteOK {
-			core.StatusOK(fmt.Sprintf("Cloud database %s@%s/%s", parsed.User, parsed.Host, parsed.DB))
+			print(func() { core.StatusOK(fmt.Sprintf("Cloud database %s@%s/%s", parsed.User, parsed.Host, parsed.DB)) })
 		} else {
 			result["ok"] = false
-			core.StatusFail(fmt.Sprintf("Cannot connect to cloud database %s@%s/%s", parsed.User, parsed.Host, parsed.DB))
+			print(func() {
+				core.StatusFail(fmt.Sprintf("Cannot connect to cloud database %s@%s/%s", parsed.User, parsed.Host, parsed.DB))
+			})
 		}
 	} else {
 		checks["remote_db"] = map[string]any{"configured": false, "reachable": false}
-		core.StatusWarn("Cloud database not configured (set GAET_REMOTE_URL)")
+		print(func() { core.StatusWarn("Cloud database not configured (set GAET_REMOTE_URL)") })
 	}
 
 	// Backup dir
@@ -111,16 +123,18 @@ func runCheckInner(env map[string]string, tools core.PGTools) map[string]any {
 	_ = core.EnsureDir(backupDir)
 	matches, _ := filepath.Glob(filepath.Join(backupDir, "*.dump"))
 	checks["backup_dir"] = map[string]any{"ok": true, "count": len(matches)}
-	core.StatusOK(fmt.Sprintf("Backup directory: %s (%d snapshots)", backupDir, len(matches)))
-
-	fmt.Println()
-	if result["ok"].(bool) {
-		core.StatusOK("All checks passed!")
-	} else {
-		core.StatusWarn("Some checks failed — fix before backup.")
-	}
+	print(func() {
+		core.StatusOK(fmt.Sprintf("Backup directory: %s (%d snapshots)", backupDir, len(matches)))
+		fmt.Println()
+		if result["ok"].(bool) {
+			core.StatusOK("All checks passed!")
+		} else {
+			core.StatusWarn("Some checks failed — fix before backup.")
+		}
+	})
 	return result
 }
+
 
 // StatusOptions holds flags for `gaet status`.
 type StatusOptions struct {
