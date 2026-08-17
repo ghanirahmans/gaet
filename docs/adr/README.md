@@ -9,3 +9,4 @@ This directory contains records of significant architectural decisions made in t
 | [ADR-0001](0001-xdg-app-bundle-isolation.md) | XDG Base Directory Standard & App Bundle Isolation | Accepted | 2026-08-17 |
 | [ADR-0002](0002-pure-ascii-cli-standard.md) | Pure ASCII CLI Output Standard | Accepted | 2026-08-17 |
 | [ADR-0003](0003-declarative-command-registry.md) | Declarative Command Registration Pattern | Accepted | 2026-08-17 |
+| [ADR-0004](0004-importable-python-sdk-architecture.md) | Dual-Personality Architecture (CLI Tool & Importable Python SDK) | Accepted | 2026-08-17 |

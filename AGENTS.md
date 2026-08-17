@@ -190,3 +190,7 @@ Every CLI command MUST respect global flags:
 - Never hardcode POSIX slashes (`/`) or Windows backslashes (`\`) directly in string paths.
 - Always use `pathlib.Path` or `os.path.join()` for cross-platform filesystem operations.
 
+### 7.7. Dual-Personality API Architecture (Python SDK Ready)
+- Business logic functions inside `src/gaet/` must be designed so they can be imported and executed programmatically (`import gaet`) inside third-party Python code.
+- Core functions must raise typed exceptions (`GaetError`, `GaetConfigError`) rather than calling `sys.exit()` directly; exception catching and mapping to CLI status codes is reserved for `cli.py`.
+
