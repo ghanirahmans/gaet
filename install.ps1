@@ -1,6 +1,6 @@
 # ============================================================================
-# gaet v2.0 — PowerShell One-liner Installer (Windows)
-# Usage: iwr -useb https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.ps1 | iex
+# gaet v1.1.0 LTS — PowerShell One-liner Installer (Windows)
+# Usage: iwr -useb https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.ps1 | iex
 # ============================================================================
 $ErrorActionPreference = "Stop"
 
@@ -9,7 +9,7 @@ $GaetConfig = Join-Path $env:USERPROFILE ".gaet"
 $BinaryPath = Join-Path $GaetBinDir "gaet.exe"
 
 Write-Host "======================================================" -ForegroundColor Cyan
-Write-Host "  gaet v2.0 - Database Backup & Sync CLI (Golang)     " -ForegroundColor Cyan
+Write-Host "  gaet v1.1.0 LTS - Database Backup & Cloud Sync CLI  " -ForegroundColor Cyan
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host ""
 

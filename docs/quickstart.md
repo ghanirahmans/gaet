@@ -7,7 +7,6 @@ Get your first backup running in 5 minutes.
 ## Prerequisites
 
 - PostgreSQL client tools (`pg_dump`, `pg_restore`, `psql`)
-- Python 3.8+
 - A local PostgreSQL database
 - A cloud PostgreSQL instance (Supabase, Neon, AWS RDS, or self-hosted)
 
@@ -16,13 +15,13 @@ Get your first backup running in 5 minutes.
 ## Step 1: Install
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.0/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
 ```
 
 Verify installation:
 ```bash
 gaet --version
-# Output: gaet v1.0.0
+# Output: gaet v1.1.0
 ```
 
 ---
@@ -58,18 +57,18 @@ gaet push
 
 Expected output:
 ```
-🚀 Push: local → cloud
-== gaet push ==
-  📦  Dumping local database...
-    [ OK ]  Dump saved (37.7 MB)
-  ☁️   Syncing to cloud...
-    [ OK ]  Synchronization complete!
+[2026-08-17 15:50:25] Push: local -> cloud
 
--- Push Complete --
-  [ OK ]  Backups stored: /home/user/.gaet/backups/gaet_20240815.dump (37.7 MB)
-  [ OK ]  Synced tables: 19
-  >  Run 'gaet status' for details
-[2024-08-15 10:30:00] ✅ Push complete
+  ┌────────────────────────────────────────────────────────────┐
+  │ gaet push                                                 │
+  └────────────────────────────────────────────────────────────┘
+
+  [INFO]  Dumping local database...
+  [ OK ]  Dump saved (37.7 MB)
+  [INFO]  Syncing to cloud...
+  [ OK ]  Synchronization complete!
+  [ OK ]  Push complete — 37.7 MB synced to cloud
+[2026-08-17 15:50:26] Push complete
 ```
 
 ---
@@ -80,16 +79,7 @@ Expected output:
 gaet status
 ```
 
-Shows per-table row counts and sync status. All tables should show `✓` (synced).
-
-```
--- Sync Status --
-Table	        Local	  Cloud	Status
-api_keys	       5000	  5000	✓
-comments	   250000	250000	✓
-posts	           45000	 45000	✓
-...
-```
+Shows per-table row counts and sync status. All tables should match.
 
 ---
 
@@ -97,10 +87,7 @@ posts	           45000	 45000	✓
 
 ```bash
 # Run every 6 hours (default)
-gaet push --auto
-
-# Or custom interval (hours)
-gaet push --auto=24
+gaet auto 6
 ```
 
 This creates a systemd timer (Linux), launchd job (macOS), or Task Scheduler task (Windows).
@@ -114,10 +101,10 @@ gaet log --filter CRON
 
 ## Next Steps
 
-- [Commands Reference](README.md#commands-reference) — all CLI commands
-- [Configuration](README.md#configuration) — env vars explained
-- [Troubleshooting](TROUBLESHOOTING.md) — common errors
-- [Dashboard](README.md#dashboard-web-ui) — web UI for monitoring
+- [Commands Reference](../README.md#command-specifications) — all CLI commands
+- [Configuration](../README.md#configuration-reference) — env vars explained
+- [Troubleshooting](troubleshooting.md) — common errors
+- [Dashboard](desain_dashboard.md) — web UI for monitoring
 
 ---
 
@@ -125,5 +112,5 @@ gaet log --filter CRON
 
 - Run `gaet doctor` for comprehensive health check
 - Run `gaet check` for quick connectivity test
-- Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common errors
+- Check [troubleshooting.md](troubleshooting.md) for common errors
 - Open an issue: https://github.com/ghanirahmans/gaet/issues

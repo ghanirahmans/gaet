@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
-# gaet v2.0 — High-Performance Database Backup & Sync CLI (Go Single Binary)
-# Usage: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+# gaet v1.1.0 LTS — PostgreSQL Database Backup & Cloud Sync CLI
+# Usage: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
 # ============================================================================
 set -eo pipefail
 
@@ -9,7 +9,7 @@ GAET_BIN_DIR="$HOME/.local/bin"
 GAET_CONFIG="$HOME/.gaet"
 
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║  gaet v2.0 - Database Backup & Sync CLI (Golang)     ║"
+echo "║  gaet v1.1.0 LTS - Database Backup & Cloud Sync CLI  ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 
