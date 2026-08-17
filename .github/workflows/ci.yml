@@ -41,6 +41,7 @@ jobs:
       - name: Verify Man Page Syntax (Linux only)
         if: runner.os == 'Linux'
         run: |
+          sudo apt-get update -qq >/dev/null 2>&1 || true
           sudo apt-get install -y groff >/dev/null 2>&1 || true
           groff -man -Tascii gaet.1 > /dev/null
           echo "Man page renders OK"

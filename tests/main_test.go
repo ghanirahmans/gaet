@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -15,7 +16,11 @@ import (
 func binaryPath(t *testing.T) string {
 	t.Helper()
 	root := projectRoot(t)
-	bin := filepath.Join(root, "gaet")
+	binName := "gaet"
+	if runtime.GOOS == "windows" {
+		binName = "gaet.exe"
+	}
+	bin := filepath.Join(root, binName)
 	if _, err := os.Stat(bin); err == nil {
 		return bin
 	}
