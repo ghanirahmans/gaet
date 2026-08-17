@@ -210,7 +210,7 @@ go build -ldflags="-s -w" -o ~/.local/bin/gaet ./cmd/gaet
 
 ### "pg_dump not found in PATH"
 
-Install PostgreSQL client tools:
+Install database client tools:
 ```yaml
 # GitHub Actions
 - run: sudo apt-get install -y postgresql-client

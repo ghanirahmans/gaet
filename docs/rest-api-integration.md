@@ -50,7 +50,7 @@ Returns database connection status and table counts.
 ---
 
 ### `POST /api/push`
-Triggers a real-time database backup from local PostgreSQL to Cloud Remote DB.
+Triggers a real-time database backup from local database to Cloud Remote DB.
 
 **Response:**
 ```json
@@ -115,7 +115,7 @@ Retrieves structured audit log entries recorded by Gaet (`~/.gaet/gaet.log`).
 ---
 
 ### `GET /api/check`
-Executes preflight diagnostics verifying PostgreSQL client binaries (`pg_dump`, `psql`) and authentication.
+Executes preflight diagnostics verifying database client binaries (`pg_dump`, `psql`) and authentication.
 
 **Response:**
 ```json

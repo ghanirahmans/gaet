@@ -317,8 +317,8 @@ def execute_with_timeout(cmd, timeout_sec=120):
 # Check everything works BEFORE starting
 def cmd_push(env):
     # Validate immediately
-    if not find_pg_tools(env):
-        status_fail("PostgreSQL tools not found")
+    if not find_db_tools(env):
+        status_fail("Database client tools not found")
         sys.exit(1)
     
     # Connect before dump

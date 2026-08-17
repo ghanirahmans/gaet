@@ -6,7 +6,7 @@ This document provides essential architectural context, design standards, and co
 
 ## 1. Executive Summary & Core Philosophy
 
-**Gaet** is a zero-dependency, high-performance cross-platform PostgreSQL Database Backup & Cloud Sync CLI tool built with **Golang 1.22+**.
+**Gaet** is a zero-dependency, high-performance cross-platform Database Backup & Cloud Sync CLI tool built with **Golang 1.22+**.
 
 ### Core Principles
 - **Single Binary Distribution**: Compiled into a fast, portable single binary without external runtime dependencies (no Python or Node.js runtime required).

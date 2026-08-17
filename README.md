@@ -1,4 +1,4 @@
-# gaet - PostgreSQL Database Backup & Cloud Sync CLI
+# gaet - Database Backup & Cloud Sync CLI
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Engine: Go](https://img.shields.io/badge/engine-Go%20(Recommended)-brightgreen.svg)](SUPPORT.md)
@@ -6,11 +6,7 @@
 [![Platform: Linux | macOS | Windows](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-supported-brightgreen.svg)]()
 [![v1.1.0 LTS](https://img.shields.io/badge/v1.1.0-LTS-blue?label=release)](SUPPORT.md)
 
-> **gaet** is a zero-dependency PostgreSQL database backup and cloud synchronization CLI.
-> 
-> **Architectural Editions**:
-> - **Go Engine (`v1.1.0 LTS`) — Recommended**: Single portable binary for active production and ongoing feature development.
-> - **Python Engine (`v1.0.0 LTS`) — Legacy Alternative**: Maintained for backwards compatibility until August 2027.
+> **gaet** is a zero-dependency database backup and cloud synchronization CLI.
 
 ---
 
@@ -37,7 +33,7 @@
 ## Name & Synopsis
 
 **NAME**  
-`gaet` - PostgreSQL backup and synchronization CLI.
+`gaet` - Database backup and synchronization CLI.
 
 **SYNOPSIS**  
 ```bash

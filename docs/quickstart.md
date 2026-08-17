@@ -6,9 +6,9 @@ Get your first backup running in 5 minutes.
 
 ## Prerequisites
 
-- PostgreSQL client tools (`pg_dump`, `pg_restore`, `psql`)
-- A local PostgreSQL database
-- A cloud PostgreSQL instance (Supabase, Neon, AWS RDS, or self-hosted)
+- Database client tools (e.g. `pg_dump`, `pg_restore`, `psql`)
+- A local database instance
+- A cloud database instance (Supabase, Neon, AWS RDS, or self-hosted)
 
 ---
 

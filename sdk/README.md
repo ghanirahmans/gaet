@@ -1,6 +1,6 @@
 # @ghanirahmans/gaet
 
-Official TypeScript and JavaScript client SDK for **Gaet**, a PostgreSQL database backup and cloud sync CLI tool.
+Official TypeScript and JavaScript client SDK for **Gaet**, a database backup and cloud sync CLI tool.
 
 [![npm version](https://img.shields.io/npm/v/@ghanirahmans/gaet.svg)](https://www.npmjs.com/package/@ghanirahmans/gaet)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -158,7 +158,7 @@ console.log('PostgreSQL tools ok:', checkResult.checks.tools.ok);
 | `gaet.check()` | `Promise<GaetCheckResponse>` | Runs system checks for `pg_dump`, `psql`, and permissions. |
 | `gaet.doctor()` | `Promise<GaetDoctorResponse>` | Runs full doctor diagnostics on environment, config, and tools. |
 | `gaet.diff()` | `Promise<GaetDiffResponse>` | Compares table counts between local and remote databases. |
-| `gaet.detect()` | `Promise<GaetDetectResponse>` | Scans local system for active PostgreSQL socket and TCP instances. |
+| `gaet.detect()` | `Promise<GaetDetectResponse>` | Scans local system for active database socket and TCP instances. |
 | `gaet.testRemote()` | `Promise<GaetRemoteTestResponse>` | Tests connectivity to the Cloud Remote database URL. |
 | `gaet.getConfig()` | `Promise<Record<string, string>>` | Reads environment configuration variables from `~/.gaet/.env`. |
 | `gaet.setConfig(config)` | `Promise<{ ok: boolean; msg: string }>` | Saves environment configuration variables to `~/.gaet/.env`. |
