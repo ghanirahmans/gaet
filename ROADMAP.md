@@ -32,3 +32,20 @@ Gaet aims to evolve from a zero-dependency CLI database backup tool into the **d
 ### Phase 5: Global Distribution & Container Ecosystem
 - [ ] **Package Managers**: Official Homebrew Formula (`brew install gaet`), WinGet package (`winget install gaet`), and Debian/RPM packages.
 - [ ] **Official Docker Image**: Ultra-lightweight Scratch/Alpine container (`docker run ghanirahmans/gaet`) tailored for Kubernetes CronJobs and Docker Compose setups.
+
+### Phase 6: Database Time Travel & Schema Intelligence
+- [ ] **Snapshot Difference Inspector (`gaet diff`)**: Compare schema structure and row count drift between snapshots, or local vs cloud databases.
+- [ ] **Database Time Travel (`gaet checkout <snapshot>`)**: Spin up temporary isolated preview databases initialized from any past backup snapshot.
+- [ ] **Snapshot Tagging (`gaet tag <snapshot> <name>`)**: Human-readable naming and tagging for important milestones (e.g. `pre-migration-v2`, `month-end-jan`).
+
+### Phase 7: Privacy Guard & Data Sanitization Engine
+- [ ] **PII Data Masking (`gaet push --sanitize`)**: Automatic anonymization of emails, phone numbers, and hashes before cloud sync or team sharing.
+- [ ] **Selective Table Restoration**: Ability to extract and restore specific tables from multi-gigabyte backup dumps (`gaet restore --tables users,orders`).
+
+### Phase 8: Intelligent Health Diagnostics & Forecasting
+- [ ] **Auto-Remediation Wizard (`gaet doctor --fix`)**: Interactive automated repair for environment variables, path exports, and database socket permissions.
+- [ ] **Predictive Capacity Analytics (`gaet stats`)**: Storage growth forecasting to predict disk space exhaustion before it occurs.
+
+### Phase 9: Developer Ecosystem & IDE Integrations
+- [ ] **Official GitHub Action (`ghanirahmans/gaet-action@v1`)**: Pre-built CI/CD step for database backups prior to automated deployment or migration tasks.
+- [ ] **VS Code Extension**: Lightweight extension for monitoring Gaet status, triggering backups, and launching `gaet serve` directly inside VS Code.
