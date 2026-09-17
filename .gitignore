@@ -21,12 +21,17 @@ next-env.d.ts
 # ─── Systemd & Services ────────────────────────────────
 systemd/
 
-# ─── Scratch & Local Testing ───────────────────────────
+# ─── Scratch & Local Testing ───────────────────────────────
 scratch/
 .pytest_cache/
 .hermes/
 .skills
 generate_data.sql
+
+# Sandpit E2E testing harness (keep tracked)
+!sandbox/*.sql
+!sandbox/*.sh
+!sandbox/*.md
 
 # ─── Python & Build ────────────────────────────────────
 __pycache__/
