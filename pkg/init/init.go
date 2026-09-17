@@ -118,7 +118,11 @@ func RunInit(opts InitOptions) error {
 			instances = detect.DetectLocalDB(tools.Psql)
 		}
 		curH, curP, curU, curN, curW := core.GetLocalDB(env)
-		h, p, u, n, w = localDBMenu(instances, curH, curP, curU, curN, curW)
+			var quit bool
+			h, p, u, n, w, quit = localDBMenu(instances, curH, curP, curU, curN, curW)
+			if quit {
+				return nil
+			}
 	}
 
 	// Test connection
@@ -243,7 +247,7 @@ func runNonInteractive(env map[string]string, opts InitOptions) error {
 	return nil
 }
 
-func localDBMenu(instances []detect.DBInstance, curH, curP, curU, curN, curW string) (h, p, u, n, w string) {
+func localDBMenu(instances []detect.DBInstance, curH, curP, curU, curN, curW string) (h, p, u, n, w string, quit bool) {
 	for {
 		fmt.Println()
 		core.BoxSection("Step 1/3: Local Database Setup")
@@ -294,20 +298,20 @@ func localDBMenu(instances []detect.DBInstance, curH, curP, curU, curN, curW str
 				n = selectDB(inst)
 			}
 			core.StatusOK(fmt.Sprintf("Selected: %s@%s:%s/%s", u, h, p, n))
-			return
+			return // quit defaults to false
 		}
 
 		switch choice {
 		case "Q":
-			os.Exit(0)
+			return "", "", "", "", "", true
 		case "E":
 			if curH != "" {
-				return curH, curP, curU, curN, curW
+				return curH, curP, curU, curN, curW, false
 			}
 		case "U":
 			urlIn := strings.TrimSpace(core.SafeInput("  URL: ", ""))
 			if parsed, err := core.ParseRemoteURL(urlIn); err == nil {
-				return parsed.Host, parsed.Port, parsed.User, parsed.DB, parsed.Password
+				return parsed.Host, parsed.Port, parsed.User, parsed.DB, parsed.Password, false
 			}
 			core.StatusWarn("Could not parse URL — falling back to manual input.")
 			fallthrough
@@ -329,9 +333,9 @@ func localDBMenu(instances []detect.DBInstance, curH, curP, curU, curN, curW str
 				nn = "postgres"
 			}
 			ww := strings.TrimSpace(core.SafeGetPass("    Password []: "))
-			return hh, pp, uu, nn, ww
+			return hh, pp, uu, nn, ww, false
 		case "D":
-			return "127.0.0.1", "5432", "postgres", "postgres", ""
+			return "127.0.0.1", "5432", "postgres", "postgres", "", false
 		default:
 			core.StatusWarn(fmt.Sprintf("Invalid option '%s'.", choice))
 		}

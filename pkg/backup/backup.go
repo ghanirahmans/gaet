@@ -489,13 +489,17 @@ func RunPushCron() error {
 			"--clean", "--if-exists", "--no-owner", "--no-acl", cronFile},
 		envCloud, timeout)
 	fi, _ := os.Stat(cronFile)
+	sizeMB := 0.0
+	if fi != nil {
+		sizeMB = float64(fi.Size()) / 1024 / 1024
+	}
 	os.Remove(cronFile)
 	if rc2 == 0 {
-		core.AppendCronLog(fmt.Sprintf("[cron] Backup success (%.1f MB)", float64(fi.Size())/1024/1024))
-	} else {
-		core.AppendCronLog("[cron] Restore issue encountered")
+		core.AppendCronLog(fmt.Sprintf("[cron] Backup success (%.1f MB)", sizeMB))
+		return nil
 	}
-	return nil
+	core.AppendCronLog(fmt.Sprintf("[cron] Cloud restore failed (rc=%d)", rc2))
+	return fmt.Errorf("cloud restore failed (rc=%d)", rc2)
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
