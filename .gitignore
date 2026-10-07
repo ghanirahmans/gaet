@@ -50,6 +50,7 @@ Thumbs.db
 nul
 .vscode/
 .idea/
+.kilo/
 *.swp
 *.swo
 *~
