@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -360,8 +361,33 @@ func runUpdate(args []string) error {
 		if isNewAvailable {
 			core.StatusInfo(fmt.Sprintf("New release version available: v%s", latestTag))
 		}
+
+		// A system-wide / package-manager install must not be self-updated into
+		// the user-local launcher dir (~/.local/bin), which would leave a second
+		// copy that can shadow the managed binary and desync versions.
+		if exe, err := os.Executable(); err == nil && !force && core.IsManagedInstall(exe) {
+			core.StatusWarn(fmt.Sprintf("gaet was installed system-wide, not by the gaet installer (%s).", exe))
+			core.Echo("  Update it through your package manager or by re-downloading the release:")
+			core.Echo("    Debian/Ubuntu : sudo apt update && sudo apt install --only-upgrade gaet")
+			core.Echo("    Fedora/RHEL   : sudo dnf upgrade gaet")
+			core.Echo("    Arch          : sudo pacman -Syu gaet")
+			core.Echo("    Alpine        : sudo apk upgrade gaet")
+			core.Echo("    macOS (.pkg)  : reinstall gaet from the latest .pkg release")
+			core.Echo("    Windows (.msi): reinstall gaet from the latest .msi release")
+			core.Echo("  To force a user-local install instead, run: gaet update --force")
+			core.PrintDocsFooter()
+			return nil
+		}
+
 		core.StatusInfo("Updating gaet binary via installer...")
-		cmd := exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash")
+		var cmd *exec.Cmd
+		if runtime.GOOS == "windows" {
+			// Windows has no bash; use the PowerShell installer.
+			cmd = exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+				"irm https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.ps1 | iex")
+		} else {
+			cmd = exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash")
+		}
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
