@@ -150,9 +150,12 @@ jobs:
           (Get-Content windows/gaet.wxs -Raw) -replace '@VERSION@', $v | Set-Content -NoNewline gaet.msi.wxs
           candle.exe -arch x64 -out build/gaet.wixobj gaet.msi.wxs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          light.exe -out dist/gaet-windows-amd64.msi build/gaet.wixobj
+          light.exe -out build/gaet-windows-amd64.msi build/gaet.wixobj
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Remove-Item gaet.msi.wxs
+          # light.exe also emits a .wixpdb debug symbol file; keep it out of dist/.
+          Remove-Item build/*.wixpdb -ErrorAction SilentlyContinue
+          Copy-Item build/gaet-windows-amd64.msi dist/gaet-windows-amd64.msi
 
           Get-ChildItem dist | Format-Table Name,Length
 
