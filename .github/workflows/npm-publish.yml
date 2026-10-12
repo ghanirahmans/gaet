@@ -70,9 +70,10 @@ jobs:
           cd sdk
           npm test
 
-      - name: Publish to NPM
+      # No NODE_AUTH_TOKEN here on purpose: publishing authenticates via OIDC
+      # (id-token: write above) using the npm Trusted Publisher configured for
+      # this repo/workflow — no long-lived token.
+      - name: Publish to NPM (OIDC trusted publishing)
         run: |
           cd sdk
           npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
