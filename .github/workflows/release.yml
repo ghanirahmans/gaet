@@ -27,13 +27,13 @@ concurrency:
 #            gaet-<version>-darwin-<arch>.pkg     (installer -> /usr/local/bin)
 #   All:     checksums.txt
 #
-# macOS packages require a macOS runner (pkgbuild). Linux/Windows are produced on
-# the Ubuntu runner (nfpm for deb/rpm/apk/archlinux; wixl for the MSI, no Wine).
+# Runners: linux -> ubuntu-latest (nfpm); windows -> windows-latest (WiX v3, for
+# the <Environment> PATH support wixl lacks); macos -> macos-latest (pkgbuild).
 
 jobs:
-  # ── Linux + Windows (Ubuntu runner) ─────────────────────────────────────────
+  # ── Linux (Ubuntu runner) ───────────────────────────────────────────────────
   linux:
-    name: Linux + Windows packages
+    name: Linux packages
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: '0'
@@ -46,12 +46,12 @@ jobs:
         with:
           go-version: '1.22.x'
 
-      - name: Build Linux + Windows binaries
+      - name: Build Linux binaries
         env:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          VERSION="${TAG#v}"    # strip leading 'v' -> 1.2.3 (deb/msi need a leading digit)
+          VERSION="${TAG#v}"    # strip leading 'v' -> 1.2.3 (deb needs a leading digit)
           if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "ERROR: tag '${TAG}' is not a numeric vMAJOR.MINOR.PATCH release tag." >&2
             exit 1
@@ -59,12 +59,11 @@ jobs:
           echo "Building gaet ${VERSION} (tag ${TAG})"
           mkdir -p build dist
           LDFLAGS="-s -w -X github.com/ghanirahmans/gaet/pkg/core.Version=${VERSION}"
-          GOOS=linux   GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/gaet-linux-amd64      ./cmd/gaet
-          GOOS=linux   GOARCH=arm64 go build -ldflags="$LDFLAGS" -o build/gaet-linux-arm64      ./cmd/gaet
-          GOOS=windows GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/gaet-windows-amd64.exe ./cmd/gaet
+          GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/gaet-linux-amd64 ./cmd/gaet
+          GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS" -o build/gaet-linux-arm64 ./cmd/gaet
           ls -lh build/
 
-      - name: Linux archives + Windows portable .exe
+      - name: Linux archives
         run: |
           set -euo pipefail
           make_targz() { # <src-bin> <out-tar.gz>
@@ -77,7 +76,6 @@ jobs:
           }
           make_targz build/gaet-linux-amd64 dist/gaet-linux-amd64.tar.gz
           make_targz build/gaet-linux-arm64 dist/gaet-linux-arm64.tar.gz
-          cp build/gaet-windows-amd64.exe dist/gaet-windows-amd64.exe
           ls -lh dist/
 
       - name: Package Linux deb/rpm/apk/archlinux (nfpm)
@@ -102,23 +100,65 @@ jobs:
           rm -f build/gaet
           ls -lh dist/
 
-      - name: Build Windows .msi (wixl)
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── Windows (windows runner: real WiX v3 -> MSI with PATH) ──────────────────
+  windows:
+    name: Windows packages
+    runs-on: windows-latest
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+
+      - name: Build gaet.exe and .msi (WiX v3)
+        shell: pwsh
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          set -euo pipefail
-          VERSION="${TAG#v}"
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq wixl
-          sed "s/@VERSION@/${VERSION}/" windows/gaet.wxs > .gaet.msi.wxs
-          wixl --arch x64 -o dist/gaet-windows-amd64.msi .gaet.msi.wxs
-          rm -f .gaet.msi.wxs
-          ls -lh dist/gaet-windows-amd64.msi
+          $ErrorActionPreference = 'Stop'
+          $v = ($env:TAG -replace '^v','').Trim()
+          if ($v -notmatch '^\d+\.\d+\.\d+$') { Write-Error "tag '$env:TAG' is not a numeric vX.Y.Z release tag"; exit 1 }
+          Write-Host "Building gaet $v (tag $env:TAG)"
+          New-Item -ItemType Directory -Force -Path build,dist | Out-Null
 
-      - name: Upload Linux/Windows artifacts
+          # Portable .exe
+          go build -ldflags="-s -w -X github.com/ghanirahmans/gaet/pkg/core.Version=$v" -o build/gaet-windows-amd64.exe ./cmd/gaet
+          Copy-Item build/gaet-windows-amd64.exe dist/gaet-windows-amd64.exe
+
+          # Real WiX v3 toolset (candle.exe + light.exe) — needed for <Environment>.
+          choco install wixtoolset --no-progress -y
+          $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
+          if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
+            $wixBin = Get-ChildItem 'C:\Program Files (x86)\WiX Toolset*\bin','C:\Program Files\WiX Toolset*\bin' -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($wixBin) { $env:Path += ";$($wixBin.FullName)" }
+          }
+
+          # Substitute the numeric version, then compile/link the MSI.
+          (Get-Content windows/gaet.wxs -Raw) -replace '@VERSION@', $v | Set-Content -NoNewline build/gaet.wxs
+          candle.exe -arch x64 -b . -out build/gaet.wixobj build/gaet.wxs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          light.exe -b . -out dist/gaet-windows-amd64.msi build/gaet.wixobj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Get-ChildItem dist | Format-Table Name,Length
+
+      - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-windows
+          name: windows
           path: dist/
           if-no-files-found: error
           retention-days: 1
@@ -190,7 +230,7 @@ jobs:
   finalize:
     name: Checksums & publish
     runs-on: ubuntu-latest
-    needs: [linux, macos]
+    needs: [linux, windows, macos]
     permissions:
       contents: write
     steps:

@@ -17,6 +17,13 @@ jobs:
   publish:
     name: Build & Publish SDK to NPM
     runs-on: ubuntu-latest
+    # id-token: write enables npm Trusted Publishing (OIDC). When a trusted
+    # publisher is configured for this repo/workflow, npm publishes with a
+    # short-lived OIDC token (no NPM_TOKEN needed). If not configured, it falls
+    # back to the NPM_TOKEN secret below.
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout Code
@@ -25,7 +32,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '24.x'   # Node >=22.14 ships npm >=11 with OIDC support
           registry-url: 'https://registry.npmjs.org'
 
       # Resolve the version: explicit dispatch input, else the tag (strip "v").

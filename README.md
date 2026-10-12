@@ -153,7 +153,7 @@ Download from the [latest GitHub Release](https://github.com/ghanirahmans/gaet/r
 
 **Installers** (system-wide):
 
-- **Windows**: `gaet-windows-amd64.msi` — per-machine install of `gaet.exe` to `%ProgramFiles%\gaet` (with an Add/Remove Programs entry; deployable via GPO/Intune/SCCM). The MSI does **not** modify `PATH` — add `%ProgramFiles%\gaet` to `PATH` yourself, or use `install.ps1` for a per-user install that is added to `PATH` automatically.
+- **Windows**: `gaet-windows-amd64.msi` — per-machine install of `gaet.exe` to `%ProgramFiles%\gaet` and adds it to the system `PATH` (with an Add/Remove Programs entry; deployable via GPO/Intune/SCCM). A shell already open needs reopening to pick up the `PATH` change. Built with the WiX v3 toolset.
 - **macOS**: `gaet-<version>-darwin-amd64.pkg` (or `-arm64`) — installs to `/usr/local/bin/gaet`. The package is **unsigned**, so Gatekeeper may warn: install with `sudo installer -pkg gaet-<version>-darwin-<arch>.pkg -target /`, or right-click → Open in Finder.
 
 > Verify any download against the `checksums.txt` (SHA256) published alongside the assets:

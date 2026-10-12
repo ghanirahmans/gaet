@@ -2,26 +2,23 @@
 <!--
   WiX v3 authoring for the gaet Windows installer (.msi).
 
-  Compiled by wixl (msitools, MIT, Linux-native — no Wine or Windows build host
-  needed). See .github/workflows/release.yml.
+  Compiled with the real WiX v3 toolset (candle.exe + light.exe) on a
+  windows-latest runner — see .github/workflows/release.yml. WiX v3 is used
+  (not wixl) because it fully supports the <Environment> element for PATH
+  registration, which msitools' wixl 0.103 does not implement.
 
   Build:
-    sed "s/@VERSION@/${VERSION}/" windows/gaet.wxs > .gaet.msi.wxs
-    wixl -a x64 -o dist/gaet-windows-amd64.msi .gaet.msi.wxs
+    candle.exe -arch x64 -b . -out build\\gaet.wixobj <substituted .wxs>
+    light.exe  -b . -out dist\\gaet-windows-amd64.msi build\\gaet.wixobj
 
   IMPORTANT: @VERSION@ must be replaced with a NUMERIC X.Y.Z version, because the
   Windows Installer requires a numeric ProductVersion (a leading 'v' is invalid).
 
   What it installs:
     - %ProgramFiles%\gaet\gaet.exe (64-bit, per-machine)
-  A per-machine install registers an Add/Remove Programs entry and uninstall;
-  MajorUpgrade handles in-place upgrades via a stable UpgradeCode.
-
-  LIMITATION: the MSI does NOT modify PATH. wixl 0.103 (as shipped on Ubuntu)
-  does not implement the WiX <Environment> element, so PATH cannot be registered
-  from here. For a PATH-ready, per-user install use the PowerShell installer
-  (install.ps1), which adds %USERPROFILE%\.local\bin to the user PATH; or add
-  %ProgramFiles%\gaet to PATH manually / via your management tooling.
+    - adds %ProgramFiles%\gaet to the system PATH
+  Uninstall removes both. MajorUpgrade handles in-place upgrades via a stable
+  UpgradeCode.
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Product Id="*"
@@ -58,6 +55,12 @@
               DiskId="1"
               Source="build/gaet-windows-amd64.exe"
               KeyPath="yes" />
+        <Environment Id="GaetPath"
+                     Name="PATH"
+                     Value="[INSTALLFOLDER]"
+                     Action="set"
+                     Part="last"
+                     System="yes" />
       </Component>
     </DirectoryRef>
 
