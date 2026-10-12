@@ -3,9 +3,6 @@ name: Publish NPM Package
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - 'v*'
 
 jobs:
   publish:
@@ -52,7 +49,7 @@ jobs:
       - name: Run SDK Tests
         run: |
           cd sdk
-          npm test || true
+          npm test
 
       - name: Publish to NPM
         run: |
