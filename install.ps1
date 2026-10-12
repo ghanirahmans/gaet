@@ -28,7 +28,10 @@ if (Test-Path "go.mod") {
     go build -ldflags="-s -w" -o $BinaryPath ./cmd/gaet
     Write-Host "  [ OK ]  Built binary -> $BinaryPath" -ForegroundColor Green
 } else {
-    Write-Host "  [INFO]  Downloading latest gaet.exe release..." -ForegroundColor Yellow
+    # Portable install (user-local). For a machine-wide install with PATH
+    # registration, use the .msi instead:
+    #   https://github.com/ghanirahmans/gaet/releases/latest/download/gaet-windows-amd64.msi
+    Write-Host "  [INFO]  Downloading latest gaet release (windows/amd64)..." -ForegroundColor Yellow
     $DownloadUrl = "https://github.com/ghanirahmans/gaet/releases/latest/download/gaet-windows-amd64.exe"
     Invoke-WebRequest -Uri $DownloadUrl -OutFile $BinaryPath
     Write-Host "  [ OK ]  Downloaded binary -> $BinaryPath" -ForegroundColor Green

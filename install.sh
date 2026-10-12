@@ -49,19 +49,23 @@ elif command -v go &>/dev/null; then
     GOPROXY=direct GOBIN="$GAET_BIN_DIR" go install github.com/ghanirahmans/gaet/cmd/gaet@latest
     echo "  [ OK ]  Installed gaet binary -> $GAET_BIN_DIR/gaet"
 else
-    # Fallback to downloading GitHub Release binary asset
+    # Fallback to downloading the GitHub Release archive for this platform
     OS=$(uname -s | tr '[:upper:]' '[:lower:]')
     ARCH=$(uname -m)
     case "$ARCH" in
         x86_64) ARCH="amd64" ;;
         aarch64|arm64) ARCH="arm64" ;;
     esac
-    BIN_URL="https://github.com/ghanirahmans/gaet/releases/latest/download/gaet-${OS}-${ARCH}"
-    echo "  [INFO]  Downloading gaet binary (${OS}/${ARCH})..."
-    if curl -fsSL "$BIN_URL" -o "$GAET_BIN_DIR/gaet"; then
+    BIN_URL="https://github.com/ghanirahmans/gaet/releases/latest/download/gaet-${OS}-${ARCH}.tar.gz"
+    echo "  [INFO]  Downloading gaet (${OS}/${ARCH})..."
+    TMP="$(mktemp -d)"
+    if curl -fsSL "$BIN_URL" -o "$TMP/gaet.tar.gz" && tar -xzf "$TMP/gaet.tar.gz" -C "$TMP" gaet; then
+        mv "$TMP/gaet" "$GAET_BIN_DIR/gaet"
         chmod +x "$GAET_BIN_DIR/gaet"
+        rm -rf "$TMP"
         echo "  [ OK ]  Downloaded gaet -> $GAET_BIN_DIR/gaet"
     else
+        rm -rf "$TMP"
         echo "  [WARN]  Could not download pre-compiled binary. Building locally if Go is available..."
         if command -v go &>/dev/null; then
             GOPROXY=direct GOBIN="$GAET_BIN_DIR" go install github.com/ghanirahmans/gaet/cmd/gaet@latest

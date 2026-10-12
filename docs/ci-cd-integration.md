@@ -121,21 +121,27 @@ jobs:
 
 For environments without internet access:
 
-1. **Download installer + binary** (from a machine with internet):
+1. **Download installer + archive** (from a machine with internet):
    ```bash
    curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh > install.sh
-   curl -sSL https://github.com/ghanirahmans/gaet/releases/latest/download/gaet-linux-amd64 > gaet
-   chmod +x install.sh gaet
+   curl -sSL https://github.com/ghanirahmans/gaet/releases/latest/download/gaet-linux-amd64.tar.gz > gaet-linux-amd64.tar.gz
    ```
 
 2. **Transfer to target machine** via USB, SCP, or internal package repository.
 
-3. **Install locally:**
+3. **Install locally** (user-local, no root):
    ```bash
-   chmod +x install.sh gaet
+   chmod +x install.sh
+   tar -xzf gaet-linux-amd64.tar.gz
    cp gaet ~/.local/bin/gaet  # place binary on PATH
    ./install.sh  # creates ~/.gaet/.env config template
    ```
+
+   For a system-wide install you can instead transfer a native package:
+   Debian/Ubuntu `apt install ./gaet_<version>_amd64.deb`,
+   Fedora/RHEL/openSUSE `dnf install ./gaet-<version>-1.x86_64.rpm`,
+   Alpine `apk add --allow-untrusted ./gaet_<version>_x86_64.apk`,
+   Arch `pacman -U gaet-<version>-1-x86_64.pkg.tar.zst`.
 
 ---
 
@@ -190,11 +196,17 @@ cd gaet
 go build -ldflags="-s -w" -o ~/.local/bin/gaet ./cmd/gaet
 ```
 
-Or use the GitHub releases binary asset directly:
+Or use the GitHub release archive directly (Linux amd64 shown; swap
+`linux-amd64` for your platform, e.g. `darwin-arm64`):
 ```bash
-curl -sSL https://github.com/ghanirahmans/gaet/releases/latest/download/gaet-linux-amd64 > gaet
+curl -sSL https://github.com/ghanirahmans/gaet/releases/latest/download/gaet-linux-amd64.tar.gz -o gaet.tar.gz
+tar -xzf gaet.tar.gz gaet
 chmod +x gaet && mv gaet ~/.local/bin/gaet
 ```
+
+For a managed/native install, use the platform installers instead:
+`gaet-windows-amd64.msi` (Windows), `gaet-<version>-darwin-<arch>.pkg` (macOS),
+or a Linux package (`.deb`/`.rpm`/`.apk`/`.pkg.tar.zst`).
 
 ### "pg_dump not found in PATH"
 

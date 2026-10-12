@@ -9,7 +9,6 @@ import (
 
 const (
 	AppName        = "gaet"
-	Version        = "1.1.2"
 	DocsURL        = "https://github.com/ghanirahmans/gaet"
 	TroubleshootURL = "https://github.com/ghanirahmans/gaet/blob/main/docs/troubleshooting.md"
 	GitHubAPI      = "https://api.github.com/repos/ghanirahmans/gaet/releases/latest"
@@ -29,6 +28,11 @@ const (
 	DefTimeoutPerGB   = 300
 	DefServicePrefix  = "gaet"
 )
+
+// Version is the application version. It is a var (not const) so release builds
+// can inject the git tag via -ldflags "-X .../pkg/core.Version=<version>".
+// Local builds (no ldflags) keep this default value.
+var Version = "1.1.2"
 
 // GaetDir returns the user data directory (~/.gaet or $GAET_DIR).
 func GaetDir() string {

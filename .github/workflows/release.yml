@@ -6,12 +6,37 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
+
+# Prevent overlapping runs (e.g. a re-pushed tag or a retry) from racing on the
+# same GitHub Release / checksums.txt.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+# Release assets are self-describing (clear names + extensions), so users know
+# exactly what to download:
+#   Linux:   gaet-linux-<arch>.tar.gz
+#            gaet_<version>_<arch>.deb            (Debian/Ubuntu)
+#            gaet-<version>-1.<arch>.rpm          (Fedora/RHEL/openSUSE)
+#            gaet_<version>_<arch>.apk            (Alpine)
+#            gaet-<version>-1-<arch>.pkg.tar.zst  (Arch)
+#   Windows: gaet-windows-amd64.exe   (portable)
+#            gaet-windows-amd64.msi   (installer -> %ProgramFiles%\gaet + PATH)
+#   macOS:   gaet-darwin-<arch>.tar.gz
+#            gaet-<version>-darwin-<arch>.pkg     (installer -> /usr/local/bin)
+#   All:     checksums.txt
+#
+# macOS packages require a macOS runner (pkgbuild). Linux/Windows are produced on
+# the Ubuntu runner (nfpm for deb/rpm/apk/archlinux; wixl for the MSI, no Wine).
 
 jobs:
-  publish:
-    name: Build and Publish Release Assets
+  # ── Linux + Windows (Ubuntu runner) ─────────────────────────────────────────
+  linux:
+    name: Linux + Windows packages
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: '0'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,33 +46,175 @@ jobs:
         with:
           go-version: '1.22.x'
 
-      - name: Build Cross-Platform Binaries
+      - name: Build Linux + Windows binaries
         env:
-          CGO_ENABLED: '0'
+          TAG: ${{ github.ref_name }}
         run: |
-          mkdir -p build
-          # Linux
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build/gaet-linux-amd64 ./cmd/gaet
-          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o build/gaet-linux-arm64 ./cmd/gaet
-          
-          # macOS
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o build/gaet-darwin-amd64 ./cmd/gaet
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o build/gaet-darwin-arm64 ./cmd/gaet
-          
-          # Windows
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o build/gaet-windows-amd64.exe ./cmd/gaet
-
+          set -euo pipefail
+          VERSION="${TAG#v}"    # strip leading 'v' -> 1.2.3 (deb/msi need a leading digit)
+          if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: tag '${TAG}' is not a numeric vMAJOR.MINOR.PATCH release tag." >&2
+            exit 1
+          fi
+          echo "Building gaet ${VERSION} (tag ${TAG})"
+          mkdir -p build dist
+          LDFLAGS="-s -w -X github.com/ghanirahmans/gaet/pkg/core.Version=${VERSION}"
+          GOOS=linux   GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/gaet-linux-amd64      ./cmd/gaet
+          GOOS=linux   GOARCH=arm64 go build -ldflags="$LDFLAGS" -o build/gaet-linux-arm64      ./cmd/gaet
+          GOOS=windows GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/gaet-windows-amd64.exe ./cmd/gaet
           ls -lh build/
+
+      - name: Linux archives + Windows portable .exe
+        run: |
+          set -euo pipefail
+          make_targz() { # <src-bin> <out-tar.gz>
+            local src="$1" out="$2" stage
+            stage="$(mktemp -d)"
+            cp "$src" "$stage/gaet"
+            cp gaet.1 README.md LICENSE "$stage/"
+            tar -czf "$out" -C "$stage" gaet gaet.1 README.md LICENSE
+            rm -rf "$stage"
+          }
+          make_targz build/gaet-linux-amd64 dist/gaet-linux-amd64.tar.gz
+          make_targz build/gaet-linux-arm64 dist/gaet-linux-arm64.tar.gz
+          cp build/gaet-windows-amd64.exe dist/gaet-windows-amd64.exe
+          ls -lh dist/
+
+      - name: Package Linux deb/rpm/apk/archlinux (nfpm)
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          # nfpm (MIT, open-source) - install the CLI and put it on PATH.
+          # Pinned deliberately (not @latest) so a release job holding write
+          # access never executes freshly-published upstream code.
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          for ARCH in amd64 arm64; do
+            # nfpm packages build/gaet (see nfpm.yaml contents[].src)
+            cp "build/gaet-linux-${ARCH}" build/gaet
+            for PACKAGER in deb rpm apk archlinux; do
+              ARCH="${ARCH}" VERSION="${VERSION}" nfpm pkg --config nfpm.yaml --packager "${PACKAGER}" --target dist/
+            done
+          done
+          rm -f build/gaet
+          ls -lh dist/
+
+      - name: Build Windows .msi (wixl)
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wixl
+          sed "s/@VERSION@/${VERSION}/" windows/gaet.wxs > .gaet.msi.wxs
+          wixl --arch X64 -o dist/gaet-windows-amd64.msi .gaet.msi.wxs
+          rm -f .gaet.msi.wxs
+          ls -lh dist/gaet-windows-amd64.msi
+
+      - name: Upload Linux/Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-windows
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── macOS (macOS runner needed for pkgbuild) ────────────────────────────────
+  macos:
+    name: macOS packages
+    runs-on: macos-latest
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+
+      - name: Build macOS archives + .pkg
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: tag '${TAG}' is not a numeric vMAJOR.MINOR.PATCH release tag." >&2
+            exit 1
+          fi
+          echo "Building gaet ${VERSION} (tag ${TAG})"
+          mkdir -p build dist
+          LDFLAGS="-s -w -X github.com/ghanirahmans/gaet/pkg/core.Version=${VERSION}"
+          for ARCH in amd64 arm64; do
+            GOOS=darwin GOARCH="${ARCH}" go build -ldflags="$LDFLAGS" -o "build/gaet-darwin-${ARCH}" ./cmd/gaet
+
+            # User-local archive (portable)
+            stage="$(mktemp -d)"
+            cp "build/gaet-darwin-${ARCH}" "$stage/gaet"
+            cp gaet.1 README.md LICENSE "$stage/"
+            tar -czf "dist/gaet-darwin-${ARCH}.tar.gz" -C "$stage" gaet gaet.1 README.md LICENSE
+            rm -rf "$stage"
+
+            # Installer component package -> /usr/local/bin/gaet (unsigned)
+            tmp="$(mktemp -d)"
+            payload="$tmp/payload"
+            mkdir -p "$payload/usr/local/bin" "$payload/usr/local/share/man/man1"
+            cp "build/gaet-darwin-${ARCH}" "$payload/usr/local/bin/gaet"
+            chmod 755 "$payload/usr/local/bin/gaet"
+            cp gaet.1 "$payload/usr/local/share/man/man1/gaet.1"
+            xattr -cr "$payload" 2>/dev/null || true
+            pkgbuild --root "$payload" \
+                     --identifier com.ghanirahmans.gaet \
+                     --version "${VERSION}" \
+                     --install-location / \
+                     "dist/gaet-${VERSION}-darwin-${ARCH}.pkg"
+            rm -rf "$tmp"
+          done
+          ls -lh dist/
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── Finalize: one checksums.txt over every asset, then publish ──────────────
+  finalize:
+    name: Checksums & publish
+    runs-on: ubuntu-latest
+    needs: [linux, macos]
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          cd dist
+          rm -f checksums.txt
+          sha256sum * > checksums.txt
+          echo "=== dist ==="
+          ls -lh
+          echo "=== checksums.txt ==="
+          cat checksums.txt
 
       - name: Publish Release Assets
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            build/gaet-linux-amd64
-            build/gaet-linux-arm64
-            build/gaet-darwin-amd64
-            build/gaet-darwin-arm64
-            build/gaet-windows-amd64.exe
+          files: dist/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,44 @@
+# nfpm packaging config for the gaet Linux packages:
+#   deb (Debian/Ubuntu), rpm (Fedora/RHEL/openSUSE),
+#   apk (Alpine), archlinux (Arch -> .pkg.tar.zst).
+#
+# Used by nfpm (MIT, open-source) in .github/workflows/release.yml:
+#   ARCH=amd64 VERSION=1.2.3 nfpm pkg --config nfpm.yaml --packager deb --target dist/
+#   (same with --packager rpm|apk|archlinux)
+#
+# Notes:
+#   * arch uses Go nomenclature (amd64/arm64); nfpm translates it to the
+#     platform-specific name automatically
+#     (deb: amd64/arm64, rpm: x86_64/aarch64, apk: x86_64/aarch64, archlinux: x86_64/aarch64).
+#   * version must NOT be prefixed with 'v' (deb requires a leading digit).
+#   * The release workflow copies the freshly built binary to build/gaet before
+#     packaging, so contents[].src is always "build/gaet".
+# yaml-language-server: $schema=https://nfpm.goreleaser.com/schema.json
+
+name: gaet
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+
+# Update the maintainer email if you prefer a non-noreply contact address.
+maintainer: "Ghani Rahman <ghanirahmans@users.noreply.github.com>"
+vendor: gaet
+homepage: https://github.com/ghanirahmans/gaet
+license: MIT
+section: utils
+priority: optional
+description: |
+  Gaet is a zero-dependency, cross-platform Database Backup & Cloud Sync CLI
+  built as a single Go binary. It backs up a local PostgreSQL database to a
+  cloud remote, restores it, manages snapshots, and includes an embedded web
+  dashboard plus a REST API.
+
+contents:
+  - src: build/gaet
+    dst: /usr/bin/gaet
+    file_info:
+      mode: 0755
+  - src: gaet.1
+    dst: /usr/share/man/man1/gaet.1
+    file_info:
+      mode: 0644

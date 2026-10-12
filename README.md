@@ -130,6 +130,35 @@ cd gaet
 go build -ldflags="-s -w" -o ~/.local/bin/gaet ./cmd/gaet
 ```
 
+### Method 3: Download a Release Asset (manual)
+
+Download from the [latest GitHub Release](https://github.com/ghanirahmans/gaet/releases/latest) and pick the asset for your platform:
+
+| Platform | Release Asset | Install |
+| :--- | :--- | :--- |
+| Linux (x86_64) | `gaet-linux-amd64.tar.gz` | `tar -xzf gaet-linux-amd64.tar.gz && sudo mv gaet /usr/local/bin/` |
+| Linux (arm64) | `gaet-linux-arm64.tar.gz` | `tar -xzf gaet-linux-arm64.tar.gz && sudo mv gaet /usr/local/bin/` |
+| macOS (Intel) | `gaet-darwin-amd64.tar.gz` | `tar -xzf gaet-darwin-amd64.tar.gz && sudo mv gaet /usr/local/bin/` |
+| macOS (Apple Silicon) | `gaet-darwin-arm64.tar.gz` | `tar -xzf gaet-darwin-arm64.tar.gz && sudo mv gaet /usr/local/bin/` |
+| Windows (x86_64) | `gaet-windows-amd64.exe` | Portable — run directly, or add its folder to your `PATH` |
+
+**Native Linux packages** (system-wide, installed to `/usr/bin/gaet`):
+
+| Distro | Release Asset | Install |
+| :--- | :--- | :--- |
+| Debian / Ubuntu | `gaet_<version>_amd64.deb` (or `_arm64`) | `sudo apt install ./gaet_<version>_amd64.deb` |
+| Fedora / RHEL / openSUSE | `gaet-<version>-1.x86_64.rpm` (or `-1.aarch64`) | `sudo dnf install ./gaet-<version>-1.x86_64.rpm` |
+| Alpine | `gaet_<version>_x86_64.apk` (or `_aarch64`) | `sudo apk add --allow-untrusted ./gaet_<version>_x86_64.apk` |
+| Arch | `gaet-<version>-1-x86_64.pkg.tar.zst` (or `-1-aarch64`) | `sudo pacman -U gaet-<version>-1-x86_64.pkg.tar.zst` |
+
+**Installers** (system-wide):
+
+- **Windows**: `gaet-windows-amd64.msi` — installs to `%ProgramFiles%\gaet` and adds it to the system `PATH` (deployable via GPO/Intune/SCCM). A shell already open may need to be reopened to pick up the `PATH` change.
+- **macOS**: `gaet-<version>-darwin-amd64.pkg` (or `-arm64`) — installs to `/usr/local/bin/gaet`. The package is **unsigned**, so Gatekeeper may warn: install with `sudo installer -pkg gaet-<version>-darwin-<arch>.pkg -target /`, or right-click → Open in Finder.
+
+> Verify any download against the `checksums.txt` (SHA256) published alongside the assets:
+> `sha256sum -c checksums.txt --ignore-missing`.
+
 ### Legacy Python Edition (Maintenance Mode)
 
 > [!WARNING]

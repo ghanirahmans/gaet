@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  WiX v3 authoring for the gaet Windows installer (.msi).
+
+  Compiled by wixl (msitools, MIT, Linux-native — no Wine or Windows build host
+  needed). See .github/workflows/release.yml.
+
+  Build:
+    sed "s/@VERSION@/${VERSION}/" windows/gaet.wxs > .gaet.msi.wxs
+    wixl (arch=x86_64) -o dist/gaet-windows-amd64.msi .gaet.msi.wxs
+
+  IMPORTANT: @VERSION@ must be replaced with a NUMERIC X.Y.Z version, because the
+  Windows Installer requires a numeric ProductVersion (a leading 'v' is invalid).
+
+  What it installs:
+    - %ProgramFiles%\gaet\gaet.exe (64-bit, per-machine)
+    - adds %ProgramFiles%\gaet to the system PATH
+  Uninstall removes both. MajorUpgrade handles in-place upgrades via a stable
+  UpgradeCode.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="gaet"
+           Language="1033"
+           Version="@VERSION@"
+           Manufacturer="Ghani Rahman"
+           UpgradeCode="EF07E4B4-7203-4730-B239-8011B643A65D">
+
+    <Package Id="*"
+             Keywords="Installer"
+             Description="gaet - Database Backup &amp; Cloud Sync CLI"
+             Comments="Zero-dependency cross-platform PostgreSQL backup CLI"
+             Manufacturer="Ghani Rahman"
+             InstallerVersion="200"
+             Languages="1033"
+             Compressed="yes"
+             InstallScope="perMachine" />
+
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of gaet is already installed." />
+
+    <Media Id="1" Cabinet="gaet.cab" EmbedCab="yes" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="gaet" />
+      </Directory>
+    </Directory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="GaetExe" Guid="*" Win64="yes">
+        <File Id="gaet.exe"
+              Name="gaet.exe"
+              DiskId="1"
+              Source="build/gaet-windows-amd64.exe"
+              KeyPath="yes" />
+        <Environment Id="GaetPath"
+                     Name="PATH"
+                     Value="[INSTALLFOLDER]"
+                     Action="set"
+                     Part="last"
+                     System="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="Main" Title="gaet" Level="1">
+      <ComponentRef Id="GaetExe" />
+    </Feature>
+  </Product>
+</Wix>
