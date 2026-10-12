@@ -14,9 +14,14 @@
 
   What it installs:
     - %ProgramFiles%\gaet\gaet.exe (64-bit, per-machine)
-    - adds %ProgramFiles%\gaet to the system PATH
-  Uninstall removes both. MajorUpgrade handles in-place upgrades via a stable
-  UpgradeCode.
+  A per-machine install registers an Add/Remove Programs entry and uninstall;
+  MajorUpgrade handles in-place upgrades via a stable UpgradeCode.
+
+  LIMITATION: the MSI does NOT modify PATH. wixl 0.103 (as shipped on Ubuntu)
+  does not implement the WiX <Environment> element, so PATH cannot be registered
+  from here. For a PATH-ready, per-user install use the PowerShell installer
+  (install.ps1), which adds %USERPROFILE%\.local\bin to the user PATH; or add
+  %ProgramFiles%\gaet to PATH manually / via your management tooling.
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Product Id="*"
@@ -36,8 +41,7 @@
              Compressed="yes"
              InstallScope="perMachine" />
 
-    <MajorUpgrade AllowSameVersionUpgrades="yes"
-                  DowngradeErrorMessage="A newer version of gaet is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of gaet is already installed." />
 
     <Media Id="1" Cabinet="gaet.cab" EmbedCab="yes" />
 
@@ -54,12 +58,6 @@
               DiskId="1"
               Source="build/gaet-windows-amd64.exe"
               KeyPath="yes" />
-        <Environment Id="GaetPath"
-                     Name="PATH"
-                     Value="[INSTALLFOLDER]"
-                     Action="set"
-                     Part="last"
-                     System="yes" />
       </Component>
     </DirectoryRef>
 
