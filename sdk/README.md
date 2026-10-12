@@ -151,9 +151,9 @@ console.log('PostgreSQL tools ok:', checkResult.checks.tools.ok);
 | `gaet.status()` | `Promise<GaetStatusResponse>` | Returns local and cloud database connection status. |
 | `gaet.push()` | `Promise<GaetPushResponse>` | Triggers database backup from local database to cloud remote. |
 | `gaet.fetch()` | `Promise<GaetFetchResponse>` | Fetches cloud database state and restores it locally. |
-| `gaet.restore(name?)` | `Promise<GaetRestoreResponse>` | Restores database from a local `.dump` snapshot file. |
+| `gaet.restore(name?)` | `Promise<GaetFetchResponse>` | Restores database from a local `.dump` snapshot file. |
 | `gaet.snapshots()` | `Promise<GaetSnapshotsResponse>` | Lists snapshot files stored in `~/.gaet/backups`. |
-| `gaet.deleteSnapshot(name)` | `Promise<GaetGenericResponse>` | Removes a specific snapshot dump file from disk. |
+| `gaet.deleteSnapshot(name)` | `Promise<{ ok: boolean; msg: string }>` | Removes a specific snapshot dump file from disk. |
 | `gaet.logs()` | `Promise<GaetLogsResponse>` | Reads audit log entries from `~/.gaet/gaet.log`. |
 | `gaet.check()` | `Promise<GaetCheckResponse>` | Runs system checks for `pg_dump`, `psql`, and permissions. |
 | `gaet.doctor()` | `Promise<GaetDoctorResponse>` | Runs full doctor diagnostics on environment, config, and tools. |
@@ -172,7 +172,7 @@ import type {
   GaetPushResponse,
   GaetFetchResponse,
   GaetSnapshotsResponse,
-  GaetSnapshotInfo,
+  GaetSnapshotItem,
   GaetCheckResponse,
   GaetLogsResponse,
   GaetLogEntry,
