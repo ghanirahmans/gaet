@@ -7,9 +7,10 @@
   (not wixl) because it fully supports the <Environment> element for PATH
   registration, which msitools' wixl 0.103 does not implement.
 
-  Build:
-    candle.exe -arch x64 -b . -out build\\gaet.wixobj <substituted .wxs>
-    light.exe  -b . -out dist\\gaet-windows-amd64.msi build\\gaet.wixobj
+  Build (on a windows-latest runner; substitute @VERSION@ with the numeric
+  X.Y.Z version first, and keep the .wxs at the repo root so Source resolves):
+    candle.exe -arch x64 -out build\\gaet.wixobj gaet.msi.wxs
+    light.exe  -out dist\\gaet-windows-amd64.msi build\\gaet.wixobj
 
   IMPORTANT: @VERSION@ must be replaced with a NUMERIC X.Y.Z version, because the
   Windows Installer requires a numeric ProductVersion (a leading 'v' is invalid).

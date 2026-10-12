@@ -138,20 +138,21 @@ jobs:
           go build -ldflags="-s -w -X github.com/ghanirahmans/gaet/pkg/core.Version=$v" -o build/gaet-windows-amd64.exe ./cmd/gaet
           Copy-Item build/gaet-windows-amd64.exe dist/gaet-windows-amd64.exe
 
-          # Real WiX v3 toolset (candle.exe + light.exe) — needed for <Environment>.
-          choco install wixtoolset --no-progress -y
-          $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
+          # Real WiX v3 toolset (candle.exe + light.exe). It ships with the
+          # windows-latest image; locate it if it is not already on PATH.
           if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
             $wixBin = Get-ChildItem 'C:\Program Files (x86)\WiX Toolset*\bin','C:\Program Files\WiX Toolset*\bin' -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($wixBin) { $env:Path += ";$($wixBin.FullName)" }
           }
 
-          # Substitute the numeric version, then compile/link the MSI.
-          (Get-Content windows/gaet.wxs -Raw) -replace '@VERSION@', $v | Set-Content -NoNewline build/gaet.wxs
-          candle.exe -arch x64 -b . -out build/gaet.wixobj build/gaet.wxs
+          # Substitute the numeric version. Place the .wxs at the repo root so its
+          # Source="build/..." resolves relative to it; then compile + link the MSI.
+          (Get-Content windows/gaet.wxs -Raw) -replace '@VERSION@', $v | Set-Content -NoNewline gaet.msi.wxs
+          candle.exe -arch x64 -out build/gaet.wixobj gaet.msi.wxs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          light.exe -b . -out dist/gaet-windows-amd64.msi build/gaet.wixobj
+          light.exe -out dist/gaet-windows-amd64.msi build/gaet.wixobj
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Remove-Item gaet.msi.wxs
 
           Get-ChildItem dist | Format-Table Name,Length
 
