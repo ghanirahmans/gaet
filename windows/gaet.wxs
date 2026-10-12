@@ -7,7 +7,7 @@
 
   Build:
     sed "s/@VERSION@/${VERSION}/" windows/gaet.wxs > .gaet.msi.wxs
-    wixl (arch=x86_64) -o dist/gaet-windows-amd64.msi .gaet.msi.wxs
+    wixl -a x64 -o dist/gaet-windows-amd64.msi .gaet.msi.wxs
 
   IMPORTANT: @VERSION@ must be replaced with a NUMERIC X.Y.Z version, because the
   Windows Installer requires a numeric ProductVersion (a leading 'v' is invalid).
