@@ -6,7 +6,7 @@ This document provides essential architectural context, design standards, and co
 
 ## 1. Executive Summary & Core Philosophy
 
-**Gaet** is a zero-dependency, high-performance cross-platform Database Backup & Cloud Sync CLI tool built with **Golang 1.22+**.
+**Gaet** is a zero-dependency, high-performance cross-platform Database Backup & Cloud Sync CLI tool built with **Golang 1.21+**.
 
 ### Core Principles
 - **Single Binary Distribution**: Compiled into a fast, portable single binary without external runtime dependencies (no Python or Node.js runtime required).
@@ -63,6 +63,13 @@ Before pushing any change, execute the complete Go test suite:
 go test ./... -count=1
 ```
 All **13/13 packages** MUST pass with zero errors.
+
+> **Prerequisite — PostgreSQL client tools:** The `tests/` integration package shells out to
+> `pg_dump`, `pg_restore`, and `psql`. These must be on `PATH`, or `RunRestore` aborts with
+> `PostgreSQL tools not found` (`pkg/backup/backup.go`), failing `TestRunRestore_DryRun_WithSnapshot`
+> even in dry-run mode. Install the client package for your platform if missing
+> (e.g. Debian/Ubuntu `postgresql-client`; macOS `brew install libpq && brew link --force libpq`).
+> GitHub Actions `ubuntu-latest` ships these tools by default.
 
 ### Building the Binary
 ```bash

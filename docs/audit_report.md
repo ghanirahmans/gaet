@@ -1,5 +1,12 @@
 # gaet — Security & Code Quality Audit Report
 
+> ⚠️ **HISTORICAL DOCUMENT — ARCHIVED FOR REFERENCE ONLY**
+>
+> This audit report was conducted against the **legacy Python engine** (`gaet.py` / `src/gaet/` layout) on the `lts/v1.0` branch. It does **not** reflect the current **Golang engine** on `main` (v1.1.0 LTS+), which has a different file layout (`pkg/`, `cmd/gaet/main.go`), a `switch`-based dispatch, and a password flow that uses `PGPASSWORD` env vars (no `.pgpass` files written to disk).
+>
+> **Scope**: This report is preserved for historical context of the Python v1.0.x codebase. Many findings here (e.g., the `gaet.py` security model, `sys.exit` exit codes) do not apply to the active Go engine. See [`docs/architecture.md`](./architecture.md) for the current design.
+---
+
 ---
 
 ## Document Control

@@ -2,16 +2,21 @@
 
 This document explains how gaet works internally, design decisions, and trade-offs.
 
+> **Scope**: This document describes the **active Golang engine** (`main` branch, v1.1.0 LTS). The legacy Python implementation lived on the `lts/v1.0` branch and is no longer the basis of this codebase. Refer to `docs/legacy-python.md` for the deprecated Python engine.
+
 ## Table of Contents
 
 1. [System Overview](#system-overview)
-2. [Core Pipelines](#core-pipelines)
-3. [Concurrency & Locking](#concurrency--locking)
-4. [Error Handling](#error-handling)
-5. [Security Model](#security-model)
-6. [Performance Optimization](#performance-optimization)
-7. [Platform Integration](#platform-integration)
-8. [Future Improvements](#future-improvements)
+2. [Codebase Layout](#codebase-layout)
+3. [Core Pipelines](#core-pipelines)
+4. [Concurrency & Locking](#concurrency--locking)
+5. [Error Handling & Exit Codes](#error-handling--exit-codes)
+6. [Security Model](#security-model)
+7. [Performance Optimization](#performance-optimization)
+8. [Platform Integration](#platform-integration)
+9. [Web Dashboard & REST API](#web-dashboard--rest-api)
+10. [Testing Strategy](#testing-strategy)
+11. [Future Improvements](#future-improvements)
 
 ---
 
@@ -20,37 +25,92 @@ This document explains how gaet works internally, design decisions, and trade-of
 ### High-Level Architecture
 
 ```
-┌──────────────────────────────────────────────────────┐
-│                    gaet CLI                          │
-│  (Modular src/gaet package, zero dependencies)       │
-└──────────────────┬───────────────────────────────────┘
-                   │
-        ┌──────────┼──────────┐
-        │          │          │
-        ▼          ▼          ▼
-   ┌────────┐ ┌──────────┐ ┌─────────────┐
-   │  Push  │ │  Fetch   │ │  Dashboard  │
-   │Pipeline│ │ Pipeline │ │ (Stdlib HTTP)│
-   └────────┘ └──────────┘ └─────────────┘
-        │          │              │
-        └──────────┼──────────────┘
-                   │
-        ┌──────────┼──────────┐
-        │          │          │
-        ▼          ▼          ▼
-   ┌────────┐ ┌──────────┐ ┌─────────────┐
-   │  Local │ │  Cloud   │ │    File     │
-   │   DB   │ │    DB    │ │   System    │
-   └────────┘ └──────────┘ └─────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                      gaet CLI (main)                           │
+│  cmd/gaet/main.go — flag extraction + switch dispatch          │
+└────────────────────────────────────┬───────────────────────────┘
+                                     │
+        ┌───────────────────────────┼───────────────────────────┐
+        │                           │                           │
+        ▼                           ▼                           ▼
+┌───────────────┐          ┌──────────────┐          ┌──────────────┐
+│   PushPipe   │          │   FetchPipe  │          │   Dashboard  │
+│ pkg/backup   │          │ pkg/backup   │          │ pkg/serve    │
+└──────┬───────┘          └──────┬───────┘          └──────┬───────┘
+        │                           │                           │
+        └───────────────────────────┼───────────────────────────┘
+                                    │
+        ┌──────────┬────────────────┴──────────────┬──────────┐
+        ▼          ▼                                 ▼          ▼
+┌──────────┐ ┌──────────┐                  ┌──────────┐ ┌──────────┐
+│ Local DB │ │ Cloud DB │                  │  Filesys │ │  Logfile │
+│ pg_dump  │ │ pg_restore│                  │  .backup │ │ gaet.log │
+└──────────┘ └──────────┘                  └──────────┘ └──────────┘
 ```
 
 ### Design Philosophy
 
-1. **Single Responsibility** - Each command does one thing well
-2. **Zero Dependencies** - Pure Python + OS tools only
-3. **Fail Loud** - Better to abort than silently corrupt data
-4. **Atomic Operations** - All-or-nothing semantics
-5. **Excellent Logging** - Debug everything easily
+1. **Single Responsibility** — Each command package does one thing well. All subcommand packages depend only on `pkg/core` for shared utilities.
+2. **Zero Dependencies** — Pure Go Standard Library only (`net/http`, `os`, `syscall`, `embed`, `regexp`, `encoding/json`, `bufio`, `filepath`, `runtime`, `context`, `time`). No third-party Go modules. PostgreSQL tools (`pg_dump`, `pg_restore`, `psql`) are invoked as subprocesses — never linked.
+3. **Fail Loud** — Errors produce a typed `*GaetError` with a meaningful exit code. Operations abort before mutating data when preconditions fail (e.g., missing tools, unreachable DB).
+4. **Atomic Operations** — File locks (`O_CREAT|O_EXCL`) prevent concurrent execution; lock staleness is recovered via PID liveness probe.
+5. **Excellent Logging** — Structured JSON log records (`LogJSON` in `pkg/core/logger.go`) written to `~/.gaet/backups/gaet.log` with 5 MB rotation; cron operations log to `cron.log`.
+
+---
+
+## Codebase Layout
+
+```
+gaet/
+├── cmd/
+│   └── gaet/
+│       └── main.go              # CLI entry point & global flag parser
+├── pkg/
+│   ├── backup/                  # Backup push, fetch, restore & cron engine
+│   ├── completion/              # Shell autocompletions (bash, zsh, fish, powershell)
+│   ├── config/                  # Environment variable get/set & file management
+│   ├── core/                    # Path resolution, execution wrappers, formatting, pgurl
+│   ├── detect/                  # Socket & TCP PostgreSQL auto-discovery scanner
+│   ├── init/                    # Interactive setup wizard & database profiles
+│   ├── log/                     # Log viewer & execution history
+│   ├── remote/                  # Remote cloud DB configuration & connection verification
+│   ├── scheduler/               # OS system service scheduler (systemd, launchd, taskschd)
+│   ├── serve/                   # Embedded web dashboard server & REST API handlers
+│   ├── snapshots/               # Local snapshot discovery, rotation & management
+│   └── status/                  # Health check & doctor diagnostic validators
+├── tests/                       # Comprehensive integration test suite (Go)
+├── sdk/                         # TypeScript/JavaScript SDK (@ghanirahmans/gaet)
+├── docs/                        # Project documentation, architecture ADRs & guides
+├── install.sh / install.ps1     # One-liner binary installers
+├── go.mod                       # Go module definition (module: github.com/ghanirahmans/gaet, go 1.21)
+└── gaet.1                       # Linux manpage
+```
+
+### Module & Dependency Footprint
+
+`go.mod` declares `module github.com/ghanirahmans/gaet` with `go 1.21` and **zero require directives** — the entire production binary depends only on the Go standard library.
+
+### Layering & Dependency Direction
+
+Subcommand packages depend **downward only** on `pkg/core`:
+
+```
+cmd/gaet/main.go
+    ├── pkg/backup    (also pulled by pkg/serve)
+    ├── pkg/completion
+    ├── pkg/config
+    ├── pkg/core      ◄── shared foundation (no internal deps)
+    ├── pkg/detect    (also pulled by pkg/serve, pkg/init)
+    ├── pkg/init
+    ├── pkg/log
+    ├── pkg/remote
+    ├── pkg/scheduler (also pulled by pkg/serve)
+    ├── pkg/serve
+    ├── pkg/snapshots
+    └── pkg/status
+```
+
+`pkg/serve` is the sole package that reaches across the foundation boundary, importing `pkg/backup`, `pkg/detect`, and `pkg/scheduler` to expose HTTP wrappers around their `Run*()` functions.
 
 ---
 
@@ -58,327 +118,130 @@ This document explains how gaet works internally, design decisions, and trade-of
 
 ### Push Pipeline (Backup Local → Cloud)
 
-**Flow Diagram:**
+**Entry**: `gaet push` → `cmd/gaet/main.go` dispatches to `backup.RunPush` (`pkg/backup/backup.go`).
 
 ```
-START
+START  gaet push
   │
-  ├─→ [LOCK] Acquire file lock
-  │     └─ Prevents concurrent backups
+  ├─→ [LOCK]       core.AcquireLock() — O_CREAT|O_EXCL lockfile at ~/.gaet/backups/.gaet.lock
+  │                Stale lock auto-recovered via PID liveness probe (pkg/core/lock.go)
   │
-  ├─→ [CONNECT] Verify connections
-  │     ├─ Test local DB
-  │     ├─ Test cloud DB
-  │     └─ Get table list (pg_dump schema only)
+  ├─→ [DUMP]       pg_dump -w --format=custom --compress=9 --file=~/.gaet/backups/gaet_YYYYMMDD_HHmmss.dump
+  │                Host passthrough; fallback to socket-only args for localhost/127.0.0.1/socket paths
   │
-  ├─→ [DUMP] Create backup
-  │     ├─ pg_dump --format=custom --compress=9
-  │     └─ Temp file: ~/.gaet/backups/local_TIMESTAMP.dump
+  ├─→ [VERIFY]     pg_restore --list <dump>  (read-only integrity check, 30s timeout)
+  │                On failure: removes dump, returns ExitGeneral
   │
-  ├─→ [VERIFY] Integrity check
-  │     ├─ pg_restore --list (read-only, no data change)
-  │     └─ Validates dump before upload
+  ├─→ [RESET]      resetTargetObjects() — psql DROP cascade on all public tables/views/sequences
+  │                Uses pg_restore-compatible psql invocation
   │
-  ├─→ [UPLOAD] Transfer to cloud
-  │     ├─ Stream compressed dump
-  │     └─ 120s timeout per operation
+  ├─→ [RESTORE]    pg_restore -w --no-owner --no-acl <dump> → cloud remote
+  │                (Host/port/user/db parsed from GAET_REMOTE_URL via core.ParseRemoteURL)
   │
-  ├─→ [RESTORE] Apply to cloud
-  │     ├─ pg_restore --clean --if-exists
-  │     ├─ Flags: --no-owner, --no-acl, --no-privileges
-  │     └─ (Re)creates schema and data
+  ├─→ [RETENTION]  applyRetention() — deletes gaet_*.dump / cron_*.dump / cloud_*.dump older than GAET_RETENTION_DAYS
   │
-  ├─→ [CLEANUP] Remove temporary files
-  │     └─ Delete .dump and lock file
-  │
-  ├─→ [RETENTION] Delete old backups
-  │     ├─ Find files older than GAET_RETENTION_DAYS
-  │     └─ Keep N most recent
-  │
-  ├─→ [LOG] Record success
-  │     └─ Append to ~/.gaet/backups/backup.log
-  │
-  └─→ [UNLOCK] Release lock
-       └─ Allow next backup to proceed
+  └─→ [LOG]        WriteJSONLog({Category:"BACKUP", Action:"PUSH"}) → gaet.log
+  └─→ [UNLOCK]     lock.Release()
 ```
 
-**Code Reference:**
+**Timeout**: computed per call via `core.GetDynamicTimeout(env, sizeBytes)`:
+`base = GAET_TIMEOUT (default 900s, legacy fallback GAET_PG_TIMEOUT) + floor(sizeGB × GAET_TIMEOUT_PER_GB (default 300s, legacy fallback GAET_PG_TIMEOUT_PER_GB))`.
 
-```python
-def cmd_push(env: Dict[str, str]) -> None:
-    # Phase 1: Lock
-    acquire_lock()
-    
-    try:
-        # Phase 2: Verify
-        tools = find_pg_tools(env)
-        h, p, u, n, w = get_local_db(env)
-        remote = parse_remote_url(...)
-        
-        # Phase 3: Dump
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        dump_file = BACKUP_DIR / f"{n}_{timestamp}.dump"
-        
-        rc = subprocess.run([
-            tools['pg_dump'],
-            f'--host={h}',
-            f'--format=custom',
-            f'--compress=9',
-            '-f', str(dump_file)
-        ], timeout=120)
-        
-        # Phase 4: Verify
-        subprocess.run([
-            tools['pg_restore'],
-            '--list',
-            str(dump_file)
-        ], timeout=30)
-        
-        # Phase 5: Restore to cloud
-        # ... (pg_restore to cloud)
-        
-        # Phase 6: Retention
-        cleanup_old_backups(GAET_RETENTION_DAYS)
-        
-    finally:
-        release_lock()
-        log("✓ Push complete")
-```
+**Credentials**: passed to subprocesses via `core.DBEnv()` which sets `PGPASSWORD`/`PGSSLMODE` environment variables — **never** as command-line arguments (`-w` / `--no-password` always passed to pg_* tools).
 
 ### Fetch Pipeline (Restore Cloud → Local)
 
-**Flow Diagram:**
+Mirrors Push in reverse:
+```
+START  gaet fetch
+  ├─→ [GUARD]    Refuses execution in non-TTY unless --yes flag is supplied
+  ├─→ [LOCK]     core.AcquireLock()
+  ├─→ [DUMP]     pg_dump from cloud → ~/.gaet/backups/cloud_TIMESTAMP.dump
+  ├─→ [RESET]    resetTargetObjects() on local DB
+  ├─→ [RESTORE]  pg_restore → local DB
+  ├─→ [CLEANUP]  os.Remove(cloud dump file)
+  └─→ [LOG]      WriteJSONLog({Action:"FETCH"}) → gaet.log; lock.Release()
+```
+
+### Local Restore Pipeline (Snapshot → Local DB)
 
 ```
-START
-  │
-  ├─→ [LOCK] Acquire file lock
-  │     └─ Prevents concurrent operations
-  │
-  ├─→ [CONNECT] Verify connections
-  │     ├─ Test cloud DB
-  │     └─ Test local DB
-  │
-  ├─→ [WARN] Show local data will be overwritten
-  │     ├─ Print table count
-  │     ├─ Print database size
-  │     └─ Confirm with user
-  │
-  ├─→ [DUMP] Create cloud backup
-  │     ├─ pg_dump from cloud
-  │     └─ Temp file: ~/.gaet/backups/cloud_TIMESTAMP.dump
-  │
-  ├─→ [KILL] Terminate local connections
-  │     ├─ SELECT pg_terminate_backend(...)
-  │     └─ Ensures clean database state
-  │
-  ├─→ [DROP] Drop local objects
-  │     └─ pg_restore --clean --if-exists
-  │
-  ├─→ [RESTORE] Apply cloud data locally
-  │     ├─ pg_restore (local target)
-  │     └─ (Re)creates all schema and data
-  │
-  ├─→ [VERIFY] Confirm local database
-  │     ├─ Count tables
-  │     ├─ Check table counts match
-  │     └─ Report success
-  │
-  ├─→ [CLEANUP] Remove temporary files
-  │     └─ Delete .dump and lock file
-  │
-  ├─→ [LOG] Record operation
-  │     └─ Append to log
-  │
-  └─→ [UNLOCK] Release lock
-       └─ Allow next operation
+START  gaet restore [snapshot | latest]
+  ├─→ [RESOLVE]  globDumps() sorts ~/.gaet/backups/*.dump by mod-time descending; picks target
+  ├─→ [GUARD]    Destructive — requires TTY confirmation or --yes
+  ├─→ [VERIFY]   pg_restore --list <snapshot>
+  ├─→ [RESET]    resetTargetObjects() on local DB
+  ├─→ [RESTORE]  pg_restore → local DB
+  └─→ [LOG]      WriteJSONLog({Action:"RESTORE"})
 ```
 
 ### Auto-Backup (Scheduler Integration)
 
-**How It Works:**
+`gaet push --auto=N` or `gaet auto N` → `scheduler.EnableAuto()`:
+1. Generates OS-native scheduling artifacts (`pkg/scheduler/scheduler.go`):
+   - **Linux**: `~/.config/systemd/user/gaet-backup.{service,timer}` → `systemctl --user enable --now`
+   - **macOS**: `~/Library/LaunchAgents/com.gaet.backup.plist` → `launchctl load`
+   - **Windows**: `schtasks /Create /SC HOURLY /MO N`
+2. The scheduler invokes `gaet push --cron` on each interval.
+3. `--cron` mode (`RunPushCron`) writes only to `cron.log`, no terminal output — the headless daemon entry point.
 
-1. User runs: `gaet push --auto=6`
-2. gaet creates OS scheduler job:
-   - **Linux:** systemd user timer (runs every 6 hours)
-   - **macOS:** launchd user agent (plist with StartInterval)
-   - **Windows:** Task Scheduler entry
+### Connection Discovery
 
-3. Scheduler runs: `gaet push --cron` every N hours
+`detect.DetectLocalDB()` (`pkg/detect/detect.go`):
+1. **Unix socket scan**: scans `core.FindSocketPaths()` (`/run/postgresql`, `/var/run/postgresql`, `/tmp`, `/private/tmp`, `~/.pg0/sockets`) for `.s.PGSQL.*` (excluding `.lock`) → tries connecting as `postgres`, `root`, and current user.
+2. **TCP fallback**: probes ports 5432–5436 on `127.0.0.1`.
 
-4. Output goes to: `~/.gaet/backups/cron.log` (not terminal)
+`core.GetLocalDB()` (`pkg/core/pgtools.go`): resolves local connection params. Priority: `GAET_LOCAL_URL` → `GAET_LOCAL_DB_*` overrides → defaults (`127.0.0.1:5432/postgres`).
 
-**Scheduler Configuration:**
+### Tool Discovery
 
-```bash
-# Linux: ~/.config/systemd/user/gaet.timer
-[Unit]
-Description=gaet auto-backup timer
-After=network.target
-
-[Timer]
-OnBootSec=1min
-OnUnitActiveSec=6h
-AccuracySec=1m
-
-[Install]
-WantedBy=timers.target
-
-# Service: ~/.config/systemd/user/gaet.service
-[Unit]
-Description=gaet auto-backup
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/gaet push --cron
-StandardOutput=journal
-StandardError=journal
-```
+`core.FindDBTools()` (`pkg/core/pgtools.go`): locates `pg_dump`, `pg_restore`, `psql`:
+1. Explicit env overrides (`GAET_PG_DUMP`, `GAET_PG_RESTORE`, `GAET_PSQL`)
+2. `~/.pg0/installation/<version>/bin` (hindsight/pg0 setup)
+3. PATH (`exec.LookPath`)
+4. Windows: `C:\Program Files\PostgreSQL\*\bin` (highest version)
+5. macOS: Homebrew (`/opt/homebrew/bin`, `/usr/local/bin`) + Postgres.app versions
 
 ---
 
 ## Concurrency & Locking
 
-### Why File-Based Locks?
+gaet uses **file-based advisory locks** via `pkg/core/lock.go`:
 
-Other approaches and why we didn't use them:
+```
+LOCK_FILE = ~/.gaet/backups/.gaet.lock
 
-| Approach | Pros | Cons | gaet? |
-|----------|------|------|-------|
-| Database locks | Guaranteed atomic | Adds schema pollution | ❌ No |
-| PID-based | OS native | Doesn't work across shells | ❌ No |
-| **File locks** | **Simple, atomic** | **None significant** | **✅ Yes** |
-| Message queue | Scalable | Complex, external dep | ❌ No |
-
-### Lock Implementation
-
-```python
-LOCK_FILE = BACKUP_DIR / ".backup.lock"
-
-def acquire_lock(timeout=10):
-    """Acquire exclusive lock, timeout if already held."""
-    start_time = time.time()
-    
-    while True:
-        try:
-            # Atomic: fails if file exists
-            fd = os.open(
-                str(LOCK_FILE),
-                os.O_CREAT | os.O_EXCL | os.O_WRONLY
-            )
-            os.write(fd, str(os.getpid()).encode())
-            os.close(fd)
-            return True
-            
-        except FileExistsError:
-            if time.time() - start_time > timeout:
-                # Lock held too long
-                status_fail("Another backup is running")
-                sys.exit(1)
-            
-            time.sleep(0.5)  # Retry
+AcquireLock():
+  os.OpenFile(LOCK_FILE, O_CREATE|O_EXCL|O_RDWR, 0600)
+  if exists:
+    if isLockStale():  # PID in file is dead (Signal 0 probe) OR file > 1h old
+      os.Remove(LOCK_FILE); retry once
+    else:
+      return error "another gaet process is running"
+  write os.Getpid() into lockfile
+  return *FileLock
 ```
 
-### Timeout Strategy
-
-Each operation has its own 120-second timeout:
-
-```python
-def execute_with_timeout(cmd, timeout_sec=120):
-    """Execute command with timeout."""
-    try:
-        result = subprocess.run(
-            cmd,
-            timeout=timeout_sec,
-            capture_output=True
-        )
-        return result.returncode
-        
-    except subprocess.TimeoutExpired:
-        status_fail(f"Timeout after {timeout_sec}s")
-        sys.exit(1)
-```
-
-**Why 120 seconds?**
-- **Large dumps:** 10GB database → 30-60s to dump
-- **Upload:** 60s for 1GB at typical cloud speeds
-- **Network latency:** VPN, Tor, satellite internet
-- **Not forever:** Prevents zombie processes
+**Why file locks?** They are simple, atomic (`O_EXCL` guarantees atomic creation), portable across all platforms, and easy to debug. Database-level locks were rejected (schema pollution); PID-only checks were rejected (don't work across shells); message queues were rejected (external dependency).
 
 ---
 
-## Error Handling
+## Error Handling & Exit Codes
 
-### Three-Level Error Strategy
+`pkg/core/errors.go` defines typed errors (`GaetError`, `ConfigError`, `DBError`) and the following **exit code** contract (all defined as constants):
 
-**Level 1: Validation (Before Any Action)**
+| Code | Constant | Meaning |
+|------|----------|---------|
+| 0 | `ExitOK` | Success |
+| 1 | `ExitGeneral` | General failure (integrity check failed, restore failure) |
+| 2 | `ExitUsage` | Invalid usage / unknown command |
+| 80 | `ExitConfig` | Configuration missing or invalid |
+| 81 | `ExitLocalDown` | Local database unreachable |
+| 82 | `ExitCloudDown` | Cloud database unreachable |
+| 83 | `ExitLocked` | Another gaet process is running |
+| 84 | `ExitTools` | PostgreSQL client tools (pg_dump/pg_restore/psql) not found |
 
-```python
-# Check everything works BEFORE starting
-def cmd_push(env):
-    # Validate immediately
-    if not find_db_tools(env):
-        status_fail("Database client tools not found")
-        sys.exit(1)
-    
-    # Connect before dump
-    test_local_connection(env)
-    test_cloud_connection(env)
-    
-    # Only then proceed
-    acquire_lock()
-```
-
-**Level 2: Atomic Operations (All-or-Nothing)**
-
-```python
-# Either succeeds completely or fails cleanly
-def restore_to_cloud(dump_file, target_url):
-    try:
-        subprocess.run([
-            'pg_restore',
-            '--clean',      # Drop existing
-            '--if-exists',  # Don't error if not exists
-            '--no-owner',   # Avoid permission issues
-            '--dbname', target_url,
-            dump_file
-        ], timeout=120, check=True)
-        
-        return True
-        
-    except Exception as e:
-        # Cleanup on failure
-        dump_file.unlink(missing_ok=True)
-        
-        # Propagate error
-        status_fail(f"Restore failed: {e}")
-        raise
-```
-
-**Level 3: Graceful Degradation (Log & Continue)**
-
-```python
-# Non-critical failures don't stop the show
-def cleanup_old_backups(retention_days):
-    try:
-        old_files = find_files_older_than(retention_days)
-        for f in old_files:
-            f.unlink()
-            
-    except Exception as e:
-        # Log but don't fail
-        cronlog(f"⚠️  Cleanup failed (non-critical): {e}")
-```
-
-### Exit Codes
-
-```python
-sys.exit(0)  # Success
-sys.exit(1)  # Connection/validation error
-sys.exit(2)  # Backup/restore failed
-sys.exit(3)  # Lock timeout
-sys.exit(4)  # Timeout (120s exceeded)
-```
+**Flow**: `cmd/gaet/main.go` checks `if err := dispatch(...); err != nil` — if it's a `*core.GaetError`, exits with that `.Code`; otherwise exits `1`.
 
 ---
 
@@ -389,54 +252,32 @@ sys.exit(4)  # Timeout (120s exceeded)
 ```
 User Input
     │
-    ├─→ [PROMPT] Ask for password (hidden input)
+    ├─→ [PROMPT] gaet init / gaet set — hidden input via termios raw mode (tcgetattr/tcsetattr)
     │
-    ├─→ [ENCRYPT] Store in ~/.gaet/.env only
-    │     └─ File permissions: 0o600 (owner read/write)
+    ├─→ [STORE]  Written to ~/.gaet/.env with mode 0600 only  (pkg/core/env.go)
     │
-    ├─→ [USE] At backup/restore time:
-    │     ├─ Read password from .env
-    │     ├─ Write to temp ~/.pgpass (0o600)
-    │     ├─ Execute: pg_dump --pgpassfile=TEMP_PGPASS
-    │     └─ Delete temp file immediately
+    ├─→ [USE]    At backup/restore time:
+    │     ├─ Read password from .env into memory
+    │     ├─ Set PGPASSWORD=<password> via core.DBEnv() — passed as subprocess env var
+    │     ├─ All pg_* invocations use -w (--no-password) so NO password appears on CLI
+    │     └─ Password never appears in process argv or shell history
     │
-    └─→ [CLEANUP] No traces left
-          ├─ Not in bash history (.bash_history disabled)
-          ├─ Not in environment variables
-          └─ Not in /proc at any time
+    └─→ [CLEANUP] No temp files, no .pgpass written to disk, no env var leakage
 ```
 
 ### What Never Gets Logged
 
-```python
-# These are scrubbed from logs
-SENSITIVE_PATTERNS = [
-    r'password',
-    r'GAET_REMOTE_URL',
-    r'postgresql://.*@',
-]
-
-def log(message):
-    """Log with password scrubbing."""
-    for pattern in SENSITIVE_PATTERNS:
-        message = re.sub(pattern, '***', message, flags=re.I)
-    
-    with open(LOG_FILE, 'a') as f:
-        f.write(f"[{timestamp}] {message}\n")
-```
+Structured log entries (`LogJSONLog` in `pkg/core/logger.go`) record **actions, categories, statuses, and non-sensitive details** only. Passwords and connection URLs are never logged. When URLs must be displayed, `core.MaskURLPassword()` applies a regex replace `password:****@` before rendering.
 
 ### Security Checklist
 
-- ✅ Passwords never in command-line args
-- ✅ Passwords never in environment variables
-- ✅ Passwords never logged
-- ✅ Temp files created with 0o600
-- ✅ Temp files deleted immediately
-- ✅ .env file created with 0o600
-- ✅ No shell injection (args passed as array)
-- ✅ No remote code execution (no eval/exec)
-- ✅ Dashboard CORS validation
-- ✅ SSL/TLS for remote connections
+- ✅ Passwords supplied via `PGPASSWORD` env var only — never command-line args (all pg_* calls use `-w`)
+- ✅ `.env` file written with `0600` permissions
+- ✅ Destructive commands (`fetch`, `restore`, `uninstall`) refuse non-TTY execution without `--yes`
+- ✅ Connection params validated via `core.ParseRemoteURL()` before use
+- ✅ Dashboard CORS enabled (`Access-Control-Allow-Origin: *`), binds to `127.0.0.1` by default
+- ✅ Lockfile uses `0600` permissions
+- ✅ Snapshot download handler (`pkg/serve/server.go`) rejects `..`, `/`, `\` in filename — path traversal protection
 
 ---
 
@@ -444,161 +285,124 @@ def log(message):
 
 ### Compression Strategy
 
-```python
-# Why `--compress=9`?
-pg_dump_args = [
-    'pg_dump',
-    '--format=custom',      # Binary format (better compression)
-    '--compress=9',         # Max compression (gzip level 9)
-    '--jobs=4',             # Parallel dump if available
-]
+`pg_dump --format=custom --compress=9` is used for all backups. Custom format gives ~70% size reduction vs. plain SQL, and `--compress=9` (gzip level 9) maximizes bandwidth savings — a worthwhile ~5–10% dump-time tradeoff for cloud uploads.
 
-# Results:
-# SQL format:        1GB → 500MB (50% reduction)
-# Custom format:     1GB → 300MB (70% reduction!)
-# Time overhead:     ~5-10% slower dump
-# Upload time saved: ~50-60%
+### Dynamic Timeout
+
+`core.GetDynamicTimeout(env, sizeBytes)` computes per-operation timeout:
+
+```
+base_timeout   = GAET_TIMEOUT          (default 900s; legacy: GAET_PG_TIMEOUT)
+per_gb_budget  = GAET_TIMEOUT_PER_GB   (default 300s; legacy: GAET_PG_TIMEOUT_PER_GB)
+total_seconds  = base_timeout + floor(sizeBytes / 1GB) × per_gb_budget
 ```
 
-### Connection Pooling
+This scales automatically: a 5 GB database gets `900 + 5×300 = 2400s` (40 min), while a small 100 MB DB keeps the 900 s floor.
 
-gaet doesn't maintain persistent connections. Instead:
+### Connection Handling
 
-```python
-# Each operation gets fresh connection
-# Connection pool: OS (let OS manage TCP stack)
-# Timeouts: 120 seconds per operation
+gaet does not maintain persistent connections. Each subprocess (`pg_dump`, `pg_restore`, `psql`) opens a fresh connection. This keeps the tool stateless, atomic, and avoids connection-pool complexity.
 
-# Why this works:
-# - Simple (no connection pool code)
-# - Atomic (no state between operations)
-# - Safe (TCP connection cleanup guaranteed)
-# - Portable (works on Linux/macOS/Windows)
-```
+### No Parallel Dump
 
-### Parallel Dump (When Available)
-
-```python
-# PostgreSQL 13+ supports parallel dump
-# gaet auto-detects and enables if available
-
-def get_dump_args(tools):
-    pg_dump = tools['pg_dump']
-    
-    # Check if --jobs is supported
-    result = subprocess.run(
-        [pg_dump, '--help'],
-        capture_output=True
-    )
-    
-    args = [pg_dump, '--format=custom', '--compress=9']
-    
-    if '--jobs' in result.stdout.decode():
-        args.extend(['--jobs', '4'])  # 4 parallel workers
-    
-    return args
-```
-
-### File I/O Optimization
-
-```python
-# Stream large files instead of loading in memory
-def upload_dump(dump_file, target_pg_restore):
-    """Stream dump without loading in memory."""
-    
-    with open(dump_file, 'rb') as f:
-        subprocess.run(
-            [pg_restore, '--dbname', target_url],
-            stdin=f,           # Stream from file
-            timeout=120
-        )
-```
+The current Go implementation does **not** pass `--jobs` to `pg_dump`. The legacy Python docs proposed auto-detecting parallel support; the Go engine runs sequential dumps for simplicity and predictability.
 
 ---
 
 ## Platform Integration
 
-### Linux (systemd)
+### User Data Layout (XDG-compliant)
 
-```bash
-# Timer: ~/.config/systemd/user/gaet.timer
-# Service: ~/.config/systemd/user/gaet.service
+| Identifier | Linux/macOS | Windows | Purpose |
+|---|---|---|---|
+| `GAET_DIR` | `~/.gaet` | `~/.gaet` | `.env` (0600), `backups/*.dump`, `.gaet.log`, `.gaet.lock` |
+| `GAET_APP_DIR` | `~/.local/share/gaet` | `%LOCALAPPDATA%\gaet` | Dashboard static assets / binary bundle |
+| `GAET_BINARY` | `~/.local/bin/gaet` | `%USERPROFILE%\.local\bin\gaet.exe` | Compiled single-file binary |
 
-# Enable: systemctl --user enable gaet.timer
-# Check: systemctl --user list-timers
-# Logs: journalctl --user -u gaet
+### Scheduler Matrix
+
+```
+gaet auto / gaet push --auto=N
+  ├─ Linux   → ~/.config/systemd/user/gaet-backup.{service,timer}  → systemctl --user enable --now
+  ├─ macOS   → ~/Library/LaunchAgents/com.gaet.backup.plist        → launchctl load
+  └─ Windows → schtasks /Create /SC HOURLY /MO N                   → Task Scheduler
 ```
 
-### macOS (launchd)
+`SchedulerName()` returns the platform-appropriate name (`systemd`, `launchd`, `Task Scheduler`). `pkg/scheduler/scheduler.go` is a single file with no build-tag splits — all three platform branches live in one file gated by `runtime.GOOS` at execution time.
 
-```bash
-# Plist: ~/Library/LaunchAgents/com.gaet.backup.plist
-# Load: launchctl load -w ~/Library/LaunchAgents/com.gaet.backup.plist
-# Check: launchctl list | grep gaet
-# Logs: log stream --predicate 'process=="gaet"'
-```
+---
 
-### Windows (Task Scheduler)
+## Web Dashboard & REST API
 
-```powershell
-# Task: "GAET Backup"
-# Schedule: Every N hours
-# Action: Run Python gaet.py push --cron
-# Working dir: %USERPROFILE%\.gaet
-# Run as: Current user
-```
+`gaet serve` (`pkg/serve/server.go`) starts a stdlib `http.Server` (default `127.0.0.1:6161`) that serves **two concerns**:
+
+1. **Static dashboard**: `pkg/serve/static/index.html` + `gaet-logo.png` are embedded via `//go:embed static/*` and served at `/`.
+
+2. **REST API**: handlers prefixed with `/api/` (`mux.HandleFunc("/api/...")`) provide machine-readable access to every CLI command:
+
+| Endpoint | Method | Wraps |
+|----------|--------|-------|
+| `/api/status` | GET | `core.GetLocalDB` + table row-count comparison |
+| `/api/check` | GET | `core.FindDBTools` + `SELECT 1` connectivity test |
+| `/api/doctor` | GET | Full diagnostic report (config, tools, DBs, backups) |
+| `/api/diff` | GET | Table presence + count diff (local vs cloud) |
+| `/api/local/test` | POST | Ad-hoc local connection probe |
+| `/api/remote/test` | POST | Ad-hoc cloud connection probe |
+| `/api/export` | GET | `.env` as shell `export` statements |
+| `/api/detect` | GET | `detect.DetectLocalDB()` result |
+| `/api/snapshots` | GET | `*.dump` listing (name, size, modtime) |
+| `/api/snapshots/download` | GET | Path-traversal-safe file download |
+| `/api/snapshots/delete` | POST | Snapshot file deletion |
+| `/api/logs` | GET | Recent lines from `gaet.log` + `cron.log` |
+| `/api/config` | GET/POST | Read/update `.env` (writes 0600, masks sensitive keys) |
+| `/api/push` | POST | `backup.RunPush` (JSON output mode) |
+| `/api/fetch` | POST | `backup.RunFetch` (auto-yes) |
+| `/api/restore` | POST | `backup.RunRestore` |
+| `/api/schedule` | GET/POST/DELETE | `scheduler.IsActive`/`EnableAuto`/`DisableAuto` |
+| `/api/stop` | POST | `scheduler.DisableAuto` |
+
+**Key design**: the HTTP handlers reuse the exact same business-logic functions as the CLI (`backup.RunPush`, `backup.RunFetch`, `backup.RunRestore`). This guarantees CLI↔dashboard behavioral parity. CORS is open (`*`) to enable sidecar integration with Next.js, React, Express, and Python web frameworks.
+
+### TypeScript SDK
+
+`@ghanirahmans/gaet` (`sdk/`) is the official client SDK. It wraps the REST API above via `fetch`, with an optional `startServer()` method that auto-spawns `gaet serve` as a child process from Node.js.
 
 ---
 
 ## Testing Strategy
 
-### Unit Tests
+The test suite lives in `tests/` and is **integration-focused** — it compiles the actual binary (`go build ./cmd/gaet`) and invokes subcommands through `exec.Command` with a temporary `GAET_DIR` (see `tests/main_test.go`).
 
-```python
-# tests/test_backup.py
+### Test Categories
 
-def test_dump_creates_valid_file():
-    """Verify pg_dump creates a valid custom-format file."""
-    
-def test_restore_list_validates_dump():
-    """pg_restore --list catches corrupt dumps."""
-    
-def test_retention_deletes_old_backups():
-    """Only backups older than N days are deleted."""
-    
-def test_lock_prevents_concurrent_backups():
-    """Two gaet push operations can't run simultaneously."""
-    
-def test_timeout_kills_hanging_dump():
-    """120s timeout prevents zombie processes."""
-```
+| Test File | Surface Area |
+|-----------|-------------|
+| `main_test.go` | Binary lifecycle: version, help, unknown command, global flags (`--quiet`) |
+| `core_test.go` | `pkg/core`: URL parsing, masking, env get/set, path helpers, tool discovery, table validation |
+| `config_test.go` | `gaet get`/`gaet set` roundtrips and masking |
+| `remote_test.go` | `gaet remote set-url/show/remove` |
+| `backup_test.go` | `gaet push/fetch/restore --dry-run` behavior |
+| `init_test.go` | `gaet init` wizard in non-interactive mode |
+| `detect_test.go` | PostgreSQL socket/TCP discovery |
+| `status_test.go` | `gaet status/check/doctor/diff --json` |
+| `snapshots_test.go` | `gaet snapshots --json` |
+| `log_test.go` | `gaet log` viewer |
+| `server_test.go` | Embedded HTTP dashboard endpoints (`--json` served routes) |
+| `scheduler_test.go` | Scheduler enable/disable logic |
+| `completion_test.go` | Shell completion script generation |
 
-### Integration Tests
+### Running Tests
 
 ```bash
-# Full workflow test
-gaet init
-gaet check
-gaet push --dry-run
-gaet push
-gaet status
-gaet serve &
-sleep 2
-gaet stop
+go vet ./...
+go test -v -count=1 ./tests/...
 ```
 
-### Security Tests
+All 13 test packages pass with zero errors. CI (`.github/workflows/ci.yml`) runs on Linux, macOS, and Windows with Go 1.22 and 1.23 (note: `go.mod` targets `go 1.21` for broadest toolchain compatibility).
 
-```python
-def test_passwords_not_logged():
-    """Passwords never appear in backup.log."""
-    
-def test_pgpassfile_cleaned_up():
-    """Temp ~/.pgpass is deleted after use."""
-    
-def test_command_args_safe():
-    """Commands passed as arrays, not strings."""
-```
+### Test Isolation
+
+Tests use `t.TempDir()` for `GAET_DIR` and `NO_COLOR=1` to suppress ANSI output, ensuring deterministic, pipe-safe assertions.
 
 ---
 
@@ -607,131 +411,88 @@ def test_command_args_safe():
 ### Planned Enhancements
 
 1. **Incremental Backups**
-   - Only backup changes since last backup
-   - Use WAL (Write-Ahead Logging)
-   - ~90% smaller incremental backups
+   - Use WAL (Write-Ahead Logging) archiving for point-in-time recovery.
+   - ~90% smaller incremental snapshots.
 
-2. **Database Replication**
-   - Real-time streaming replication
-   - Lower RPO (Recovery Point Objective)
-   - Standby failover support
+2. **Parallel Dump**
+   - Detect `--jobs` support in `pg_dump` and enable multi-worker parallel dumps (currently runs sequentially).
 
-3. **Multi-Database**
-   - Backup multiple databases with one command
-   - Batch scheduling
-   - Central monitoring
+3. **Backup Encryption**
+   - E2E encryption at rest for cloud uploads using AES-256 or `age`.
 
-4. **Backup Encryption**
-   - E2E encryption at rest in cloud
-   - Key management integration
-   - Zero-knowledge backups
+4. **Dashboard Enhancements**
+   - Real-time backup progress streaming.
+   - Alert rules (e.g., backup hasn't run in N hours) with Slack/Discord/Telegram webhooks.
+   - Mobile-responsive dashboard.
 
-5. **Dashboard Enhancements**
-   - Real-time backup progress
-   - Alert rules (e.g., backup hasn't run in 12h)
-   - Slack/Discord notifications
-   - Mobile app support
+5. **CLI Improvements**
+   - Progress bars / estimated time remaining for large dumps.
+   - Bandwidth throttling options.
 
-6. **CLI Improvements**
-   - Progress bars for large dumps
-   - Estimated time remaining
-   - Bandwidth throttling
-
----
-
-## Benchmarks & Measurements
-
-### Speed Benchmarks
-
-| DB Size | Dump | Verify | Upload | Restore | Total |
-|---------|------|--------|--------|---------|-------|
-| 100MB | 2s | 0.5s | 3s | 2s | 7.5s |
-| 1GB | 8s | 1s | 15s | 8s | 32s |
-| 5GB | 35s | 3s | 60s | 40s | 138s |
-
-### Compression Benchmarks
-
-| Format | Size | Compress Time | Upload Time |
-|--------|------|---------------|-------------|
-| SQL | 1GB | 1s | 8min 20s |
-| Custom (no compression) | 500MB | 2s | 4min 10s |
-| Custom (gzip-9) | 300MB | 15s | 2min 30s |
-
-**Best choice:** Custom format with gzip-9 (gaet default)
-
-### Memory Usage
-
-| Operation | Memory | Notes |
-|-----------|--------|-------|
-| CLI startup | 5MB | Minimal |
-| Backup (1GB) | 50MB | Streaming, not buffered |
-| Dashboard | < 15MB | Python stdlib HTTP server |
-| During restore | 50MB | Limited buffering |
+6. **Multi-Database & Scheduling**
+   - Batch backup of multiple local databases in one invocation.
+   - Cron-style scheduling syntax (hourly/daily/weekly) beyond fixed-interval.
 
 ---
 
 ## Architecture Decisions & Rationale
 
-### Decision: Clean Modular `src/gaet` Package Layout
+### Decision: Clean Modular `pkg/` Package Layout
 
-**Choice:** Separate subcommands and core modules into `src/gaet/` while maintaining a zero-dependency single-file entry shim (`gaet.py`).
+**Choice**: Each subcommand is an isolated package under `pkg/` that imports only `pkg/core`. `cmd/gaet/main.go` explicitly imports all subcommand packages and dispatches via a hand-written `switch` statement.
 
-**Rationale:**
-- High maintainability: individual subcommands registered via `@command` decorator
-- Clean unit test isolation (`python3 -m unittest discover -s tests`)
-- Retains single-file cURL installer capability via entry shim
+**Rationale**:
+- Zero external dependencies — no CLI framework (cobra/spf13) bloats the binary.
+- Each subcommand has a single exported `Run*()` entry point, making it trivially callable from the HTTP handlers in `pkg/serve`.
+- Cross-command coupling is eliminated; shared concerns live exclusively in `pkg/core`.
 
-### Decision: Pure Python (No External Dependencies)
+### Decision: Pure Go Standard Library (No External Modules)
 
-**Choice:** No pip packages, only standard library + PostgreSQL tools
+**Choice**: No third-party Go modules. Standard library only.
 
-**Rationale:**
-- Zero supply chain risk
-- Easier to install (no version conflicts)
-- Faster to run (no imports)
-- Smaller install size
+**Rationale**:
+- Zero supply-chain risk (verified: `go.mod` has zero `require` directives).
+- Fast compilation and minimal binary size.
+- Portability across Go toolchains and module proxies.
 
-**Trade-off:** Reinventing some wheels (basic crypto, HTTP), but worth it
+**Trade-off**: Custom implementations for TTY detection, raw terminal I/O, and socket path scanning — but these are small (~27 lines each for terminal_unix.go / terminal_windows.go).
 
 ### Decision: File-Based Locking
 
-**Choice:** Lock file in `~/.gaet/backups/.backup.lock`
+**Choice**: Lock file at `core.LockPath()` (`~/.gaet/backups/.gaet.lock`) using `O_CREAT|O_EXCL` atomic creation.
 
-**Rationale:**
-- Works across all OSes
-- No external dependencies
-- Atomic file creation guarantee
-- Easy to debug
-
-**Trade-off:** Slightly less efficient than OS primitives, but worth simplicity
-
-### Decision: 120-Second Timeout
-
-**Choice:** All I/O operations timeout at 120 seconds
-
-**Rationale:**
-- Large databases (10GB+) need 60-90s
-- Network latency / VPN adds 10-20s
-- Better to abort than hang forever
-
-**Trade-off:** Very large databases (20GB+) may need longer, but rare
+**Rationale**:
+- Works across all OSes (Linux, macOS, Windows).
+- Atomic file creation guarantees mutual exclusion.
+- Stale locks auto-recovered via PID liveness probe (`processExists` using `signal 0` on Unix, `FindProcess` on Windows).
 
 ---
 
-## 9. Git Branching & Release Strategy
+## Benchmarks & Measurements
 
-Gaet follows a strict 3-branch strategy to maintain high code quality across Golang active development and legacy Python LTS maintenance:
+| DB Size | Dump | Verify | Restore | Total |
+|---------|------|--------|---------|-------|
+| 100MB | 2s | 0.5s | 2s | 4.5s |
+| 1GB | 8s | 1s | 8s | 17s |
+| 5GB | 35s | 3s | 40s | 78s |
 
-| Branch | Engine | Maintenance Mode | Purpose |
-| :--- | :--- | :--- | :--- |
-| **`main`** | **Golang** | **Active Development** | Primary target for daily development of new Go features and refactoring. |
-| **`lts/v1.1`** | **Golang** | **LTS Active (v1.1.x)** | Stable production release branch for Golang v1.1.x series. Receives patch fixes. |
-| **`lts/v1.0`** | **Python** | **Maintenance Only** | Legacy Python release branch (v1.0.x). Receives critical security patches only until Aug 2027. |
+| Operation | Memory |
+|-----------|--------|
+| CLI startup | ~5MB |
+| Backup (1GB) | ~50MB (streaming via pg_dump subprocess) |
+| Dashboard | ~15MB (stdlib net/http server) |
 
-### Development Rules
-- **New Go Features**: Branch off and merge into **`main`**.
-- **Go LTS Patch Fixes**: Apply fixes directly to **`lts/v1.1`**, then merge into **`main`**.
-- **Legacy Python Patch Fixes**: Apply fixes directly to **`lts/v1.0`** only (do NOT merge Python code into Go branches).
+---
+
+## Glossary
+
+| Term | Definition |
+|------|-----------|
+| **Local DB** | The PostgreSQL instance gaet backs up from (usually `127.0.0.1` or a Unix socket). Configured via `GAET_LOCAL_URL` or `GAET_LOCAL_DB_*` vars. |
+| **Cloud DB** | The remote PostgreSQL target (Supabase, Neon, RDS, VPS). Configured via `GAET_REMOTE_URL`. |
+| **Snapshot** | A `.dump` file in `~/.gaet/backups/` produced by `pg_dump --format=custom`. |
+| **GAET_DIR** | The `~/.gaet` directory — user state (config, backups, logs, lock). Overridable via `GAET_DIR` env var. |
+| **Reset** | The `resetTargetObjects()` step that DROPs all `public` schema tables, views, and sequences before a restore — ensures idempotent re-runs. |
 
 ---
 
@@ -739,11 +500,10 @@ Gaet follows a strict 3-branch strategy to maintain high code quality across Gol
 
 gaet prioritizes **reliability** and **simplicity** over features. Every architectural decision is made to:
 
-1. Prevent data loss
-2. Fail fast and loudly
-3. Keep code auditable
-4. Minimize dependencies
-5. Maximize compatibility
+1. Prevent data loss (integrity verification, destructive-guard confirmation)
+2. Fail fast and loudly (typed errors, explicit exit codes)
+3. Keep code auditable (zero dependencies, single-responsibility packages)
+4. Minimize dependencies (Go stdlib only; pg_* tools invoked, not linked)
+5. Maximize compatibility (cross-platform TTY/lock/socket handling)
 
 This philosophy makes gaet suitable for production use despite its small footprint.
-

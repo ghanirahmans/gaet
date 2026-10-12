@@ -1,5 +1,12 @@
 # Audit Total Perintah & Arsitektur gaet (v3.0.3 — Post-UX Overhaul)
 
+> ⚠️ **HISTORICAL DOCUMENT — ARCHIVED FOR REFERENCE ONLY**
+>
+> This audit report describes the **legacy Python engine** (`gaet.py` / `src/gaet/` package layout) on the `lts/v1.0` branch. It does **not** reflect the current **Golang engine** on `main` (v1.1.0 LTS+), whose architecture, command dispatch, and data flows are documented in [`docs/architecture.md`](./architecture.md).
+>
+> **Scope**: Applicable to the Python v1.0.x codebase only. The active Go engine implements these commands via isolated packages in `pkg/` with a `switch` dispatch in `cmd/gaet/main.go`.
+---
+
 ---
 
 ## Document Control

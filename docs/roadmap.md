@@ -1,18 +1,23 @@
 # ROADMAP.md — Gaet Strategic Future Roadmap
 
 ## Vision
-> **"Gaet: Simple for Developers, Resilient for SysAdmins, Embeddable for Python Applications."**
+> **"Gaet: Simple for Developers, Resilient for SysAdmins, Embeddable for Any Application."**
 
-Gaet aims to evolve from a zero-dependency CLI database backup tool into the **de-facto open-source PostgreSQL Backup, Cloud Sync & Disaster Recovery Engine** for standalone CLI usage, Python applications, and containerized infrastructure.
+> **Status**: The Golang migration (v1.1.0 LTS+) is **complete**. The active engine on `main` is a single Go binary with zero third-party dependencies. The legacy Python engine on `lts/v1.0` is in maintenance mode (security patches only until Aug 2027). See `docs/migrasi_to_golang.md` and `docs/legacy-python.md`.
+
+Gaet has evolved from a zero-dependency CLI database backup tool into a cross-platform **single-binary PostgreSQL Backup, Cloud Sync & Disaster Recovery Engine** — embeddable into any application via a stdlib HTTP REST API and an official TypeScript/JavaScript SDK (`@ghanirahmans/gaet`).
 
 ---
 
 ## 🎯 Strategic Milestones
 
-### Phase 1: Dual-Personality Engine & Python SDK (`import gaet`)
-- [ ] **Exception Refactoring**: Refactor core business functions in `src/gaet/` to raise typed exceptions (`GaetError`, `GaetConfigError`, `GaetBackupError`) instead of calling `sys.exit()`.
-- [ ] **Programmatic API Client (`gaet.Client`)**: Expose clean Python SDK methods (`client.push()`, `client.restore()`, `client.status()`).
-- [ ] **PyPI Package Release**: Publish Gaet to PyPI so developers can `pip install gaet` and use it inside FastAPI, Django, Flask, or backend automation scripts.
+### Phase 1: Golang Engine Migration & TypeScript SDK ✅ (Completed)
+- [x] **Zero-Dependency Go Binary**: Migrated the CLI from Python to a single Go binary (`cmd/gaet/main.go`) with zero third-party module dependencies — pure Go standard library only.
+- [x] **Typed Error Handling**: Core business functions return typed `*core.GaetError` (with explicit exit codes) instead of calling `sys.exit()` / `die()` directly. CLI handlers propagate; HTTP handlers map to JSON errors.
+- [x] **TypeScript SDK (`@ghanirahmans/gaet`)**: Published an official TypeScript/JavaScript SDK (`sdk/`) wrapping the `gaet serve` REST API, with an optional `startServer()` that auto-spawns the daemon.
+- [x] **REST API (`gaet serve`)**: Embedded stdlib HTTP server at `http://127.0.0.1:6161` serving dashboard + REST endpoints that reuse `pkg/backup` business logic — enabling HTTP integration from Node.js, Next.js, React, Express, and Python (FastAPI/Django/Flask).
+
+The prior Python SDK goal (`import gaet` / PyPI) was **Superseded** — see ADR-0004.
 
 ### Phase 2: Security & Production Hardening
 - [ ] **Client-Side Zero-Knowledge Encryption**: Optional client-side AES-256 GPG/Age encryption for backup dump snapshots before disk saving or cloud uploading.

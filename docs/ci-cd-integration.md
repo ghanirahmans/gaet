@@ -60,9 +60,9 @@ jobs:
 ```yaml
 backup:
   stage: deploy
-  image: python:3.11-slim
+  image: ubuntu-latest
   script:
-    - curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+    - curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
     - gaet set GAET_REMOTE_URL="$CLOUD_DB_URL"
     - gaet push --json
   only:
@@ -80,7 +80,7 @@ pipeline {
     stages {
         stage('Backup') {
             steps {
-                sh 'curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash'
+                sh 'curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash'
                 sh 'gaet set GAET_REMOTE_URL=${CLOUD_DB_URL}'
                 sh 'gaet push'
             }
@@ -105,11 +105,11 @@ version: 2.1
 jobs:
   backup:
     docker:
-      - image: python:3.11
+      - image: cgr.dev/chainguard/wolfi-base:latest
     steps:
       - run:
           name: Install gaet
-          command: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh | bash
+          command: curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
       - run:
           name: Run backup
           command: gaet push --json
@@ -121,18 +121,20 @@ jobs:
 
 For environments without internet access:
 
-1. **Download installer:**
+1. **Download installer + binary** (from a machine with internet):
    ```bash
-   curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/install.sh > install.sh
-   curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/master/gaet.py > gaet.py
+   curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh > install.sh
+   curl -sSL https://github.com/ghanirahmans/gaet/releases/latest/download/gaet-linux-amd64 > gaet
+   chmod +x install.sh gaet
    ```
 
 2. **Transfer to target machine** via USB, SCP, or internal package repository.
 
 3. **Install locally:**
    ```bash
-   chmod +x install.sh
-   ./install.sh --offline
+   chmod +x install.sh gaet
+   cp gaet ~/.local/bin/gaet  # place binary on PATH
+   ./install.sh  # creates ~/.gaet/.env config template
    ```
 
 ---
@@ -162,33 +164,18 @@ Payload format (JSON):
 
 ---
 
-## Monitoring
+### Health Check via CI
+
+Use `gaet doctor --json` to verify the backup environment in CI:
+
+```bash
+# Check that database tools are found and local DB is reachable
+gaet doctor --json | jq '.checks.tools.ok and .checks.local_db.ok'
+```
 
 ### Prometheus Metrics
 
-Export backup metrics via simple HTTP endpoint:
-
-```bash
-# Start metrics endpoint
-python3 -m http.server 9100 &
-
-# Or use gaet's built-in health check
-gaet doctor --json | jq '.tools_found'
-```
-
-### Grafana Dashboard
-
-Sample queries:
-```promql
-# Backup success rate
-sum(rate(gaet_backup_success[24h])) / sum(rate(gaet_backup_total[24h]))
-
-# Last backup size
-gaet_backup_size_bytes
-
-# Backup duration
-gaet_backup_duration_seconds
-```
+> **Note**: Prometheus metrics are **not yet implemented** by the gaet Go engine. This is a future feature (see `docs/roadmap.md` → Phase 4: Observability). The `gaet doctor --json` command above is the supported health-check pathway for CI monitoring integrations.
 
 ---
 
@@ -196,16 +183,17 @@ gaet_backup_duration_seconds
 
 ### "Cannot connect to GitHub raw content"
 
-Your CI environment may block outbound requests. Use mirror:
-```bash
-curl -sSL https://gitlab.com/ghanirahmans/gaet/-/raw/master/install.sh | bash
-```
-
-Or clone repo directly:
+Your CI environment may block outbound requests. Clone the repo directly instead:
 ```bash
 git clone https://github.com/ghanirahmans/gaet.git
 cd gaet
 go build -ldflags="-s -w" -o ~/.local/bin/gaet ./cmd/gaet
+```
+
+Or use the GitHub releases binary asset directly:
+```bash
+curl -sSL https://github.com/ghanirahmans/gaet/releases/latest/download/gaet-linux-amd64 > gaet
+chmod +x gaet && mv gaet ~/.local/bin/gaet
 ```
 
 ### "pg_dump not found in PATH"
@@ -221,7 +209,9 @@ RUN apt-get update && apt-get install -y postgresql-client
 
 ### "Permission denied writing to /usr/local/bin"
 
-Use user-level install:
+The installer (`install.sh`) writes to `~/.local/bin` by default (user-local bin, no sudo required). Ensure `~/.local/bin` is on your `PATH`:
 ```bash
-./install.sh --user
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+curl -sSL https://raw.githubusercontent.com/ghanirahmans/gaet/lts/v1.1/install.sh | bash
 ```

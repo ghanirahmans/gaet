@@ -160,15 +160,13 @@ gaet completion fish > ~/.config/fish/completions/gaet.fish
 
 ## Command Specifications
 
-`gaet` provides 18 structured subcommands categorized into 5 logical operation groups:
+`gaet` provides 20 subcommands categorized into 5 logical operation groups:
 
 ### 1. Setup & Lifecycle
 
 - **`gaet init [preset]`**  
   Launches the interactive setup wizard. Auto-detects local PostgreSQL instances (Unix sockets & TCP 5432), tests database connectivity, prompts for optional cloud remote credentials, and configures `.env`.
   - *Presets*: `gaet init hindsight` or `gaet init hindsight hermes`.
-- **`gaet install`**  
-  Installs executable symlinks and system service integration.
 - **`gaet update`**  
   Checks and updates the local `gaet` installation to the latest stable release.
 - **`gaet uninstall [--save] [-y]`**  
@@ -222,8 +220,6 @@ gaet completion fish > ~/.config/fish/completions/gaet.fish
   - `--stop`: Disables the OS startup daemon for the dashboard.
 - **`gaet stop`**  
   Stops active background services (both automated backup scheduler and dashboard OS startup daemons).
-- **`gaet uninstall [--save] [-y]`**  
-  Launches an interactive uninstallation wizard (`1` Clean Uninstall, `2` Safe Uninstall, `0` Cancel [default]) to remove CLI executable, `.env` config, and local backups.
 
 #### 🎛️ Operations Dashboard Highlights (`gaet serve`)
 - **Theme Parity**: Modern glassmorphic aesthetic with seamless Dark Mode and Light Mode switching.

@@ -82,15 +82,16 @@ gaet set GAET_LOCAL_DB_HOST=/path/to/socket/dir
 
 ### `timeout expired` during push/fetch
 
-**Cause:** Large database (>1GB) takes longer than default 120s timeout.
+**Cause:** The dynamic timeout budget — base `GAET_TIMEOUT` (default 900s) plus `GAET_TIMEOUT_PER_GB` (default 300s per GB of dump size) — was insufficient for a very large database or a slow network transfer.
 
 **Fix:**
 ```bash
-# Increase base timeout to 900 seconds and per-GB budget to 300 seconds
-gaet set GAET_TIMEOUT=900 GAET_TIMEOUT_PER_GB=300
+# Raise the base timeout and per-GB budget (defaults: 900s base + 300s/GB)
+gaet set GAET_TIMEOUT=1800 GAET_TIMEOUT_PER_GB=600
 
 # Or use environment variable
-export GAET_TIMEOUT=900
+export GAET_TIMEOUT=1800
+export GAET_TIMEOUT_PER_GB=600
 gaet push
 ```
 
@@ -111,7 +112,7 @@ cat ~/.gaet/backups/.gaet.lock
 rm ~/.gaet/backups/.gaet.lock
 
 # Verify no other gaet processes running
-pgrep -f "python.*gaet" || echo "No gaet processes"
+pgrep -f "gaet" || echo "No gaet processes"
 ```
 
 ---
