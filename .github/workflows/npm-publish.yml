@@ -17,10 +17,9 @@ jobs:
   publish:
     name: Build & Publish SDK to NPM
     runs-on: ubuntu-latest
-    # id-token: write enables npm Trusted Publishing (OIDC). When a trusted
-    # publisher is configured for this repo/workflow, npm publishes with a
-    # short-lived OIDC token (no NPM_TOKEN needed). If not configured, it falls
-    # back to the NPM_TOKEN secret below.
+    # id-token: write enables npm Trusted Publishing (OIDC). Publishing uses a
+    # short-lived OIDC token (no NPM_TOKEN) via the Trusted Publisher configured
+    # for this repo/workflow on npmjs.com.
     permissions:
       contents: read
       id-token: write
