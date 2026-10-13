@@ -40,6 +40,14 @@ func RunCmd(ctx context.Context, name string, args []string, env map[string]stri
 	defer cancel()
 
 	cmd := exec.CommandContext(tCtx, name, args...)
+	// Run in its own process group and kill the whole group on cancel/timeout,
+	// so child processes (pg_dump/psql) are not orphaned.
+	applyProcessGroup(cmd)
+	cmd.Cancel = func() error {
+		killProcessGroup(cmd)
+		return nil
+	}
+	cmd.WaitDelay = 5 * time.Second
 
 	// Merge env
 	if len(env) > 0 {
@@ -71,9 +79,10 @@ func RunCmd(ctx context.Context, name string, args []string, env map[string]stri
 	}, nil
 }
 
-// RunCmdSimple runs a command with default 30s timeout. Returns stdout, stderr, exitCode.
+// RunCmdSimple runs a command with a timeout, using the process-wide context
+// (cancelled on SIGINT/SIGTERM). Returns stdout, stderr, exitCode.
 func RunCmdSimple(name string, args []string, env map[string]string, timeout time.Duration) (string, string, int) {
-	r, err := RunCmd(context.Background(), name, args, env, timeout)
+	r, err := RunCmd(BaseContext(), name, args, env, timeout)
 	if err != nil && r == nil {
 		return "", err.Error(), -1
 	}

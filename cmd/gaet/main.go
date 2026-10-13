@@ -2,14 +2,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ghanirahmans/gaet/pkg/backup"
@@ -26,6 +29,12 @@ import (
 )
 
 func main() {
+	// Cancellable context: Ctrl+C / SIGTERM stops long operations and the
+	// dashboard cleanly (children are killed via the process group).
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	core.SetBaseContext(ctx)
+
 	args := os.Args[1:]
 
 	// Parse global flags first
@@ -39,7 +48,7 @@ func main() {
 	command := args[0]
 	subArgs := args[1:]
 
-	if err := dispatch(command, subArgs); err != nil {
+	if err := dispatch(ctx, command, subArgs); err != nil {
 		if ge, ok := err.(*core.GaetError); ok {
 			os.Exit(ge.Code)
 		}
@@ -66,7 +75,7 @@ func extractGlobalFlags(args []string) []string {
 	return remaining
 }
 
-func dispatch(command string, args []string) error {
+func dispatch(ctx context.Context, command string, args []string) error {
 	switch command {
 	case "--version", "-v", "version":
 		fmt.Printf("gaet v%s\n", core.Version)
@@ -273,7 +282,7 @@ func dispatch(command string, args []string) error {
 				host = strings.TrimPrefix(a, "--host=")
 			}
 		}
-		return serve.RunServe(serve.ServeOptions{Host: host, Port: port, NoOpen: noOpen, Auto: auto, Stop: stop})
+		return serve.RunServe(ctx, serve.ServeOptions{Host: host, Port: port, NoOpen: noOpen, Auto: auto, Stop: stop})
 
 	// ── log ───────────────────────────────────────────────────────────
 	case "log":

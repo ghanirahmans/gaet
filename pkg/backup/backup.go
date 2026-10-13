@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -76,38 +77,42 @@ func RunPush(opts PushOptions) error {
 	_ = core.EnsureDir(backupDir)
 	timestamp := time.Now().Format("20060102_150405")
 	backupFile := filepath.Join(backupDir, "gaet_"+timestamp+".dump")
+	tmpFile := backupFile + ".tmp"
 
 	core.StatusInfo(fmt.Sprintf("Dumping local database %s...", core.FormatConnTarget(u, h, p, n)))
 	envLocal := core.DBEnv(u, w, "")
 	_, errOut, rc := core.RunCmdSimple(tools.PgDump,
-		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n,
-			"--format=custom", "--compress=9", "--file=" + backupFile},
+		dumpArgs(h, p, u, n, tmpFile, env),
 		envLocal, timeout)
-	if (rc != 0 || !fileExists(backupFile)) && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/")) {
-		fbArgs := []string{"-w", "-p", p, "-U", u, "-d", n,
-			"--format=custom", "--compress=9", "--file=" + backupFile}
-		_, fbErrOut, fbRc := core.RunCmdSimple(tools.PgDump, fbArgs, envLocal, timeout)
-		if fbRc == 0 && fileExists(backupFile) {
+	if (rc != 0 || !fileExists(tmpFile)) && (h == "127.0.0.1" || h == "localhost" || strings.HasPrefix(h, "/")) {
+		_, fbErrOut, fbRc := core.RunCmdSimple(tools.PgDump,
+			dumpArgs("", p, u, n, tmpFile, env), envLocal, timeout)
+		if fbRc == 0 && fileExists(tmpFile) {
 			rc = 0
 			errOut = ""
 		} else if fbErrOut != "" {
 			errOut = fbErrOut
 		}
 	}
-	if rc != 0 || !fileExists(backupFile) {
-		os.Remove(backupFile)
+	if rc != 0 || !fileExists(tmpFile) {
+		os.Remove(tmpFile)
 		return core.Die(fmt.Sprintf("Local dump failed: %s", errOut), core.ExitLocalDown)
+	}
+
+	// Verify integrity BEFORE publishing the snapshot (atomic rename).
+	_, _, rcCheck := core.RunCmdSimple(tools.PgRestore, []string{"--list", tmpFile}, nil, 30*time.Second)
+	if rcCheck != 0 {
+		os.Remove(tmpFile)
+		return core.Die("Dump integrity check failed", core.ExitGeneral)
+	}
+	if err := os.Rename(tmpFile, backupFile); err != nil {
+		os.Remove(tmpFile)
+		return core.Die(fmt.Sprintf("Could not finalize snapshot: %v", err), core.ExitGeneral)
 	}
 
 	fi, _ := os.Stat(backupFile)
 	sizeMB := float64(fi.Size()) / 1024 / 1024
 	core.StatusOK(fmt.Sprintf("Dump saved (%.1f MB)", sizeMB))
-
-	_, _, rcCheck := core.RunCmdSimple(tools.PgRestore, []string{"--list", backupFile}, nil, 30*time.Second)
-	if rcCheck != 0 {
-		os.Remove(backupFile)
-		return core.Die("Dump integrity check failed", core.ExitGeneral)
-	}
 
 	ssl := core.GetEnvStr(env, "GAET_REMOTE_SSLMODE", core.DefRemoteSSLMode)
 	core.StatusInfo(fmt.Sprintf("Syncing to cloud %s...", core.FormatConnTarget(parsed.User, parsed.Host, parsed.Port, parsed.DB)))
@@ -230,13 +235,11 @@ func RunFetch(opts FetchOptions) error {
 	core.StatusInfo("Dumping cloud database...")
 	envCloud := core.DBEnv(parsed.User, parsed.Password, ssl)
 	_, errOut, rc := core.RunCmdSimple(tools.PgDump,
-		[]string{"-w", "-h", parsed.Host, "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB,
-			"--format=custom", "--compress=9", "--file=" + fetchFile},
+		dumpArgs(parsed.Host, parsed.Port, parsed.User, parsed.DB, fetchFile, env),
 		envCloud, timeout)
 	if (rc != 0 || !fileExists(fetchFile)) && (parsed.Host == "127.0.0.1" || parsed.Host == "localhost" || strings.HasPrefix(parsed.Host, "/")) {
 		_, fbErrOut, fbRc := core.RunCmdSimple(tools.PgDump,
-			[]string{"-w", "-p", parsed.Port, "-U", parsed.User, "-d", parsed.DB,
-				"--format=custom", "--compress=9", "--file=" + fetchFile},
+			dumpArgs("", parsed.Port, parsed.User, parsed.DB, fetchFile, env),
 			envCloud, timeout)
 		if fbRc == 0 && fileExists(fetchFile) {
 			rc = 0
@@ -252,12 +255,21 @@ func RunFetch(opts FetchOptions) error {
 	fi, _ := os.Stat(fetchFile)
 	core.StatusOK(fmt.Sprintf("Cloud dump saved (%.1f MB)", float64(fi.Size())/1024/1024))
 
-	if ok, errMsg := resetTargetObjects(tools.Psql, h, p, u, n, w, ""); !ok {
-		return core.Die(fmt.Sprintf("Failed to clean local database: %s", errMsg), core.ExitLocalDown)
-	}
-
 	core.StatusInfo("Restoring to local database...")
 	envLocal := core.DBEnv(u, w, "")
+
+	// Safety net before the destructive local reset (see RunRestore).
+	safety := safetySnapshot(tools, h, p, u, n, envLocal, timeout, "fetch")
+	if safety != "" {
+		core.StatusWarn(fmt.Sprintf("Safety snapshot saved: %s", filepath.Base(safety)))
+	} else {
+		core.StatusWarn("Could not create a safety snapshot before reset (continuing).")
+	}
+
+	if ok, errMsg := resetTargetObjects(tools.Psql, h, p, u, n, w, ""); !ok {
+		return resetFailedError(fmt.Sprintf("Failed to clean local database: %s", errMsg), safety)
+	}
+
 	_, errOut3, rc3 := core.RunCmdSimple(tools.PgRestore,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, fetchFile},
 		envLocal, timeout)
@@ -274,7 +286,7 @@ func RunFetch(opts FetchOptions) error {
 	os.Remove(fetchFile)
 
 	if rc3 != 0 {
-		return core.Die(fmt.Sprintf("Local restore failed (rc=%d): %s", rc3, lastNLines(errOut3, 3)), core.ExitLocalDown)
+		return resetFailedError(fmt.Sprintf("Local restore failed (rc=%d): %s", rc3, lastNLines(errOut3, 3)), safety)
 	}
 	core.StatusOK(fmt.Sprintf("Fetch complete — local database '%s' updated", n))
 	core.WriteJSONLog(core.LogEntry{
@@ -388,12 +400,22 @@ func RunRestore(opts RestoreOptions) error {
 	}
 	core.StatusOK("Snapshot integrity valid")
 
+	envLocal := core.DBEnv(u, w, "")
+
+	// Safety net: snapshot the current DB before the destructive reset, so a
+	// failed restore does not leave the database emptied with no recovery point.
+	safety := safetySnapshot(tools, h, p, u, n, envLocal, timeout, "restore")
+	if safety != "" {
+		core.StatusWarn(fmt.Sprintf("Safety snapshot saved: %s", filepath.Base(safety)))
+	} else {
+		core.StatusWarn("Could not create a safety snapshot before reset (continuing).")
+	}
+
 	if ok, errMsg := resetTargetObjects(tools.Psql, h, p, u, n, w, ""); !ok {
-		return core.Die(fmt.Sprintf("Failed to reset local database: %s", errMsg), core.ExitGeneral)
+		return resetFailedError(fmt.Sprintf("Failed to reset local database: %s", errMsg), safety)
 	}
 
 	core.StatusInfo("Restoring database from snapshot...")
-	envLocal := core.DBEnv(u, w, "")
 	_, errOut, rc := core.RunCmdSimple(tools.PgRestore,
 		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n, target},
 		envLocal, timeout)
@@ -409,7 +431,7 @@ func RunRestore(opts RestoreOptions) error {
 	}
 
 	if rc != 0 {
-		return core.Die(fmt.Sprintf("Restore failed (rc=%d): %s", rc, lastNLines(errOut, 3)), core.ExitGeneral)
+		return resetFailedError(fmt.Sprintf("Restore failed (rc=%d): %s", rc, lastNLines(errOut, 3)), safety)
 	}
 	core.StatusOK("Snapshot restore complete!")
 	core.Echo("")
@@ -461,13 +483,11 @@ func RunPushCron() error {
 
 	envLocal := core.DBEnv(u, w, "")
 	_, _, rc := core.RunCmdSimple(tools.PgDump,
-		[]string{"-w", "-h", h, "-p", p, "-U", u, "-d", n,
-			"--format=custom", "--compress=9", "--file=" + cronFile},
+		dumpArgs(h, p, u, n, cronFile, env),
 		envLocal, timeout)
 	if (rc != 0 || !fileExists(cronFile)) && w == "" {
-		fbArgs := []string{"-w", "-p", p, "-U", u, "-d", n,
-			"--format=custom", "--compress=9", "--file=" + cronFile}
-		_, _, fbRc := core.RunCmdSimple(tools.PgDump, fbArgs, envLocal, timeout)
+		_, _, fbRc := core.RunCmdSimple(tools.PgDump,
+			dumpArgs("", p, u, n, cronFile, env), envLocal, timeout)
 		if fbRc == 0 && fileExists(cronFile) {
 			rc = 0
 		}
@@ -503,6 +523,73 @@ func RunPushCron() error {
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
+
+// dumpArgs builds pg_dump arguments. By default it uses the custom format with
+// compression level GAET_DUMP_COMPRESS (default 9). When GAET_DUMP_JOBS > 1 it
+// switches to the directory format with parallel workers (dest becomes a dir).
+func dumpArgs(host, port, user, db, dest string, env map[string]string) []string {
+	compress := core.GetEnvInt(env, "GAET_DUMP_COMPRESS", 9)
+	if compress < 0 {
+		compress = 0
+	}
+	if compress > 9 {
+		compress = 9
+	}
+	jobs := core.GetEnvInt(env, "GAET_DUMP_JOBS", 0)
+
+	args := []string{"-w"}
+	if host != "" {
+		args = append(args, "-h", host)
+	}
+	args = append(args, "-p", port, "-U", user, "-d", db)
+	if jobs > 1 {
+		// Parallel dump requires the directory format.
+		args = append(args,
+			"--format=directory",
+			fmt.Sprintf("--jobs=%d", jobs),
+			"--compress="+strconv.Itoa(compress),
+			"--file="+dest)
+	} else {
+		args = append(args,
+			"--format=custom",
+			"--compress="+strconv.Itoa(compress),
+			"--file="+dest)
+	}
+	return args
+}
+
+// safetySnapshot dumps the current contents of a database to a recovery file
+// before a destructive reset, so a failed restore leaves a recovery point.
+// Returns the file path, or "" if the snapshot could not be taken.
+func safetySnapshot(tools core.DBTools, host, port, user, db string, env map[string]string, timeout time.Duration, label string) string {
+	if tools.PgDump == "" {
+		return ""
+	}
+	dir := core.BackupDir()
+	_ = core.EnsureDir(dir)
+	f := filepath.Join(dir, "safety_"+label+"_"+time.Now().Format("20060102_150405")+".dump")
+	_, _, rc := core.RunCmdSimple(tools.PgDump, dumpArgs(host, port, user, db, f, nil), env, timeout)
+	if rc != 0 || !fileExists(f) {
+		os.Remove(f)
+		return ""
+	}
+	if _, _, rcCheck := core.RunCmdSimple(tools.PgRestore, []string{"--list", f}, nil, 30*time.Second); rcCheck != 0 {
+		os.Remove(f)
+		return ""
+	}
+	return f
+}
+
+// resetFailedError builds a restore/reset failure, appending the safety snapshot
+// path (if any) so the user has a recovery instruction.
+func resetFailedError(msg, safety string) error {
+	if safety != "" {
+		msg += fmt.Sprintf(" — a safety snapshot of the previous state is at %s", safety)
+	} else {
+		msg += " — WARNING: no safety snapshot was available"
+	}
+	return core.Die(msg, core.ExitGeneral)
+}
 
 func resetTargetObjects(psql, host, port, user, db, passwd, sslMode string) (bool, string) {
 	sql := "DO $$ DECLARE r record; BEGIN " +

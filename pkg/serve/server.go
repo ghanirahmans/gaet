@@ -2,6 +2,7 @@
 package serve
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -32,8 +33,9 @@ type ServeOptions struct {
 	Stop   bool
 }
 
-// RunServe starts the embedded web dashboard HTTP server.
-func RunServe(opts ServeOptions) error {
+// RunServe starts the embedded web dashboard HTTP server. It shuts down
+// gracefully when ctx is cancelled (SIGINT/SIGTERM).
+func RunServe(ctx context.Context, opts ServeOptions) error {
 	if opts.Host == "" {
 		opts.Host = core.DefDashboardHost
 	}
@@ -90,6 +92,7 @@ func RunServe(opts ServeOptions) error {
 	mux.HandleFunc("/api/restore", handleRestore)
 	mux.HandleFunc("/api/schedule", handleSchedule)
 	mux.HandleFunc("/api/stop", handleStop)
+	mux.HandleFunc("/api/jobs", handleJobs)
 
 	// -- Static Assets (Embedded) -----------------------------------------
 	staticFS, err := fs.Sub(embeddedAssets, "static")
@@ -111,9 +114,23 @@ func RunServe(opts ServeOptions) error {
 		Addr:         addr,
 		Handler:      corsMiddleware(mux),
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second,
+		WriteTimeout: 0,   // long backup/restore ops (up to GAET_TIMEOUT) must not be cut off
+		IdleTimeout:  120 * time.Second,
 	}
-	return srv.ListenAndServe()
+
+	// Graceful shutdown on ctx cancellation (Ctrl+C / SIGTERM).
+	go func() {
+		<-ctx.Done()
+		core.StatusArrow("Shutting down dashboard...")
+		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutCtx)
+	}()
+
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return err
+	}
+	return nil
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -914,7 +931,14 @@ func handlePush(w http.ResponseWriter, r *http.Request) {
 	body := readJSONBody(r)
 	dryRun, _ := body["dry_run"].(bool)
 
-	err := backup.RunPush(backup.PushOptions{DryRun: dryRun})
+	run := func() error { return backup.RunPush(backup.PushOptions{DryRun: dryRun}) }
+	if wantAsync(r) {
+		id := startJob("push", run)
+		sendJSON(w, http.StatusAccepted, map[string]any{"ok": true, "job_id": id, "status": "running"})
+		return
+	}
+
+	err := run()
 	if err != nil {
 		sendJSON(w, http.StatusOK, map[string]any{"ok": false, "msg": fmt.Sprintf("Push failed: %v", err)})
 		return
@@ -927,7 +951,14 @@ func handleFetch(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, http.StatusMethodNotAllowed, map[string]any{"ok": false, "msg": "Method not allowed"})
 		return
 	}
-	err := backup.RunFetch(backup.FetchOptions{Yes: true})
+	run := func() error { return backup.RunFetch(backup.FetchOptions{Yes: true}) }
+	if wantAsync(r) {
+		id := startJob("fetch", run)
+		sendJSON(w, http.StatusAccepted, map[string]any{"ok": true, "job_id": id, "status": "running"})
+		return
+	}
+
+	err := run()
 	if err != nil {
 		sendJSON(w, http.StatusOK, map[string]any{"ok": false, "msg": fmt.Sprintf("Fetch failed: %v", err)})
 		return
@@ -948,12 +979,44 @@ func handleRestore(w http.ResponseWriter, r *http.Request) {
 		target = f
 	}
 
-	err := backup.RunRestore(backup.RestoreOptions{Target: target, Yes: true})
+	run := func() error { return backup.RunRestore(backup.RestoreOptions{Target: target, Yes: true}) }
+	if wantAsync(r) {
+		id := startJob("restore", run)
+		sendJSON(w, http.StatusAccepted, map[string]any{"ok": true, "job_id": id, "status": "running"})
+		return
+	}
+
+	err := run()
 	if err != nil {
 		sendJSON(w, http.StatusOK, map[string]any{"ok": false, "msg": fmt.Sprintf("Restore failed: %v", err)})
 		return
 	}
 	sendJSON(w, http.StatusOK, map[string]any{"ok": true, "msg": fmt.Sprintf("Restored from '%s' successfully!", target)})
+}
+
+// wantAsync reports whether the request opted into the async job model via
+// ?async=1 (or ?async=true).
+func wantAsync(r *http.Request) bool {
+	switch strings.ToLower(r.URL.Query().Get("async")) {
+	case "1", "true", "yes":
+		return true
+	}
+	return false
+}
+
+// handleJobs serves GET /api/jobs (list) and GET /api/jobs/{id} (one job).
+func handleJobs(w http.ResponseWriter, r *http.Request) {
+	id := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/jobs"), "/")
+	if id == "" {
+		sendJSON(w, http.StatusOK, map[string]any{"ok": true, "jobs": listJobs()})
+		return
+	}
+	st, ok := getJob(id)
+	if !ok {
+		sendJSON(w, http.StatusNotFound, map[string]any{"ok": false, "msg": "job not found"})
+		return
+	}
+	sendJSON(w, http.StatusOK, map[string]any{"ok": st.Status != "failed", "job": st})
 }
 
 func handleStop(w http.ResponseWriter, r *http.Request) {
