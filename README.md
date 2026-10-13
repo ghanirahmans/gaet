@@ -77,7 +77,7 @@ gaet [<global-options>] <command> [<args>]
 1. **Zero External Dependencies**: Implemented strictly using the Go Standard Library (`net/http`, `os`, `syscall`, `embed`). Compiled into a fast portable single binary without external runtime dependencies.
 2. **Passwordless Security Model**: PostgreSQL operations (`psql`, `pg_dump`, `pg_restore`) enforce the `-w` (`--no-password`) flag alongside atomic, temporary `PGPASSFILE` instances (`0600` permission level). Plaintext passwords are never passed as command-line flags or logged to history.
 3. **Atomic State & Environment Updates**: Configuration key updates via `gaet set` utilize atomic line-by-line single-pass updates to `~/.gaet/.env` to prevent config corruption.
-4. **Concurrency Safety**: Non-blocking file locks (`~/.gaet/gaet.lock`) prevent overlapping execution during automated scheduled backups or simultaneous manual invocations.
+4. **Concurrency Safety**: Non-blocking file locks (`~/.gaet/backups/.gaet.lock`) prevent overlapping execution during automated scheduled backups or simultaneous manual invocations.
 5. **Git Workspace Integration**: Running `gaet init` initializes a version-controlled workspace in `~/.gaet` (with strict `.gitignore` rules shielding secrets, lock files, and dump payloads).
 
 ---
@@ -221,7 +221,7 @@ gaet completion fish > ~/.config/fish/completions/gaet.fish
 - **`gaet doctor`**  
   Comprehensive diagnostic health report evaluating system environment, file permissions (`0600`), disk storage, and background services.
 - **`gaet log [<lines>] [--follow] [--filter=KEYWORD]`**  
-  Views structured activity log history (`~/.gaet/logs/gaet.log`).
+  Views structured activity log history (`~/.gaet/backups/gaet.log`).
 - **`gaet snapshots [--json]`**  
   Lists all local backup `.dump` snapshots stored in `~/.gaet/backups/` along with file size, creation timestamp, and auto-retention policy details.
 

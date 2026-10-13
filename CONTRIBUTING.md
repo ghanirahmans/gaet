@@ -65,6 +65,9 @@ local pass means the check will pass in CI. It verifies:
 4. Every relative Markdown link and `#anchor` resolves.
 5. Every live `docs/*.md` file is listed in `docs/README.md`.
 6. No live doc presents the retired Python engine as current.
+7. The SDK README's methods and response fields match `sdk/src/client.ts` and
+   the server's `sendJSON` payloads.
+8. Every documented `~/.gaet/<path>` is defined in `pkg/core/paths.go`.
 
 **How to fix drift:** update the **doc**, never the gate. If a doc describes a
 feature that does not exist in code, either implement it (with tests) or remove

@@ -14,6 +14,9 @@
 #   5. Every live docs/*.md file is listed in docs/README.md (index completeness).
 #   6. Stale-token denylist: live (non-historical) docs must not reference the
 #      retired Python engine or other superseded facts.
+#   7. SDK README method list <-> public methods in sdk/src/client.ts; and no doc
+#      reads a response field the server never sends (e.g. `push().snapshot`).
+#   8. Documented `~/.gaet/<path>` locations exist in pkg/core/paths.go.
 #
 # Files listed in sandbox/historical-docs.txt are exempt from checks 4 (anchor
 # part), 5 and 6 — they intentionally describe the past.
@@ -273,6 +276,117 @@ for doc in "${DOC_FILES[@]}"; do
 done
 if [[ "$stale_found" -eq 0 ]]; then
   check "No stale Python-engine tokens presented as current in live docs" pass
+fi
+echo ""
+
+# ── Check 7: SDK README <-> sdk/src/client.ts ─────────────────────────────────
+echo ":: Check 7 — SDK README methods/fields vs sdk/src/client.ts"
+SDK_README="sdk/README.md"
+SDK_CLIENT="sdk/src/client.ts"
+sdk_errors=0
+if [[ -f "$SDK_README" && -f "$SDK_CLIENT" ]]; then
+  # Public (non-private) methods on GaetClient.
+  mapfile -t SDK_METHODS < <(
+    grep -oE '^[[:space:]]+async [a-zA-Z][A-Za-z0-9]*\(' "$SDK_CLIENT" \
+      | sed -E 's/^[[:space:]]+async ([A-Za-z0-9]+)\(/\1/' | sort -u
+  )
+  SDK_METHODS_STR="$(printf '|%s|' "${SDK_METHODS[@]}")"
+  # Methods documented in the README's API table as `gaet.<name>(`.
+  while IFS= read -r m; do
+    [[ -z "$m" ]] && continue
+    if [[ "$SDK_METHODS_STR" != *"|$m|"* ]]; then
+      check "SDK README documents gaet.$m() with no matching method in client.ts" fail \
+        "'$m' is documented but not implemented in $SDK_CLIENT"
+      sdk_errors=1
+    fi
+  done < <(grep -oE '`gaet\.[a-zA-Z][A-Za-z0-9]*\(' "$SDK_README" | sed -E 's/`gaet\.([A-Za-z0-9]+)\(/\1/' | sort -u)
+
+  # Response fields the server actually sends: keys inside sendJSON(...) map
+  # literals in server.go (covers both `{...}` and multi-line payloads). Request
+  # body keys and SDK type declarations are deliberately NOT included — a doc
+  # example that reads a field off a result object must match a real response key.
+  RESPONSE_FIELDS="$(awk '
+    /sendJSON\(/ {ins=1}
+    ins {
+      line=$0
+      while (match(line, /"[a-z_]+"[[:space:]]*:/)) {
+        key=substr(line, RSTART+1, RLENGTH-2)
+        gsub(/[[:space:]]*:$/, "", key)
+        print key
+        line=substr(line, RSTART+RLENGTH)
+      }
+      if (line ~ /\}[[:space:]]*\)/) ins=0
+    }
+  ' pkg/serve/server.go | tr -d '"' | sort -u)"
+  RESPONSE_FIELDS_STR="$(printf '|%s|' $RESPONSE_FIELDS | tr '\n' '|')"
+  # Guard the historical trap: a README example reading a field off an API result
+  # (`r.snapshot`) where the server never sends that key. We look for the specific
+  # result fields that are plausible-but-wrong and assert each is a real response
+  # key. (`.log`/`.catch`/`.then` etc. are JS noise and are not in this list.)
+  for field in snapshot snapshots count output tables instances; do
+    while IFS= read -r hit; do
+      [[ -z "$hit" ]] && continue
+      ln="${hit%%:*}"
+      # Require the read to be a property access (e.g. `r.snapshot`, `res?.snapshot`),
+      # not a plain word or a sentence mention.
+      prop_re="[A-Za-z0-9_)]\\??\\.${field}\\b"
+      if printf '%s' "${hit#*:}" | grep -qE "$prop_re"; then
+        if [[ "$RESPONSE_FIELDS_STR" != *"|$field|"* ]]; then
+          check "SDK README:$ln reads .$field which the API never returns" fail \
+            "'$field' is not a sendJSON response key in pkg/serve/server.go — use .msg or a real field"
+          sdk_errors=1
+        fi
+      fi
+    done < <(grep -nE "\.$field\b" "$SDK_README" 2>/dev/null || true)
+  done
+fi
+if [[ "$sdk_errors" -eq 0 ]]; then
+  check "SDK README methods and response fields match client.ts / server responses" pass
+fi
+echo ""
+
+# ── Check 8: documented ~/.gaet/<path> exists in pkg/core/paths.go ────────────
+echo ":: Check 8 — documented ~/.gaet paths vs pkg/core/paths.go"
+PATHS_GO="pkg/core/paths.go"
+path_errors=0
+if [[ -f "$PATHS_GO" ]]; then
+  # Build the set of real subpaths under GaetDir from paths.go (e.g. "backups",
+  # "backups/gaet.log", ".env"). filepath.Join(GaetDir(), "x", "y") -> "x/y".
+  mapfile -t REAL_PATHS < <(
+    grep -oE 'filepath\.Join\([^)]*\)' "$PATHS_GO" \
+      | sed -E 's/filepath\.Join\(//; s/\)$//' \
+      | tr ',' '\n' \
+      | sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//; s/^GaetDir\(\)$//; s/^BackupDir\(\)$/backups/' \
+      | grep -vE '^$|^homeDir\(\)$|^"\.gaet"$' \
+      | tr -d '"' \
+      | paste -sd'/' - 2>/dev/null || true
+  )
+  # Simpler + robust: collect every quoted path segment used in Join calls.
+  REAL_PATHS_STR="$(grep -oE '"[A-Za-z0-9_.-]+"' "$PATHS_GO" | tr -d '"' | sort -u | tr '\n' '|')"
+  # Scan live docs for explicit `~/.gaet/<something>` references.
+  for doc in "${DOC_FILES[@]}"; do
+    [[ -f "$doc" ]] || continue
+    while IFS= read -r hit; do
+      [[ -z "$hit" ]] && continue
+      ln="${hit%%:*}"
+      # Extract the segment immediately after ~/.gaet/
+      seg="$(printf '%s' "$hit" | grep -oE '~/\.gaet/[A-Za-z0-9_./-]+' | head -1 | sed 's|~/\.gaet/||')"
+      [[ -z "$seg" ]] && continue
+      # Skip lines that frame the path as legacy/removed (same rule as check 6).
+      text="${hit#*:}"
+      if printf '%s' "$text" | grep -qiE "$NEGATION_RE"; then continue; fi
+      # The first path component must be a real segment (backups, .env, ...).
+      first="${seg%%/*}"
+      if [[ "$REAL_PATHS_STR" != *"|$first|"* ]]; then
+        check "doc $doc:$ln references ~/.gaet/$seg which paths.go does not define" fail \
+          "'$first' is not a path component in $PATHS_GO"
+        path_errors=1
+      fi
+    done < <(grep -nE '~/\.gaet/' "$doc" 2>/dev/null || true)
+  done
+fi
+if [[ "$path_errors" -eq 0 ]]; then
+  check "Documented ~/.gaet paths exist in pkg/core/paths.go" pass
 fi
 echo ""
 

@@ -52,7 +52,7 @@ await gaet.startServer({
 // Trigger a backup to cloud
 const pushResult = await gaet.push();
 if (pushResult.ok) {
-  console.log('Backup created:', pushResult.snapshot);
+  console.log('Backup created:', pushResult.msg);
 }
 
 // Stop daemon process when app shuts down (optional)
@@ -88,7 +88,7 @@ export async function POST() {
     if (!result.ok) {
       return NextResponse.json({ error: result.msg }, { status: 500 });
     }
-    return NextResponse.json({ success: true, snapshot: result.snapshot });
+    return NextResponse.json({ success: true, msg: result.msg });
   } catch (error: any) {
     return NextResponse.json({ error: 'Gaet daemon unreachable: ' + error.message }, { status: 503 });
   }
@@ -109,7 +109,7 @@ export function BackupButton() {
     setLoading(true);
     try {
       const res = await gaet.push();
-      setStatusMsg(res.ok ? `Backup created: ${res.snapshot}` : `Error: ${res.msg}`);
+      setStatusMsg(res.ok ? `Backup created: ${res.msg}` : `Error: ${res.msg}`);
     } catch (err: any) {
       setStatusMsg('Daemon offline');
     } finally {
@@ -151,10 +151,10 @@ console.log('PostgreSQL tools ok:', checkResult.checks.tools.ok);
 | `gaet.status()` | `Promise<GaetStatusResponse>` | Returns local and cloud database connection status. |
 | `gaet.push()` | `Promise<GaetPushResponse>` | Triggers database backup from local database to cloud remote. |
 | `gaet.fetch()` | `Promise<GaetFetchResponse>` | Fetches cloud database state and restores it locally. |
-| `gaet.restore(name?)` | `Promise<GaetFetchResponse>` | Restores database from a local `.dump` snapshot file. |
+| `gaet.restore(snapshotName?)` | `Promise<GaetFetchResponse>` | Restores the local database from a stored snapshot dump file. |
 | `gaet.snapshots()` | `Promise<GaetSnapshotsResponse>` | Lists snapshot files stored in `~/.gaet/backups`. |
-| `gaet.deleteSnapshot(name)` | `Promise<{ ok: boolean; msg: string }>` | Removes a specific snapshot dump file from disk. |
-| `gaet.logs()` | `Promise<GaetLogsResponse>` | Reads audit log entries from `~/.gaet/gaet.log`. |
+| `gaet.deleteSnapshot(snapshotName)` | `Promise<{ ok: boolean; msg: string }>` | Removes a specific snapshot dump file from disk. |
+| `gaet.logs()` | `Promise<GaetLogsResponse>` | Reads audit log entries from `~/.gaet/backups/gaet.log` (and `cron.log`). |
 | `gaet.check()` | `Promise<GaetCheckResponse>` | Runs system checks for `pg_dump`, `psql`, and permissions. |
 | `gaet.doctor()` | `Promise<GaetDoctorResponse>` | Runs full doctor diagnostics on environment, config, and tools. |
 | `gaet.diff()` | `Promise<GaetDiffResponse>` | Compares table counts between local and remote databases. |
