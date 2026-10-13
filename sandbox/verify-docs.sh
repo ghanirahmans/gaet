@@ -9,6 +9,14 @@
 #   1. Every `gaet <command>` referenced in README.md exists as a case in cmd/gaet/main.go
 #   2. Every GAET_* / env key in .env.example is a known config key (pkg/config/config.go) or referenced in pkg/
 #   3. The Go version in go.mod is consistent with the version cited in AGENTS.md
+#   4. Every relative Markdown link in tracked docs resolves to an existing file;
+#      #anchors on same-repo links match a real heading slug.
+#   5. Every live docs/*.md file is listed in docs/README.md (index completeness).
+#   6. Stale-token denylist: live (non-historical) docs must not reference the
+#      retired Python engine or other superseded facts.
+#
+# Files listed in sandbox/historical-docs.txt are exempt from checks 4 (anchor
+# part), 5 and 6 — they intentionally describe the past.
 #
 # Exit non-zero if any drift is found. Output is plain-text for CI friendliness.
 
@@ -31,6 +39,15 @@ check() { # <label> <ok_bool> <detail>
     [[ -n "$detail" ]] && printf "         %s\n" "$detail"
     FAIL=$((FAIL+1))
   fi
+}
+
+# Slugify a heading the way GitHub does (close enough for anchor checks):
+# lowercase, drop punctuation except '-'/'_', spaces -> '-'. Emits one slug per
+# line (trailing newline matters: callers use `grep -qx` for exact matching).
+slugify() {
+  printf '%s\n' "$1" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[`*_]//g; s/[^a-z0-9 _-]//g; s/ /-/g'
 }
 
 echo "gaet — Docs / Code consistency check"
@@ -116,6 +133,146 @@ if [[ -n "$GOMOD_GO_VERSION" && -n "$AGENTS_GO_VERSION" ]]; then
     check "Go version mismatch: go.mod='$GOMOD_GO_VERSION' but AGENTS.md='$AGENTS_GO_VERSION'" fail \
       "Update AGENTS.md to 'Golang $GOMOD_GO_VERSION+' to match go.mod"
   fi
+fi
+echo ""
+
+# ── shared: tracked doc list + historical manifest ────────────────────────────
+# Tracked Markdown at the repo root, docs/ (incl. docs/adr/), sdk and sandbox.
+mapfile -t DOC_FILES < <(
+  git ls-files '*.md' 2>/dev/null | grep -vE '^(\.kilo|node_modules|sdk/node_modules)/'
+)
+if [[ "${#DOC_FILES[@]}" -eq 0 ]]; then
+  # Fallback when git is unavailable (e.g. a source tarball).
+  mapfile -t DOC_FILES < <(find . -name '*.md' \
+    -not -path './.git/*' -not -path './.kilo/*' \
+    -not -path './node_modules/*' -not -path './sdk/node_modules/*' \
+    | sed 's|^\./||' | sort)
+fi
+
+# Historical/archived docs (exempt from live-doc checks).
+HISTORICAL=()
+if [[ -f sandbox/historical-docs.txt ]]; then
+  mapfile -t HISTORICAL < <(grep -vE '^[[:space:]]*(#|$)' sandbox/historical-docs.txt)
+fi
+is_historical() { # <path>
+  local p="$1" h
+  for h in "${HISTORICAL[@]}"; do [[ "$p" == "$h" ]] && return 0; done
+  return 1
+}
+
+# Build the set of heading slugs defined by a Markdown file.
+headings_of() { # <file>
+  grep -E '^#{1,6}[[:space:]]' "$1" 2>/dev/null | sed -E 's/^#{1,6}[[:space:]]+//' | while IFS= read -r h; do
+    slugify "$h"
+  done | sort -u
+}
+
+# ── Check 4: relative Markdown links + anchors resolve ────────────────────────
+echo ":: Check 4 — relative Markdown links resolve (file + #anchor)"
+link_errors=0
+for doc in "${DOC_FILES[@]}"; do
+  [[ -f "$doc" ]] || continue
+  docdir="$(dirname "$doc")"
+  # Extract link targets from [text](target) — ignore images, http(s), mailto.
+  while IFS= read -r raw; do
+    [[ -z "$raw" ]] && continue
+    target="$raw"
+    # Trim surrounding angle brackets if present.
+    [[ "$target" == \<* ]] && target="${target#<}" && target="${target%>}"
+    # Split off the anchor.
+    anchor=""
+    if [[ "$target" == *#* ]]; then
+      anchor="${target#*#}"
+      target="${target%%#*}"
+    fi
+    # Skip absolute/external links.
+    case "$target" in
+      http://*|https://*|mailto:*|ftp://*|tel:*|"") ;; # no file part to check
+      *)
+        # Resolve relative to the doc's directory.
+        resolved="$(
+          cd "$docdir" 2>/dev/null && realpath -m "$target" 2>/dev/null
+        )"
+        rel="${resolved#"$ROOT"/}"
+        if [[ ! -e "$rel" ]]; then
+          check "broken link in $doc -> '$raw'" fail "target '$rel' does not exist"
+          link_errors=1
+          continue
+        fi
+        # Anchor check: only for Markdown targets inside the repo.
+        if [[ -n "$anchor" && "$rel" == *.md ]]; then
+          if ! headings_of "$rel" | grep -qx "$anchor"; then
+            check "broken anchor in $doc -> '$raw'" fail "no heading slug '#$anchor' in $rel"
+            link_errors=1
+          fi
+        fi
+        ;;
+    esac
+  done < <(grep -oE '\]\([^)]+\)' "$doc" 2>/dev/null | sed -E 's/^\]\(//; s/\)$//')
+done
+if [[ "$link_errors" -eq 0 ]]; then
+  check "All relative Markdown links and anchors resolve" pass
+fi
+echo ""
+
+# ── Check 5: docs index completeness (docs/README.md) ─────────────────────────
+echo ":: Check 5 — docs index completeness (docs/README.md)"
+INDEX="docs/README.md"
+index_errors=0
+if [[ -f "$INDEX" ]]; then
+  # Every live docs/*.md (top level only, not the index itself, not historical)
+  # must be linked from the index.
+  while IFS= read -r f; do
+    [[ "$f" == "$INDEX" ]] && continue
+    is_historical "$f" && continue
+    base="$(basename "$f")"
+    if ! grep -qF "($base)" "$INDEX"; then
+      check "docs index missing link to $f" fail "add a link to '$base' in $INDEX"
+      index_errors=1
+    fi
+  done < <(find docs -maxdepth 1 -name '*.md' | sed 's|^\./||' | sort)
+else
+  check "docs/README.md index is missing" fail "create docs/README.md"
+  index_errors=1
+fi
+if [[ "$index_errors" -eq 0 ]]; then
+  check "Every live docs/*.md is listed in docs/README.md" pass
+fi
+echo ""
+
+# ── Check 6: stale-token denylist (live docs only) ────────────────────────────
+echo ":: Check 6 — stale-token denylist in live docs"
+# Patterns that must not be presented as CURRENT behavior in a live doc. A match
+# is only stale when the line affirms it; lines that explicitly frame the token
+# as legacy/removed/rejected are fine (e.g. "the legacy Python implementation
+# used src/gaet/...", "Not Adopted: pip install gaet", "no .pgpass written").
+DELIST_PATTERNS=(
+  'gaet\.py'
+  'src/gaet'
+  'pip install gaet'
+  '\.pgpass'
+  '9191'
+)
+# Framing markers that mark a token as historical/negated rather than current.
+NEGATION_RE='legacy|deprecat|archiv|supersed|replaced|formerly|no longer|removed|obsolet|not adopted|never|instead of|no temp|does not|doesn.t|without|rather than|previously|migrat|histor'
+stale_found=0
+for doc in "${DOC_FILES[@]}"; do
+  [[ -f "$doc" ]] || continue
+  is_historical "$doc" && continue
+  for pat in "${DELIST_PATTERNS[@]}"; do
+    while IFS= read -r hit; do
+      [[ -z "$hit" ]] && continue
+      ln="${hit%%:*}"
+      text="${hit#*:}"
+      # Skip lines that frame the token as legacy/negated (case-insensitive).
+      if printf '%s' "$text" | grep -qiE "$NEGATION_RE"; then continue; fi
+      check "stale token in $doc:$ln (matches /$pat/)" fail "$hit"
+      stale_found=1
+    done < <(grep -nE "$pat" "$doc" 2>/dev/null || true)
+  done
+done
+if [[ "$stale_found" -eq 0 ]]; then
+  check "No stale Python-engine tokens presented as current in live docs" pass
 fi
 echo ""
 

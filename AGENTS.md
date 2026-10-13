@@ -76,6 +76,23 @@ All **13/13 packages** MUST pass with zero errors.
 go build -ldflags="-s -w" -o gaet ./cmd/gaet
 ```
 
+### Documentation Maintenance (code is truth)
+Any change that touches a documented surface (command/flag, env key, REST/SDK
+shape, install/release asset, exit code, path) requires a docs update in the
+**same** change set. Before committing a doc change, run the drift detector:
+
+```bash
+bash sandbox/verify-docs.sh
+```
+
+It must pass (`EXIT: 0`). The CI `docs-consistency` job runs this exact script,
+so a green local run is the gate. Rules:
+
+- **Fix the doc, not the check.** A doc statement contradicted by source is a doc bug.
+- **No phantom surfaces.** Never document a command/endpoint/key that has no code path.
+- **Cite code.** Prefer linking to `file:line` over restating values (versions, timeouts, counts).
+- **Historical docs** belong in `sandbox/historical-docs.txt` so live-doc checks skip them.
+
 ---
 
 ## 5. Mandatory Architectural Principles

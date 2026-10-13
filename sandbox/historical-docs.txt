@@ -1,0 +1,15 @@
+# historical-docs.txt — files exempt from "live doc" checks.
+#
+# Paths listed here are P2/archived: they describe past states of the project
+# (the Python engine, migration specs, Python-era audits). sandbox/verify-docs.sh
+# relaxes the stale-token denylist and index-completeness rules for them.
+#
+# Format: one repo-relative path per line. '#' starts a comment. Blank lines ok.
+# Add a file here only when it is deliberately historical — never to silence a
+# real drift in a live guide.
+
+docs/legacy-python.md
+docs/migrasi_to_golang.md
+docs/audit_report.md
+docs/audit_commands.md
+CHANGELOG.md
