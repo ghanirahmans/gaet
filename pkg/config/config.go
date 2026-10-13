@@ -171,6 +171,10 @@ func RunSet(vars []string, showList bool) error {
 			}
 			lines = append(lines, orig)
 		}
+		if err := scanner.Err(); err != nil {
+			f.Close()
+			return err
+		}
 		f.Close()
 	}
 
