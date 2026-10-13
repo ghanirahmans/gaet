@@ -78,6 +78,25 @@ func DisableAuto(prefix string) error {
 	}
 }
 
+// RemoveFiles deletes scheduler definition files that survive DisableAuto.
+// systemd's `disable` only masks/stops a unit; the .service/.timer files in
+// ~/.config/systemd/user are left on disk, so remove them explicitly. launchd
+// and Task Scheduler entries are removed by their respective disable functions.
+func RemoveFiles(prefix string) {
+	if runtime.GOOS != "linux" {
+		return
+	}
+	unitDir := filepath.Join(mustHomeDir(), ".config", "systemd", "user")
+	for _, f := range []string{
+		prefix + "-backup.service",
+		prefix + "-backup.timer",
+		prefix + "-serve.service",
+	} {
+		_ = os.Remove(filepath.Join(unitDir, f))
+	}
+	core.RunCmdSimple("systemctl", []string{"--user", "daemon-reload"}, nil, 10e9)
+}
+
 // IsActive returns true if the auto-backup scheduler is active.
 func IsActive(prefix string) bool {
 	switch runtime.GOOS {

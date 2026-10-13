@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -410,6 +411,25 @@ func runUninstall(args []string) error {
 
 	core.BoxTitle("gaet uninstall")
 
+	// A system-wide / package-manager install must be removed by the package
+	// manager, not by this command (which only owns the user-local launcher
+	// dir). Otherwise "gaet uninstall" would report success while the packaged
+	// binary and PATH entry remain.
+	if exe, err := os.Executable(); err == nil && core.IsManagedInstall(exe) {
+		core.StatusWarn(fmt.Sprintf("gaet was installed system-wide (%s), likely by a package manager.", exe))
+		core.Echo("  Remove it with your package manager (not 'gaet uninstall'):")
+		core.Echo("    Debian/Ubuntu : sudo apt remove gaet")
+		core.Echo("    Fedora/RHEL   : sudo dnf remove gaet")
+		core.Echo("    Arch          : sudo pacman -R gaet")
+		core.Echo("    Alpine        : sudo apk del gaet")
+		core.Echo("    macOS .pkg    : sudo rm /usr/local/bin/gaet /usr/local/share/man/man1/gaet.1")
+		core.Echo("                    sudo pkgutil --forget com.ghanirahmans.gaet")
+		core.Echo("    Windows .msi  : uninstall 'gaet' from Settings > Apps")
+		core.Echo("  To remove user data & snapshots as well: rm -rf ~/.gaet")
+		core.PrintDocsFooter()
+		return nil
+	}
+
 	if !yes {
 		if !core.IsStdinTTY() {
 			return core.Die("gaet uninstall in non-interactive mode requires --yes flag", core.ExitConfig)
@@ -450,28 +470,36 @@ func runUninstall(args []string) error {
 		}
 	}
 
-	// Stop scheduler
+	// Stop scheduler (backup + serve) and remove any leftover unit files.
 	env, _ := core.LoadEnv(core.EnvFile())
 	prefix := core.GetEnvStr(env, "GAET_SERVICE_PREFIX", core.DefServicePrefix)
 	_ = scheduler.DisableAuto(prefix)
+	scheduler.RemoveFiles(prefix)
 
-	// Remove binary
-	home, _ := os.UserHomeDir()
+	// Remove the binary from the user-local launcher dir (~/.local/bin).
+	launcher := core.LauncherDir()
 	for _, name := range []string{"gaet", "gaet.cmd", "gaet.bat", "gaet.exe"} {
-		p := fmt.Sprintf("%s/.local/bin/%s", home, name)
+		p := filepath.Join(launcher, name)
 		if err := os.Remove(p); err == nil {
 			core.StatusOK(fmt.Sprintf("Removed binary: %s", p))
 		}
 	}
+	if runtime.GOOS == "windows" {
+		// Windows locks the running executable; if we are it, defer the delete.
+		if exePath, err := os.Executable(); err == nil && filepath.Dir(exePath) == launcher {
+			scheduleSelfDelete(exePath)
+			core.StatusOK(fmt.Sprintf("Scheduled removal of %s (after this process exits)", exePath))
+		}
+	}
 
-	// Remove app bundle
+	// Remove the legacy app bundle (if any).
 	appDir := core.GaetAppDir()
 	if _, err := os.Stat(appDir); err == nil {
 		os.RemoveAll(appDir)
 		core.StatusOK(fmt.Sprintf("Removed app bundle: %s", appDir))
 	}
 
-	// Remove user data unless --save is specified
+	// Remove user data & backups unless --save is specified.
 	gaetDir := core.GaetDir()
 	if !save {
 		if _, err := os.Stat(gaetDir); err == nil {
@@ -480,6 +508,11 @@ func runUninstall(args []string) error {
 		}
 	} else {
 		core.StatusOK(fmt.Sprintf("Preserved user data & backups: %s", gaetDir))
+	}
+
+	// Windows: drop the User PATH entry that install.ps1 added.
+	if runtime.GOOS == "windows" && removeUserPathEntry(launcher) {
+		core.StatusOK(fmt.Sprintf("Removed %s from your user PATH", launcher))
 	}
 
 	fmt.Println()
