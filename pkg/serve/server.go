@@ -71,48 +71,9 @@ func RunServe(ctx context.Context, opts ServeOptions) error {
 		}()
 	}
 
-	mux := http.NewServeMux()
-
-	// -- REST API Router --------------------------------------------------
-	mux.HandleFunc("/api/status", handleStatus)
-	mux.HandleFunc("/api/check", handleCheck)
-	mux.HandleFunc("/api/doctor", handleDoctor)
-	mux.HandleFunc("/api/diff", handleDiff)
-	mux.HandleFunc("/api/local/test", handleLocalTest)
-	mux.HandleFunc("/api/remote/test", handleRemoteTest)
-	mux.HandleFunc("/api/export", handleExport)
-	mux.HandleFunc("/api/detect", handleDetect)
-	mux.HandleFunc("/api/snapshots", handleSnapshots)
-	mux.HandleFunc("/api/snapshots/download", handleSnapshotDownload)
-	mux.HandleFunc("/api/snapshots/delete", handleSnapshotDelete)
-	mux.HandleFunc("/api/logs", handleLogs)
-	mux.HandleFunc("/api/config", handleConfig)
-	mux.HandleFunc("/api/push", handlePush)
-	mux.HandleFunc("/api/fetch", handleFetch)
-	mux.HandleFunc("/api/restore", handleRestore)
-	mux.HandleFunc("/api/schedule", handleSchedule)
-	mux.HandleFunc("/api/stop", handleStop)
-	mux.HandleFunc("/api/jobs", handleJobs)
-
-	// -- Static Assets (Embedded) -----------------------------------------
-	staticFS, err := fs.Sub(embeddedAssets, "static")
-	if err == nil {
-		fileServer := http.FileServer(http.FS(staticFS))
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasPrefix(r.URL.Path, "/api/") {
-				http.NotFound(w, r)
-				return
-			}
-			fileServer.ServeHTTP(w, r)
-		})
-	} else {
-		// Fallback to disk if embedded FS fails
-		mux.Handle("/", http.FileServer(http.Dir(filepath.Join(core.GaetAppDir(), "dashboard", "static"))))
-	}
-
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      corsMiddleware(mux),
+		Handler:      corsMiddleware(Handler()),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 0,   // long backup/restore ops (up to GAET_TIMEOUT) must not be cut off
 		IdleTimeout:  120 * time.Second,
@@ -145,6 +106,62 @@ func corsMiddleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// Handler returns the HTTP handler for the gaet dashboard and REST API.
+// It wires up all /api/* routes and serves embedded static assets for the
+// dashboard. The returned handler does NOT include CORS middleware; wrap it
+// with corsMiddleware() if needed (RunServe does so internally).
+//
+// Route registration order matters for go 1.21's ServeMux prefix matching:
+// /api/snapshots/download and /api/snapshots/delete are registered before the
+// catch-all "/" so they resolve correctly instead of falling through to the
+// static file server.
+func Handler() http.Handler {
+	mux := http.NewServeMux()
+
+	// -- REST API Router --------------------------------------------------
+	mux.HandleFunc("/api/status", handleStatus)
+	mux.HandleFunc("/api/check", handleCheck)
+	mux.HandleFunc("/api/doctor", handleDoctor)
+	mux.HandleFunc("/api/diff", handleDiff)
+	mux.HandleFunc("/api/local/test", handleLocalTest)
+	mux.HandleFunc("/api/remote/test", handleRemoteTest)
+	mux.HandleFunc("/api/export", handleExport)
+	mux.HandleFunc("/api/detect", handleDetect)
+	mux.HandleFunc("/api/snapshots", handleSnapshots)
+	mux.HandleFunc("/api/snapshots/download", handleSnapshotDownload)
+	mux.HandleFunc("/api/snapshots/delete", handleSnapshotDelete)
+	mux.HandleFunc("/api/logs", handleLogs)
+	mux.HandleFunc("/api/config", handleConfig)
+	mux.HandleFunc("/api/push", handlePush)
+	mux.HandleFunc("/api/fetch", handleFetch)
+	mux.HandleFunc("/api/restore", handleRestore)
+	mux.HandleFunc("/api/schedule", handleSchedule)
+	mux.HandleFunc("/api/stop", handleStop)
+	// /api/jobs matches exactly (list); /api/jobs/ subtree catches /api/jobs/{id}.
+	// go.mod is 1.21 so ServeMux has no {id} wildcards — handleJobs parses the
+	// trailing ID via strings.TrimPrefix on r.URL.Path.
+	mux.HandleFunc("/api/jobs", handleJobs)
+	mux.HandleFunc("/api/jobs/", handleJobs)
+
+	// -- Static Assets (Embedded) -----------------------------------------
+	staticFS, err := fs.Sub(embeddedAssets, "static")
+	if err == nil {
+		fileServer := http.FileServer(http.FS(staticFS))
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasPrefix(r.URL.Path, "/api/") {
+				http.NotFound(w, r)
+				return
+			}
+			fileServer.ServeHTTP(w, r)
+		})
+	} else {
+		// Fallback to disk if embedded FS fails
+		mux.Handle("/", http.FileServer(http.Dir(filepath.Join(core.GaetAppDir(), "dashboard", "static"))))
+	}
+
+	return mux
 }
 
 // -- Handler Implementations ----------------------------------------------

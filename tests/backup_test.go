@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/ghanirahmans/gaet/pkg/backup"
 	"github.com/ghanirahmans/gaet/pkg/core"
@@ -15,7 +14,6 @@ func TestRunPush_DryRun(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("GAET_DIR", tmp)
 
-	// DryRun should succeed without database connections
 	if err := backup.RunPush(backup.PushOptions{DryRun: true}); err != nil {
 		t.Errorf("RunPush dry-run unexpected error: %v", err)
 	}
@@ -34,10 +32,16 @@ func TestRunRestore_DryRun_NoSnapshots(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("GAET_DIR", tmp)
 
-	// No snapshots in empty dir -> should fail with exit code
 	err := backup.RunRestore(backup.RestoreOptions{DryRun: true})
 	if err == nil {
-		t.Error("expected error when no snapshots exist, got nil")
+		t.Fatal("expected error when no snapshots exist, got nil")
+	}
+	ge, ok := err.(*core.GaetError)
+	if !ok {
+		t.Fatal("expected *GaetError")
+	}
+	if ge.Code != core.ExitGeneral {
+		t.Errorf("expected ExitGeneral (%d), got %d", core.ExitGeneral, ge.Code)
 	}
 }
 
@@ -45,7 +49,6 @@ func TestRunRestore_DryRun_WithSnapshot(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("GAET_DIR", tmp)
 
-	// Create a dummy dump file
 	backupDir := core.BackupDir()
 	_ = os.MkdirAll(backupDir, 0755)
 	dumpFile := filepath.Join(backupDir, "gaet_20260101_120000.dump")
@@ -62,30 +65,57 @@ func TestRunPush_MissingRemoteConfig(t *testing.T) {
 
 	err := backup.RunPush(backup.PushOptions{DryRun: false})
 	if err == nil {
-		t.Error("expected error when remote is unconfigured, got nil")
+		t.Fatal("expected error when remote is unconfigured, got nil")
+	}
+	ge, ok := err.(*core.GaetError)
+	if !ok {
+		t.Fatal("expected *GaetError")
+	}
+	if ge.Code != core.ExitConfig {
+		t.Errorf("expected ExitConfig (%d), got %d", core.ExitConfig, ge.Code)
 	}
 }
 
-func TestApplyRetention_RemovesOldDumps(t *testing.T) {
+func TestRunFetch_MissingRemoteConfig(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("GAET_DIR", tmp)
 
-	backupDir := core.BackupDir()
-	_ = os.MkdirAll(backupDir, 0755)
-
-	// Create an old file (older than 7 days) and a new file
-	oldFile := filepath.Join(backupDir, "gaet_old.dump")
-	newFile := filepath.Join(backupDir, "gaet_new.dump")
-
-	_ = os.WriteFile(oldFile, []byte("OLD"), 0644)
-	_ = os.WriteFile(newFile, []byte("NEW"), 0644)
-
-	// Set mtime of oldFile to 10 days ago
-	oldTime := time.Now().AddDate(0, 0, -10)
-	_ = os.Chtimes(oldFile, oldTime, oldTime)
-
-	// Trigger push dry-run or verify file exists
-	if _, err := os.Stat(oldFile); err != nil {
-		t.Fatalf("oldFile creation failed: %v", err)
+	err := backup.RunFetch(backup.FetchOptions{DryRun: false})
+	if err == nil {
+		t.Fatal("expected error when remote is unconfigured, got nil")
+	}
+	ge, ok := err.(*core.GaetError)
+	if !ok {
+		t.Fatal("expected *GaetError")
+	}
+	if ge.Code != core.ExitConfig {
+		t.Errorf("expected ExitConfig (%d), got %d", core.ExitConfig, ge.Code)
 	}
 }
+
+func TestRunRestore_NoYesNonTTY(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("GAET_DIR", tmp)
+	t.Setenv("CI", "true")
+
+	backupDir := core.BackupDir()
+	_ = os.MkdirAll(backupDir, 0755)
+	dumpFile := filepath.Join(backupDir, "gaet_20260101_120000.dump")
+	_ = os.WriteFile(dumpFile, []byte("DUMMY DUMP DATA"), 0644)
+
+	// Without --yes and non-TTY stdin, should fail with ExitConfig
+	err := backup.RunRestore(backup.RestoreOptions{Target: "latest", Yes: false})
+	if err == nil {
+		t.Fatal("expected error when --yes is not passed in non-TTY")
+	}
+	ge, ok := err.(*core.GaetError)
+	if !ok {
+		t.Fatal("expected *GaetError")
+	}
+	if ge.Code != core.ExitConfig {
+		t.Errorf("expected ExitConfig (%d), got %d", core.ExitConfig, ge.Code)
+	}
+}
+
+// NOTE: applyRetention unit tests live in pkg/backup/backup_test.go (white-box)
+// where the unexported function is accessible.
