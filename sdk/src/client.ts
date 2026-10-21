@@ -109,6 +109,11 @@ export class GaetClient {
         env: spawnEnv as Record<string, string>,
       });
 
+      const spawnErrors: Error[] = [];
+      this.spawnedProcess.on('error', (err: Error) => {
+        spawnErrors.push(err);
+      });
+
       // Poll until server responds or 10s timeout
       const startTime = Date.now();
       while (Date.now() - startTime < 10000) {
@@ -119,6 +124,10 @@ export class GaetClient {
         } catch {
           // continue polling
         }
+      }
+
+      if (spawnErrors.length > 0) {
+        throw new Error(`Gaet binary not found or failed to spawn: ${spawnErrors[0].message}. Ensure the 'gaet' binary is installed and in your PATH.`);
       }
 
       throw new Error(`Failed to verify Gaet serve daemon startup on port ${port} after 10s.`);
@@ -174,7 +183,7 @@ export class GaetClient {
   async restore(snapshotName?: string): Promise<GaetFetchResponse> {
     return this.request<GaetFetchResponse>('/api/restore', {
       method: 'POST',
-      body: JSON.stringify({ snapshot: snapshotName }),
+      body: JSON.stringify({ filename: snapshotName }),
     });
   }
 
@@ -191,8 +200,8 @@ export class GaetClient {
    */
   async deleteSnapshot(snapshotName: string): Promise<{ ok: boolean; msg: string }> {
     return this.request<{ ok: boolean; msg: string }>('/api/snapshots/delete', {
-      method: 'DELETE',
-      body: JSON.stringify({ name: snapshotName }),
+      method: 'POST',
+      body: JSON.stringify({ filename: snapshotName }),
     });
   }
 
@@ -255,8 +264,8 @@ export class GaetClient {
   /**
    * Read current environment configuration variables from ~/.gaet/.env.
    */
-  async getConfig(): Promise<Record<string, string>> {
-    return this.request<Record<string, string>>('/api/config');
+  async getConfig(): Promise<{ config: Record<string, string>; masked_config: Record<string, string>; env_file: string }> {
+    return this.request<{ config: Record<string, string>; masked_config: Record<string, string>; env_file: string }>('/api/config');
   }
 
   /**
@@ -265,7 +274,7 @@ export class GaetClient {
   async setConfig(config: Record<string, string>): Promise<{ ok: boolean; msg: string }> {
     return this.request<{ ok: boolean; msg: string }>('/api/config', {
       method: 'POST',
-      body: JSON.stringify(config),
+      body: JSON.stringify({ config }),
     });
   }
 }

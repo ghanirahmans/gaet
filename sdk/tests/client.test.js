@@ -76,10 +76,22 @@ test('doctor, detect, testRemote, export, getConfig, setConfig endpoints', async
       return { ok: true, status: 200, json: async () => ({ ok: true, env_vars: 'export FOO="bar"' }) };
     }
     if (url.endsWith('/api/config') && (!options || options.method === undefined || options.method === 'GET')) {
-      return { ok: true, status: 200, json: async () => ({ GAET_LOCAL_DB_HOST: '127.0.0.1' }) };
+      return { ok: true, status: 200, json: async () => ({ config: { GAET_LOCAL_DB_HOST: '127.0.0.1' }, masked_config: { GAET_LOCAL_DB_HOST: '127.0.0.1' }, env_file: '/home/user/.gaet/.env' }) };
     }
     if (url.endsWith('/api/config') && options.method === 'POST') {
       return { ok: true, status: 200, json: async () => ({ ok: true, msg: 'Saved' }) };
+    }
+    if (url.endsWith('/api/restore') && options.method === 'POST') {
+      const body = JSON.parse(options.body);
+      // Server checks for body["filename"], not body["snapshot"]
+      const filename = body.filename || 'latest';
+      return { ok: true, status: 200, json: async () => ({ ok: true, msg: `Restored from '${filename}' successfully!` }) };
+    }
+    if (url.endsWith('/api/snapshots/delete') && options.method === 'POST') {
+      return { ok: true, status: 200, json: async () => ({ ok: true, msg: 'Snapshot deleted' }) };
+    }
+    if (url.endsWith('/api/push') && options.method === 'POST') {
+      return { ok: true, status: 200, json: async () => ({ ok: true, msg: 'Cloud push completed successfully!', snapshot: 'gaet_20260101_120000.dump' }) };
     }
     throw new Error('Unknown endpoint: ' + url);
   };
@@ -99,8 +111,89 @@ test('doctor, detect, testRemote, export, getConfig, setConfig endpoints', async
   assert.equal(exp.ok, true);
 
   const cfg = await client.getConfig();
-  assert.equal(cfg.GAET_LOCAL_DB_HOST, '127.0.0.1');
+  assert.equal(cfg.config.GAET_LOCAL_DB_HOST, '127.0.0.1');
 
   const setCfg = await client.setConfig({ GAET_LOCAL_DB_HOST: '127.0.0.1' });
   assert.equal(setCfg.ok, true);
+});
+
+test('restore() sends filename key (not snapshot)', async () => {
+  let capturedBody;
+  const mockFetch = async (url, options) => {
+    if (url.endsWith('/api/restore') && options.method === 'POST') {
+      capturedBody = JSON.parse(options.body);
+      return { ok: true, status: 200, json: async () => ({ ok: true, msg: 'Restored from latest successfully!' }) };
+    }
+    throw new Error('Unexpected endpoint: ' + url);
+  };
+
+  const client = new GaetClient({ fetch: mockFetch });
+  await client.restore('gaet_20260101_120000');
+
+  assert.equal(capturedBody.filename, 'gaet_20260101_120000', 'restore should send "filename" key, not "snapshot"');
+  assert.equal(capturedBody.snapshot, undefined, 'restore should NOT send "snapshot" key');
+});
+
+test('restore() with no arg sends filename="undefined"', async () => {
+  let capturedBody;
+  const mockFetch = async (url, options) => {
+    if (url.endsWith('/api/restore') && options.method === 'POST') {
+      capturedBody = JSON.parse(options.body);
+      return { ok: true, status: 200, json: async () => ({ ok: true, msg: 'Restored successfully!' }) };
+    }
+    throw new Error('Unexpected endpoint: ' + url);
+  };
+
+  const client = new GaetClient({ fetch: mockFetch });
+  await client.restore();
+
+  // When snapshotName is undefined, JSON.stringify({ filename: undefined }) = {}
+  // So the server falls back to "latest"
+  assert.equal(capturedBody.filename, undefined, 'filename should be undefined when no arg');
+});
+
+test('deleteSnapshot() uses POST method', async () => {
+  let capturedMethod;
+  const mockFetch = async (url, options) => {
+    if (url.endsWith('/api/snapshots/delete')) {
+      capturedMethod = options.method;
+      return { ok: true, status: 200, json: async () => ({ ok: true, msg: 'Snapshot deleted' }) };
+    }
+    throw new Error('Unexpected endpoint: ' + url);
+  };
+
+  const client = new GaetClient({ fetch: mockFetch });
+  await client.deleteSnapshot('gaet_20260101_120000.dump');
+
+  assert.equal(capturedMethod, 'POST', 'deleteSnapshot should use POST, not DELETE (server requires POST)');
+});
+
+test('setConfig() wraps config in { config: ... } body', async () => {
+  let capturedBody;
+  const mockFetch = async (url, options) => {
+    if (url.endsWith('/api/config') && options.method === 'POST') {
+      capturedBody = JSON.parse(options.body);
+      return { ok: true, status: 200, json: async () => ({ ok: true, msg: 'Saved' }) };
+    }
+    throw new Error('Unexpected endpoint: ' + url);
+  };
+
+  const client = new GaetClient({ fetch: mockFetch });
+  await client.setConfig({ GAET_LOCAL_DB_HOST: '127.0.0.1' });
+
+  assert.equal(capturedBody.config.GAET_LOCAL_DB_HOST, '127.0.0.1', 'setConfig should wrap config in { config: ... }');
+});
+
+test('push() returns snapshot field in response', async () => {
+  const mockFetch = async (url, options) => {
+    if (url.endsWith('/api/push') && options.method === 'POST') {
+      return { ok: true, status: 200, json: async () => ({ ok: true, msg: 'Cloud push completed successfully!', snapshot: 'gaet_20260101_120000.dump' }) };
+    }
+    throw new Error('Unexpected endpoint: ' + url);
+  };
+
+  const client = new GaetClient({ fetch: mockFetch });
+  const res = await client.push();
+
+  assert.equal(res.snapshot, 'gaet_20260101_120000.dump', 'push response should include snapshot filename');
 });

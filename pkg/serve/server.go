@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -960,7 +961,20 @@ func handlePush(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, http.StatusOK, map[string]any{"ok": false, "msg": fmt.Sprintf("Push failed: %v", err)})
 		return
 	}
-	sendJSON(w, http.StatusOK, map[string]any{"ok": true, "msg": "Cloud push completed successfully!"})
+
+	// Find the most recent snapshot file to include in the response
+	snapshot := ""
+	if backups, _ := filepath.Glob(filepath.Join(core.BackupDir(), "gaet_*.dump")); len(backups) > 0 {
+		sort.Slice(backups, func(i, j int) bool {
+			return backups[i] > backups[j]
+		})
+		snapshot = backups[0]
+	}
+	sendJSON(w, http.StatusOK, map[string]any{
+		"ok":       true,
+		"msg":      "Cloud push completed successfully!",
+		"snapshot": snapshot,
+	})
 }
 
 func handleFetch(w http.ResponseWriter, r *http.Request) {
