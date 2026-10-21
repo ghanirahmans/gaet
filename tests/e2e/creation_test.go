@@ -123,10 +123,10 @@ func TestE2E_Push_EmptyDB(t *testing.T) {
 func TestE2E_Push_DBDoesNotExist(t *testing.T) {
 	ensureDBAvailable(t)
 	gaetDir := t.TempDir()
-	writeEnvFile(t, gaetDir, baseEnvContent(
-		"postgresql://gaet@127.0.0.1:5434/gaet_nonexistent_db",
-		testRemoteURL,
-	))
+  writeEnvFile(t, gaetDir, baseEnvContent(
+    dsnWithDB(testLocalURL, "gaet_nonexistent_db"),
+    testRemoteURL,
+  ))
 
 	_, _, code := runGaet(t, gaetDir, nil, "push", "--yes")
 	if code != core.ExitLocalDown {

@@ -106,6 +106,27 @@ func baseEnvContent(localURL, remoteURL string) string {
 	return fmt.Sprintf("# gaet test config\nGAET_LOCAL_URL=%s\nGAET_REMOTE_URL=%s\nGAET_RETENTION_DAYS=7\n", localURL, remoteURL)
 }
 
+// dsnWithDB builds a DSN using the same connection params as src but with a
+// different database name. Useful for testing nonexistent DB scenarios.
+func dsnWithDB(src, db string) string {
+	parsed, err := core.ParseRemoteURL(src)
+	if err != nil {
+		return src
+	}
+	pass := parsed.Password
+	prefix := "postgresql://"
+	if pass != "" {
+		prefix += fmt.Sprintf("%s:%s@", parsed.User, pass)
+	} else {
+		prefix += fmt.Sprintf("%s@", parsed.User)
+	}
+	ssl := "sslmode=disable"
+	if strings.Contains(src, "sslmode=require") {
+		ssl = "sslmode=require"
+	}
+	return fmt.Sprintf("%s%s:%s/%s?%s", prefix, parsed.Host, parsed.Port, db, ssl)
+}
+
 // --- DB helpers (using psql CLI for zero-dependency) ---
 
 // psqlConnArgs returns psql connection arguments for a DSN.

@@ -70,7 +70,7 @@ jobs:
         env:
           POSTGRES_USER: gaet
           POSTGRES_PASSWORD: gaet
-          POSTGRES_DB: localdb
+          POSTGRES_DB: postgres
         ports:
           - 5432:5432
         options: >-
@@ -98,9 +98,14 @@ jobs:
       - name: Install PostgreSQL client tools
         run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
 
+      - name: Create test databases
+        run: |
+          PGPASSWORD=gaet psql -h localhost -p 5432 -U gaet -d postgres -c "CREATE DATABASE localdb;" || true
+          PGPASSWORD=gaet psql -h localhost -p 5432 -U gaet -d postgres -c "CREATE DATABASE remotedb;" || true
+
       - name: Run E2E Test Suite
         env:
           E2E_LOCAL_URL: postgres://gaet@localhost:5432/localdb?sslmode=disable
-          E2E_REMOTE_URL: postgres://gaet@localhost:5432/localdb?sslmode=disable
+          E2E_REMOTE_URL: postgres://gaet@localhost:5432/remotedb?sslmode=disable
           CGO_ENABLED: 0
-        run: go test -v -count=1 -tags e2e ./tests/e2e/...
+        run: go test -v -count=1 -timeout 300s -tags e2e ./tests/e2e/...
