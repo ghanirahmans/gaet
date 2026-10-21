@@ -50,7 +50,8 @@ func TestE2E_Init_Preset(t *testing.T) {
 func TestE2E_Init_NonInteractive_PreservesConfig(t *testing.T) {
 	gaetDir := t.TempDir()
 	existingURL := "postgresql://myuser@127.0.0.1:5432/mydb"
-	writeEnvFile(t, gaetDir, baseEnvContent(existingURL, testRemoteURL))
+	dummyRemote := "postgresql://remuser@127.0.0.1:5432/remdb"
+	writeEnvFile(t, gaetDir, baseEnvContent(existingURL, dummyRemote))
 
 	_, _, code := runGaet(t, gaetDir, nil, "init", "-y")
 	if code != 0 {

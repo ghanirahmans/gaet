@@ -81,7 +81,9 @@ func TestE2E_Restore_PartialMatch(t *testing.T) {
 // E3: restore <nonexistent> → ExitGeneral
 func TestE2E_Restore_Nonexistent(t *testing.T) {
 	gaetDir := t.TempDir()
-	writeEnvFile(t, gaetDir, baseEnvContent(testLocalURL, testRemoteURL))
+	dummyLocal := "postgresql://user@127.0.0.1:5432/localdb"
+	dummyRemote := "postgresql://user@127.0.0.1:5432/remotedb"
+	writeEnvFile(t, gaetDir, baseEnvContent(dummyLocal, dummyRemote))
 	backupDir := filepath.Join(gaetDir, "backups")
 	_ = os.MkdirAll(backupDir, 0755)
 
@@ -172,7 +174,9 @@ func TestE2E_Restore_SafetySnapshot(t *testing.T) {
 // E6: No snapshots at all → ExitGeneral
 func TestE2E_Restore_NoSnapshots(t *testing.T) {
 	gaetDir := t.TempDir()
-	writeEnvFile(t, gaetDir, baseEnvContent(testLocalURL, testRemoteURL))
+	dummyLocal := "postgresql://user@127.0.0.1:5432/localdb"
+	dummyRemote := "postgresql://user@127.0.0.1:5432/remotedb"
+	writeEnvFile(t, gaetDir, baseEnvContent(dummyLocal, dummyRemote))
 	backupDir := filepath.Join(gaetDir, "backups")
 	_ = os.MkdirAll(backupDir, 0755)
 
@@ -214,7 +218,9 @@ func TestE2E_Restore_PicksNewestMtime(t *testing.T) {
 // E8: restore without --yes non-TTY → ExitConfig
 func TestE2E_Restore_NoYesNonTTY(t *testing.T) {
 	gaetDir := t.TempDir()
-	writeEnvFile(t, gaetDir, baseEnvContent(testLocalURL, testRemoteURL))
+	dummyLocal := "postgresql://user@127.0.0.1:5432/localdb"
+	dummyRemote := "postgresql://user@127.0.0.1:5432/remotedb"
+	writeEnvFile(t, gaetDir, baseEnvContent(dummyLocal, dummyRemote))
 	backupDir := filepath.Join(gaetDir, "backups")
 	_ = os.MkdirAll(backupDir, 0755)
 	dumpFile := filepath.Join(backupDir, "gaet_20260101_000000.dump")

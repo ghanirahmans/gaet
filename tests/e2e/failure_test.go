@@ -119,10 +119,11 @@ func TestE2E_Failure_RemoteUnreachable(t *testing.T) {
 
 // I6: Local DB unreachable — push fails with ExitLocalDown
 func TestE2E_Failure_LocalDown(t *testing.T) {
-	gaetDir := setupTestEnv(t)
+	gaetDir := t.TempDir()
 
-	unreachableURL := "postgres://user:pass@127.0.0.1:1/local"
-	writeEnvFile(t, gaetDir, baseEnvContent(unreachableURL, testRemoteURL))
+	unreachableLocal := "postgres://user:pass@127.0.0.1:1/local"
+	dummyRemote := "postgres://user:pass@127.0.0.1:2/remote"
+	writeEnvFile(t, gaetDir, baseEnvContent(unreachableLocal, dummyRemote))
 
 	_, _, code := runGaet(t, gaetDir, nil, "push", "--yes")
 	if code != core.ExitLocalDown {
