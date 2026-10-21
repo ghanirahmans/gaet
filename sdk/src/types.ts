@@ -247,3 +247,13 @@ export interface GaetExportResponse {
   ok: boolean;
   env_vars: string;
 }
+
+/**
+ * Configuration response from `GET /api/config`.
+ * Matches: handleConfig GET sendJSON(...) in pkg/serve/server.go.
+ */
+export interface GaetConfigResponse {
+  config: Record<string, string>;
+  masked_config: Record<string, string>;
+  env_file: string;
+}

@@ -1,17 +1,18 @@
 import type {
-  GaetCheckResponse,
-  GaetClientOptions,
-  GaetDetectResponse,
-  GaetDiffResponse,
-  GaetDoctorResponse,
-  GaetExportResponse,
-  GaetFetchResponse,
-  GaetLogsResponse,
-  GaetPushResponse,
-  GaetRemoteTestResponse,
-  GaetSnapshotsResponse,
-  GaetStartServerOptions,
-  GaetStatusResponse,
+   GaetCheckResponse,
+   GaetClientOptions,
+   GaetConfigResponse,
+   GaetDetectResponse,
+   GaetDiffResponse,
+   GaetDoctorResponse,
+   GaetExportResponse,
+   GaetFetchResponse,
+   GaetLogsResponse,
+   GaetPushResponse,
+   GaetRemoteTestResponse,
+   GaetSnapshotsResponse,
+   GaetStartServerOptions,
+   GaetStatusResponse,
 } from './types.js';
 
 /**
@@ -264,8 +265,8 @@ export class GaetClient {
   /**
    * Read current environment configuration variables from ~/.gaet/.env.
    */
-  async getConfig(): Promise<{ config: Record<string, string>; masked_config: Record<string, string>; env_file: string }> {
-    return this.request<{ config: Record<string, string>; masked_config: Record<string, string>; env_file: string }>('/api/config');
+  async getConfig(): Promise<GaetConfigResponse> {
+    return this.request<GaetConfigResponse>('/api/config');
   }
 
   /**

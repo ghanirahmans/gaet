@@ -160,7 +160,7 @@ console.log('PostgreSQL tools ok:', checkResult.checks.tools.ok);
 | `gaet.diff()` | `Promise<GaetDiffResponse>` | Compares table counts between local and remote databases. |
 | `gaet.detect()` | `Promise<GaetDetectResponse>` | Scans local system for active database socket and TCP instances. |
 | `gaet.testRemote()` | `Promise<GaetRemoteTestResponse>` | Tests connectivity to the Cloud Remote database URL. |
-| `gaet.getConfig()` | `Promise<Record<string, string>>` | Reads environment configuration variables from `~/.gaet/.env`. |
+| `gaet.getConfig()` | `Promise<{ config: Record<string, string>; masked_config: Record<string, string>; env_file: string }>` | Reads environment configuration variables from `~/.gaet/.env`. |
 | `gaet.setConfig(config)` | `Promise<{ ok: boolean; msg: string }>` | Saves environment configuration variables to `~/.gaet/.env`. |
 | `gaet.export()` | `Promise<GaetExportResponse>` | Exports configuration as shell environment statements. |
 
@@ -169,11 +169,13 @@ console.log('PostgreSQL tools ok:', checkResult.checks.tools.ok);
 ```typescript
 import type {
   GaetStatusResponse,
+  GaetConfigResponse,
   GaetPushResponse,
   GaetFetchResponse,
   GaetSnapshotsResponse,
   GaetSnapshotItem,
   GaetCheckResponse,
+
   GaetLogsResponse,
   GaetLogEntry,
 } from '@ghanirahmans/gaet';
