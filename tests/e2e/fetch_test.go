@@ -98,7 +98,7 @@ func TestE2E_Fetch_NoYesNonTTY(t *testing.T) {
 // D5: Fetch when remote empty — local emptied
 func TestE2E_Fetch_EmptyRemote(t *testing.T) {
 	ensureDBAvailable(t)
-	resetDBs(t)
+	resetDBsClean(t)
 	seedDB(t, testLocalURL)
 	gaetDir := setupTestEnv(t)
 

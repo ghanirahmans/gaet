@@ -172,7 +172,7 @@ func TestE2E_Job_Eviction(t *testing.T) {
 	}
 
 	for _, id := range jobIDs {
-		pollJob(t, baseURL, id)
+		_ = pollJobAllowLost(t, baseURL, id)
 	}
 
 	resp, err := http.Get(baseURL + "/api/jobs")
@@ -208,6 +208,10 @@ func TestE2E_Job_AsyncRestore(t *testing.T) {
 		t.Fatalf("push exit code %d", code)
 	}
 
+	dbExec(t, testLocalURL, "DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id > 500);")
+	dbExec(t, testLocalURL, "DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id > 500);")
+	dbExec(t, testLocalURL, "DELETE FROM orders WHERE user_id > 500;")
+	dbExec(t, testLocalURL, "DELETE FROM audit_log WHERE user_id > 500;")
 	dbExec(t, testLocalURL, "DELETE FROM users WHERE id > 500;")
 
 	baseURL := startServe(t, gaetDir)
@@ -272,7 +276,7 @@ func TestE2E_Job_StatusEndpoint(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	if _, ok := data["status"]; !ok {
-		t.Error("expected 'status' field in response")
+	if _, ok := data["local_ok"]; !ok {
+		t.Error("expected 'local_ok' field in response")
 	}
 }

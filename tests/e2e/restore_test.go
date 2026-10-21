@@ -66,8 +66,8 @@ func TestE2E_Restore_PartialMatch(t *testing.T) {
 	partial := "gaet_" + parts[1]
 
 	// Mutate local - delete from child tables first to avoid FK violations
-	dbExec(t, testLocalURL, "DELETE FROM order_items WHERE id > 3000;")
-	dbExec(t, testLocalURL, "DELETE FROM payments WHERE id > 2000;")
+	dbExec(t, testLocalURL, "DELETE FROM order_items WHERE order_id > 2000;")
+	dbExec(t, testLocalURL, "DELETE FROM payments WHERE order_id > 2000;")
 	dbExec(t, testLocalURL, "DELETE FROM orders WHERE id > 2000;")
 
 	_, _, code = runGaet(t, gaetDir, nil, "restore", partial, "--yes")
@@ -143,9 +143,12 @@ func TestE2E_Restore_SafetySnapshot(t *testing.T) {
 	}
 
 	// Mutate local - delete from child tables first to avoid FK violations
-	dbExec(t, testLocalURL, "DELETE FROM order_items WHERE id > 3000;")
-	dbExec(t, testLocalURL, "DELETE FROM payments WHERE id > 2000;")
-	dbExec(t, testLocalURL, "DELETE FROM orders WHERE id > 2000;")
+	// order_items and payments reference orders, so delete those for any order
+	// that references a user > 500 OR has id > 2000
+	dbExec(t, testLocalURL, "DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE id > 2000 OR user_id > 500);")
+	dbExec(t, testLocalURL, "DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE id > 2000 OR user_id > 500);")
+	dbExec(t, testLocalURL, "DELETE FROM orders WHERE id > 2000 OR user_id > 500;")
+	dbExec(t, testLocalURL, "DELETE FROM audit_log WHERE order_id > 2000 OR user_id > 500;")
 	dbExec(t, testLocalURL, "DELETE FROM users WHERE id > 500;")
 
 	_, _, code = runGaet(t, gaetDir, nil, "restore", "latest", "--yes")

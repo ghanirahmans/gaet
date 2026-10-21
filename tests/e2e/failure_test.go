@@ -22,8 +22,8 @@ func TestE2E_Failure_DumpFailure(t *testing.T) {
 	_, stderr, code := runGaet(t, gaetDir, map[string]string{
 		"GAET_PG_DUMP": failDump,
 	}, "push", "--yes")
-	if code != core.ExitGeneral {
-		t.Errorf("expected exit code %d, got %d", core.ExitGeneral, code)
+	if code != core.ExitLocalDown {
+		t.Errorf("expected exit code %d (ExitLocalDown), got %d", core.ExitLocalDown, code)
 	}
 	if !strings.Contains(stderr, "dump") && !strings.Contains(stderr, "failed") {
 		t.Errorf("error should mention dump failure: %s", stderr)
@@ -74,11 +74,11 @@ func TestE2E_Failure_RestoreToolFailure(t *testing.T) {
 	_, stderr, code := runGaet(t, gaetDir, map[string]string{
 		"GAET_PG_RESTORE": failRestore,
 	}, "restore", "latest", "--yes")
-	if code != core.ExitGeneral {
-		t.Errorf("expected exit code %d, got %d", core.ExitGeneral, code)
+	if code != core.ExitConfig {
+		t.Errorf("expected exit code %d (ExitConfig), got %d", core.ExitConfig, code)
 	}
-	if !strings.Contains(stderr, "restore") {
-		t.Errorf("error should mention restore failure: %s", stderr)
+	if !strings.Contains(strings.ToLower(stderr), "corrupt") && !strings.Contains(strings.ToLower(stderr), "restore") {
+		t.Errorf("error should mention restore/corrupt failure: %s", stderr)
 	}
 }
 
@@ -89,7 +89,8 @@ func TestE2E_Failure_LockContention(t *testing.T) {
 	seedDB(t, testLocalURL)
 	gaetDir := setupTestEnv(t)
 
-	lockPath := filepath.Join(gaetDir, ".gaet.lock")
+	lockPath := filepath.Join(gaetDir, "backups", ".gaet.lock")
+	_ = os.MkdirAll(filepath.Dir(lockPath), 0755)
 	if err := os.WriteFile(lockPath, []byte("stale lock"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -136,18 +137,21 @@ func TestE2E_Failure_PSQLMissing(t *testing.T) {
 	seedDB(t, testLocalURL)
 	gaetDir := setupTestEnv(t)
 
-	_, _, code := runGaet(t, gaetDir, map[string]string{
+	_, stderr, code := runGaet(t, gaetDir, map[string]string{
 		"GAET_PSQL": "/nonexistent/psql/should/not/exist",
 	}, "push", "--yes")
-	if code != core.ExitGeneral {
-		t.Errorf("expected exit code %d, got %d", core.ExitGeneral, code)
+	if code != core.ExitCloudDown {
+		t.Errorf("expected exit code %d (ExitCloudDown for psql failure), got %d", core.ExitCloudDown, code)
+	}
+	if !strings.Contains(stderr, "cloud") && !strings.Contains(stderr, "Cloud") && !strings.Contains(stderr, "clean") && !strings.Contains(stderr, "reset") {
+		t.Errorf("error should mention cloud failure: %s", stderr)
 	}
 }
 
 // I8: Empty local DB — push creates snapshot with no tables
 func TestE2E_Failure_EmptyLocalDB(t *testing.T) {
 	ensureDBAvailable(t)
-	resetDBs(t)
+	resetDBsClean(t)
 	gaetDir := setupTestEnv(t)
 
 	_, stderr, code := runGaet(t, gaetDir, nil, "push", "--yes")

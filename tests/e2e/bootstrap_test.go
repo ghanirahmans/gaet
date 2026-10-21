@@ -38,8 +38,8 @@ func TestMain(m *testing.M) {
 		if tdb.stopFn != nil {
 			defer tdb.stopFn()
 		}
-		binaryPath = buildBinary()
 	}
+	binaryPath = buildBinary()
 	code := m.Run()
 	os.Exit(code)
 }

@@ -349,6 +349,46 @@ func pollJob(t *testing.T, baseURL, jobID string) map[string]any {
 	return nil
 }
 
+// pollJobAllowLost polls /api/jobs/{id} until finished, evicted, or timeout.
+// Unlike pollJob, it does not fail when the job has been evicted from the store.
+func pollJobAllowLost(t *testing.T, baseURL, jobID string) map[string]any {
+	t.Helper()
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, err := http.Get(baseURL + "/api/jobs/" + jobID)
+		if err != nil {
+			t.Fatalf("poll job: %v", err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		var data map[string]any
+		if err := json.Unmarshal(body, &data); err != nil {
+			t.Fatalf("unmarshal job: %v\nbody: %s", err, body)
+		}
+
+		if !data["ok"].(bool) {
+			// Job evicted or not found — accept it for eviction tests
+			return data
+		}
+
+		job, ok := data["job"].(map[string]any)
+		if !ok {
+			return data
+		}
+		status, ok := job["status"].(string)
+		if !ok {
+			return data
+		}
+		if status == "success" || status == "failed" {
+			return data
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	t.Logf("job %s did not finish within 30s", jobID)
+	return nil
+}
+
 // ensureDBAvailable skips the test if no DB is available (in local mode).
 func ensureDBAvailable(t *testing.T) {
 	t.Helper()

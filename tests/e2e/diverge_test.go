@@ -99,8 +99,8 @@ func TestE2E_Divergence_DoctorRuns(t *testing.T) {
 		t.Fatalf("push exit code %d", code)
 	}
 
-	dbExec(t, testRemoteURL, "DELETE FROM order_items WHERE id > 3000;")
-	dbExec(t, testRemoteURL, "DELETE FROM payments WHERE id > 1500;")
+	dbExec(t, testRemoteURL, "DELETE FROM order_items WHERE order_id > 1500;")
+	dbExec(t, testRemoteURL, "DELETE FROM payments WHERE order_id > 1500;")
 	dbExec(t, testRemoteURL, "DELETE FROM orders WHERE id > 1500;")
 
 	_, _, code = runGaet(t, gaetDir, nil, "doctor", "--json")
